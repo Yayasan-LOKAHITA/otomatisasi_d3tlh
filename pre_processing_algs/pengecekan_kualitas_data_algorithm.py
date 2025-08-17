@@ -38,7 +38,7 @@ from qgis.core import (QgsProcessing,
                        QgsProcessingParameterFeatureSink)
 
 
-class OtomatisasiD3TLHAlgorithm(QgsProcessingAlgorithm):
+class PengecekanKualitasData(QgsProcessingAlgorithm):
     """
     This is an example algorithm that takes a vector layer and
     creates a new identical one.
@@ -153,10 +153,10 @@ class OtomatisasiD3TLHAlgorithm(QgsProcessingAlgorithm):
         contain lowercase alphanumeric characters only and no spaces or other
         formatting characters.
         """
-        return 'Pra Pengolahan'
+        return '01. Pra Pengolahan'
 
     def tr(self, string):
         return QCoreApplication.translate('Processing', string)
 
     def createInstance(self):
-        return OtomatisasiD3TLHAlgorithm()
+        return PengecekanKualitasData()

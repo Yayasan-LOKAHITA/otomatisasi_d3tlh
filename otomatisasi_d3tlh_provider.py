@@ -31,7 +31,12 @@ __copyright__ = '(C) 2025 by Yayasan Lokahita'
 __revision__ = '$Format:%H$'
 
 from qgis.core import QgsProcessingProvider
-from .otomatisasi_d3tlh_algorithm import OtomatisasiD3TLHAlgorithm
+
+from .ijlh_algs.jlh_pengatur_kualitas_udara_algorithm import JLHPengaturKualitasUdara
+
+from .ikp_algs.indeks_kemampuan_pemanfaatan_kehati_algorithm import IndeksKemampuanPemanfaatanKehati
+
+from .pre_processing_algs.pengecekan_kualitas_data_algorithm import PengecekanKualitasData
 
 
 class OtomatisasiD3TLHProvider(QgsProcessingProvider):
@@ -53,7 +58,11 @@ class OtomatisasiD3TLHProvider(QgsProcessingProvider):
         """
         Loads all algorithms belonging to this provider.
         """
-        self.addAlgorithm(OtomatisasiD3TLHAlgorithm())
+        self.addAlgorithm(JLHPengaturKualitasUdara())
+
+        self.addAlgorithm(IndeksKemampuanPemanfaatanKehati())
+        
+        self.addAlgorithm(PengecekanKualitasData())
         # add additional algorithms here
         # self.addAlgorithm(MyOtherAlgorithm())
 
