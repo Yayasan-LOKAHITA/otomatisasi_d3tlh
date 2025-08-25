@@ -41,7 +41,7 @@ import processing
 import os
 
 
-class JLHPengaturKualitasUdara(QgsProcessingAlgorithm):
+class JLHPenyerapanDanPenyimpananKarbon(QgsProcessingAlgorithm):
     """
     This is an example algorithm that takes a vector layer and
     creates a new identical one.
@@ -103,7 +103,7 @@ class JLHPengaturKualitasUdara(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFeatureSink(
                 self.OUTPUT,
-                self.tr('JLH Pengatur Kualitas Udara')
+                self.tr('JLH Penyerapan Dan Penyimpanan Karbon')
             )
         )
 
@@ -119,13 +119,13 @@ class JLHPengaturKualitasUdara(QgsProcessingAlgorithm):
             # Load CSV file containing score values for PL, KBA, and KVA
             match matra.lower():
                 case 'kba':
-                    skor_file_name = "skor_ekoregion_jlh_pengatur_kualitas_udara.csv"
+                    skor_file_name = "skor_ekoregion_jlh_penyerapan_dan_penyimpanan_karbon.csv"
                 case 'kva':
-                    skor_file_name = "skor_vegetasi_jlh_pengatur_kualitas_udara.csv"
+                    skor_file_name = "skor_vegetasi_jlh_penyerapan_dan_penyimpanan_karbon.csv"
                 case 'pl':
-                    skor_file_name = "skor_pl_jlh_pengatur_kualitas_udara.csv"
+                    skor_file_name = "skor_pl_jlh_penyerapan_dan_penyimpanan_karbon.csv"
 
-            csv_path_skor = f"{os.path.dirname(__file__)}/../data/{skor_file_name}"  # Update with the actual path to your CSV file
+            csv_path_skor = f"{os.path.dirname(__file__)}/../../data/jlh_ppk/{skor_file_name}"  # Update with the actual path to your CSV file
             uri_skor = f"file:///{csv_path_skor}?encoding=UTF-8&delimiter=;"
 
             skor = QgsVectorLayer(uri_skor, "csv_internal", "delimitedtext")
@@ -185,13 +185,13 @@ class JLHPengaturKualitasUdara(QgsProcessingAlgorithm):
         source_pl = joinSkorMatra(source_kva, 'pl')
         
         # Calcule Jasling  [BOBOT PERLU DIRUBAH UNTUK JLH LAIN]
-        bobot_ek = 0.08  # Bobot Ekoregion
-        bobot_ve = 0.32  # Bobot Vegetasi
+        bobot_ek = 0.2  # Bobot Ekoregion
+        bobot_ve = 0.2  # Bobot Vegetasi
         bobot_lc = 0.6  # Bobot Penutup Lahan
 
         calculator_params =  {
                 'INPUT': source_pl,
-                'FIELD_NAME': 'JLH_Udara',
+                'FIELD_NAME': 'JLH_Karbon',
                 'FIELD_TYPE': 0,             # 0 = Float
                 'FIELD_LENGTH': 20,
                 'FIELD_PRECISION': 3,
@@ -212,68 +212,75 @@ class JLHPengaturKualitasUdara(QgsProcessingAlgorithm):
 
         source_intersect_grid = processing.run("qgis:intersection", intersection_params)["OUTPUT"]
 
-        # Calculate Area in square meters for every polygon in the intersection layer
+        # Luas poligon hasil overlay
         area_params = {
             'INPUT': source_intersect_grid,
             'FIELD_NAME': 'AREA_POLY_M2',
-            'FIELD_TYPE': 0,  # 0 = Float
+            'FIELD_TYPE': 0,
             'FIELD_LENGTH': 20,
             'FIELD_PRECISION': 3,
             'NEW_FIELD': True,
-            'FORMULA': '$area',  # Calculate area
+            'FORMULA': '$area',
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         }
         source_area_poly = processing.run("qgis:fieldcalculator", area_params)["OUTPUT"]
 
-        # Calculate area in square meters for every polygon in the GRID layer
-        grid_area_params = {
-            'INPUT': grid,
-            'FIELD_NAME': 'AREA_GRID_M2',
-            'FIELD_TYPE': 0,  # 0 = Float
-            'FIELD_LENGTH': 20,
-            'FIELD_PRECISION': 3,
-            'NEW_FIELD': True,
-            'FORMULA': '$area',  # Calculate area
+        # === CHANGED: Hapus perhitungan $area pada layer GRID.
+        # Gantikan dengan summarize AREA_POLY_M2 per ID (di source_intersect_grid).
+        summarize_area_params = {
+            'INPUT': source_area_poly,
+            'CATEGORIES_FIELD_NAME': ['ID'],
+            'VALUES_FIELD_NAME': 'AREA_POLY_M2',
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         }
-        source_area_grid = processing.run("qgis:fieldcalculator", grid_area_params)["OUTPUT"]
+        area_by_id = processing.run("qgis:statisticsbycategories", summarize_area_params)["OUTPUT"]
 
-        # Join AREA_GRID_M2 to the source_area_poly layer
-        join_params = {
+        # Ubah nama field 'sum' menjadi 'AREA_GRID_M2'
+        rename_area_sum_params = {
+            'INPUT': area_by_id,
+            'FIELD': 'sum',
+            'NEW_NAME': 'AREA_GRID_M2',
+            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+        }
+        area_by_id_renamed = processing.run("qgis:renametablefield", rename_area_sum_params)["OUTPUT"]
+
+        # Join AREA_GRID_M2 kembali ke potongan poligon hasil overlay
+        join_area_sum_params = {
             'INPUT': source_area_poly,
             'FIELD': 'ID',
-            'INPUT_2': source_area_grid,
+            'INPUT_2': area_by_id_renamed,
             'FIELD_2': 'ID',
             'FIELDS_TO_COPY': ['AREA_GRID_M2'],
-            'METHOD': 0,  # 0 = Create separate layer
+            'METHOD': 0,
             'DISCARD_NONMATCHING': False,
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         }
-        source_join_area = processing.run("qgis:joinattributestable", join_params)["OUTPUT"]
+        source_join_area = processing.run("qgis:joinattributestable", join_area_sum_params)["OUTPUT"]
+        # === END CHANGED
 
-        # Calculate proporsional JLH_Udara for each polygon based on the area
+        # Calculate proporsional JLH_Karbon for each polygon based on the area
         proporsional_params = {
             'INPUT': source_join_area,
-            'FIELD_NAME': 'JLH_Udara_Proporsional',
+            'FIELD_NAME': 'JLH_Karbon_Proporsional',
             'FIELD_TYPE': 0,  # 0 = Float
             'FIELD_LENGTH': 20,
             'FIELD_PRECISION': 3,
             'NEW_FIELD': True,
-            'FORMULA': '"JLH_Udara" * ("AREA_POLY_M2" / "AREA_GRID_M2")',  # Calculate proportional JLH_Udara
+            'FORMULA': '"JLH_Karbon" * ("AREA_POLY_M2" / "AREA_GRID_M2")',  # Calculate proportional JLH_Karbon
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         }
         source_proporsional = processing.run("qgis:fieldcalculator", proporsional_params)["OUTPUT"]
 
-        # Summarize JLH_Udara_Proporsional by GRID ID
+        # Summarize JLH_Karbon_Proporsional by GRID ID
         summarize_params = {
             'INPUT': source_proporsional,
             'CATEGORIES_FIELD_NAME': ['ID'],
-            'VALUES_FIELD_NAME': 'JLH_Udara_Proporsional',
+            'VALUES_FIELD_NAME': 'JLH_Karbon_Proporsional',
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         }
         source_summarized = processing.run("qgis:statisticsbycategories", summarize_params)["OUTPUT"]
 
-        # Join the summarized JLH_Udara_Proporsional back to the GRID layer
+        # Join the summarized JLH_Karbon_Proporsional back to the GRID layer
         join_summarized_params = {
             'INPUT': grid,
             'FIELD': 'ID',
@@ -286,11 +293,11 @@ class JLHPengaturKualitasUdara(QgsProcessingAlgorithm):
         }
         source_join_summarized = processing.run("qgis:joinattributestable", join_summarized_params)["OUTPUT"]
 
-        # Rename the 'sum' field to 'JLH_Udara'
+        # Rename the 'sum' field to 'JLH_Karbon'
         rename_params = {
             'INPUT': source_join_summarized,          # your summarized layer
             'FIELD': 'sum',          # existing field name
-            'NEW_NAME': 'IJE_Udara',     # new name
+            'NEW_NAME': 'IJE_Karbon',     # new name
             'OUTPUT': 'memory:'
         }
         source = processing.run("qgis:renametablefield", rename_params)["OUTPUT"]
@@ -331,7 +338,7 @@ class JLHPengaturKualitasUdara(QgsProcessingAlgorithm):
         lowercase alphanumeric characters only and no spaces or other
         formatting characters.
         """
-        return 'JLH Pengatur Kualitas Udara'
+        return 'JLH Penyerapan Dan Penyimpanan Karbon'
 
     def displayName(self):
         """
@@ -361,4 +368,4 @@ class JLHPengaturKualitasUdara(QgsProcessingAlgorithm):
         return QCoreApplication.translate('Processing', string)
 
     def createInstance(self):
-        return JLHPengaturKualitasUdara()
+        return JLHPenyerapanDanPenyimpananKarbon()

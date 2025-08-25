@@ -35,7 +35,7 @@ import sys
 import inspect
 
 from qgis.core import QgsProcessingAlgorithm, QgsApplication
-from .otomatisasi_d3tlh_provider import OtomatisasiD3TLHProvider
+from .algorithms.otomatisasi_d3tlh_provider import OtomatisasiD3TLHProvider
 
 cmd_folder = os.path.split(inspect.getfile(inspect.currentframe()))[0]
 

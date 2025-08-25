@@ -33,6 +33,9 @@ __revision__ = '$Format:%H$'
 from qgis.core import QgsProcessingProvider
 
 from .ijlh_algs.jlh_pengatur_kualitas_udara_algorithm import JLHPengaturKualitasUdara
+from .ijlh_algs.jlh_penyedia_air_algorithm import JLHPenyediaAir
+from .ijlh_algs.jlh_penyedia_pangan_algorithm import JLHPenyediaPangan
+from .ijlh_algs.jlh_penyerapan_dan_penyimpanan_karbon_algorithm import JLHPenyerapanDanPenyimpananKarbon
 
 from .ikp_algs.indeks_kemampuan_pemanfaatan_kehati_algorithm import IndeksKemampuanPemanfaatanKehati
 
@@ -59,6 +62,9 @@ class OtomatisasiD3TLHProvider(QgsProcessingProvider):
         Loads all algorithms belonging to this provider.
         """
         self.addAlgorithm(JLHPengaturKualitasUdara())
+        self.addAlgorithm(JLHPenyediaAir())
+        self.addAlgorithm(JLHPenyediaPangan())
+        self.addAlgorithm(JLHPenyerapanDanPenyimpananKarbon())
 
         self.addAlgorithm(IndeksKemampuanPemanfaatanKehati())
         
