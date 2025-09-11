@@ -36,6 +36,8 @@ from .ijlh_algs.jlh_pengatur_kualitas_udara_algorithm import JLHPengaturKualitas
 from .ijlh_algs.jlh_penyedia_air_algorithm import JLHPenyediaAir
 from .ijlh_algs.jlh_penyedia_pangan_algorithm import JLHPenyediaPangan
 from .ijlh_algs.jlh_penyerapan_dan_penyimpanan_karbon_algorithm import JLHPenyerapanDanPenyimpananKarbon
+from .ijlh_algs.jlh_pendukung_habibat_dan_kehati_algorithm import JLHPendukungKehati
+from .ijlh_algs.jlh_pengaturan_air_algorithm import JLHPengaturanAir
 
 from .ikp_algs.indeks_kemampuan_pemanfaatan_kehati_algorithm import IndeksKemampuanPemanfaatanKehati
 
@@ -65,10 +67,11 @@ class OtomatisasiD3TLHProvider(QgsProcessingProvider):
         self.addAlgorithm(JLHPenyediaAir())
         self.addAlgorithm(JLHPenyediaPangan())
         self.addAlgorithm(JLHPenyerapanDanPenyimpananKarbon())
-
+        self.addAlgorithm(JLHPendukungKehati())
         self.addAlgorithm(IndeksKemampuanPemanfaatanKehati())
-        
+        self.addAlgorithm(JLHPengaturanAir())
         self.addAlgorithm(PengecekanKualitasData())
+        
         # add additional algorithms here
         # self.addAlgorithm(MyOtherAlgorithm())
 

@@ -29,30 +29,31 @@ __copyright__ = '(C) 2025 by Yayasan Lokahita'
 # This will get replaced with a git SHA1 when you do a git archive
 __revision__ = '$Format:%H$'
 
-from qgis.PyQt.QtCore import QCoreApplication
+import os
+from qgis.PyQt.QtCore import QCoreApplication, QVariant
 from qgis.core import (
     QgsProcessing,
     QgsFeatureSink,
     QgsProcessingAlgorithm,
+    QgsProcessingException,
+    QgsProcessingParameterEnum,
     QgsProcessingParameterFeatureSource,
     QgsProcessingParameterFeatureSink,
-    QgsVectorLayer,
-    QgsProcessingParameterEnum,
-    QgsProcessingException
+    QgsVectorLayer
 )
 import processing
-import os
-
 
 class JLHPenyediaPangan(QgsProcessingAlgorithm):
     """
-    JLH Penyedia Pangan
+    02. Indeks Jasa Lingkungan Hidup (IJLH) – JLH Penyedia Pangan
     """
 
+    # Parameter keys
     OUTPUT = 'OUTPUT'
     PENUTUP_LAHAN = 'PENUTUP_LAHAN'
     EKOREGION = 'EKOREGION'
     GRID = 'GRID'
+    OUTPUT_TYPE = ['Grid', 'Poligon']
 
     def initAlgorithm(self, config):
         # Dropdown pulau (khusus skor PL)
@@ -60,7 +61,7 @@ class JLHPenyediaPangan(QgsProcessingAlgorithm):
             QgsProcessingParameterEnum(
                 'ISLAND',
                 self.tr('Pulau (khusus skor PL pada JLH penyedia pangan)'),
-                options=['Jawa', 'Sumatera', 'Kalimantan', 'Sulawesi', 'Papua', 'Bali_Nusa', 'Maluku'],
+                options=['Jawa', 'Sumatera', 'Kalimantan', 'Sulawesi', 'Papua', 'Bali–Nusra', 'Maluku'],
                 defaultValue=0
             )
         )
@@ -84,8 +85,29 @@ class JLHPenyediaPangan(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFeatureSource(
                 self.GRID,
-                self.tr('GRID'),
-                [QgsProcessing.TypeVectorAnyGeometry]
+                self.tr('Grid'),
+                [QgsProcessing.TypeVectorAnyGeometry],
+                optional=True
+            )
+        )
+
+        # Opsi Untuk Output ke Versi Grid Atau Tidak
+        self.addParameter(
+            QgsProcessingParameterEnum(
+                'BENTUK_OUTPUT',
+                self.tr('Bentuk Output'),
+                options=self.OUTPUT_TYPE,
+                defaultValue=0
+            )
+        )
+
+        # Opsi Untuk Output ke Versi Grid Atau Tidak
+        self.addParameter(
+            QgsProcessingParameterEnum(
+                'BENTUK_OUTPUT',
+                self.tr('Bentuk Output'),
+                options=self.OUTPUT_TYPE,
+                defaultValue=0
             )
         )
 
@@ -97,23 +119,45 @@ class JLHPenyediaPangan(QgsProcessingAlgorithm):
         )
 
     def processAlgorithm(self, parameters, context, feedback):
-        pl = parameters["PENUTUP_LAHAN"]
-        ekoregion = parameters["EKOREGION"]
-        grid = parameters["GRID"]
+        # Input layers
+        pl = parameters[self.PENUTUP_LAHAN]
+        ekoregion = parameters[self.EKOREGION]
+        grid = parameters[self.GRID]
 
-        # Ambil pilihan pulau dari dropdown
+        # Pulau untuk skor PL
         island_idx = self.parameterAsEnum(parameters, 'ISLAND', context)
-        _islands = ['Jawa', 'Sumatera', 'Kalimantan', 'Sulawesi', 'Papua', 'Bali_Nusa', 'Maluku']
+        _islands = ['Jawa', 'Sumatera', 'Kalimantan', 'Sulawesi', 'Papua', 'Bali–Nusra', 'Maluku']
         island = _islands[island_idx]
 
+        # Bentuk output
+        output_type = self.parameterAsEnum(parameters, self.OUTPUT_TYPE, context)  # 0=Grid, 1=Polygon
+
+        # ==== Lokasi CSV: dari ROOT plugin (…/otomatisasi_d3tlh/data/jlh_pp) ====
+        this_file   = os.path.abspath(__file__)
+        plugin_root = os.path.dirname(os.path.dirname(os.path.dirname(this_file)))
+        data_root   = os.path.join(plugin_root, "data", "jlh_pp")
+
+        # Helper: load CSV sebagai QgsVectorLayer delimitedtext (coba ; lalu ,)
+        def load_csv_table(csv_abs_path: str, name: str) -> QgsVectorLayer:
+            csv_abs_path = os.path.normpath(csv_abs_path)
+            for delim in (';', ','):
+                uri = f"file:///{csv_abs_path}?encoding=UTF-8&delimiter={delim}&geomType=none"
+                lyr = QgsVectorLayer(uri, name, "delimitedtext")
+                if lyr.isValid():
+                    return lyr
+            raise QgsProcessingException(self.tr(f'CSV tidak valid atau tidak ditemukan: {csv_abs_path}'))
+
+        # Helper: join skor per-matra dari CSV ke layer 'source'
         def joinSkorMatra(source, matra):
             mat = matra.lower()
-
-            # Tentukan nama file skor sesuai matra
             if mat == 'kba':
-                skor_file_name = "skor_ekoregion_jlh_penyedia_pangan.csv"
+                # JOIN: KBA_250 (layer) -> EKOREGION (CSV)
+                skor_file_name = 'skor_ekoregion_jlh_penyedia_pangan.csv'
+                left_field, right_field = 'KBA_250', 'EKOREGION'
             elif mat == 'kva':
-                skor_file_name = "skor_vegetasi_jlh_penyedia_pangan.csv"
+                # JOIN: KVA_250 (layer) -> VEGETASI (CSV)
+                skor_file_name = 'skor_vegetasi_jlh_penyedia_pangan.csv'
+                left_field, right_field = 'KVA_250', 'VEGETASI'
             elif mat == 'pl':
                 filename_map = {
                     'Jawa':       'skor_pl_jlh_penyedia_pangan_jawa.csv',
@@ -121,205 +165,220 @@ class JLHPenyediaPangan(QgsProcessingAlgorithm):
                     'Kalimantan': 'skor_pl_jlh_penyedia_pangan_kalimantan.csv',
                     'Sulawesi':   'skor_pl_jlh_penyedia_pangan_sulawesi.csv',
                     'Papua':      'skor_pl_jlh_penyedia_pangan_papua.csv',
-                    'Bali_Nusa':  'skor_pl_jlh_penyedia_pangan_bali_nusa.csv',
+                    'Bali–Nusra': 'skor_pl_jlh_penyedia_pangan_balinustra.csv',
                     'Maluku':     'skor_pl_jlh_penyedia_pangan_maluku.csv',
                 }
-                try:
-                    skor_file_name = filename_map[island]
-                except KeyError:
+                if island not in filename_map:
                     raise QgsProcessingException(f"Pulau tidak dikenal untuk skor PL: {island}")
+                skor_file_name = filename_map[island]
+                left_field, right_field = 'LC', 'LC'
             else:
                 raise QgsProcessingException(f"Matra tidak dikenal: {matra}")
 
-            # Path CSV di direktori data yang sama
-            csv_path_skor = os.path.join(os.path.dirname(__file__), "..", "..", "data", "jlh_pp", skor_file_name)
-            uri_skor = f"file:///{csv_path_skor}?encoding=UTF-8&delimiter=;"
-
-            skor = QgsVectorLayer(uri_skor, "csv_internal", "delimitedtext")
-            if not skor.isValid():
-                raise QgsProcessingException(f"CSV tidak valid atau tidak ditemukan: {csv_path_skor}")
-
-            # Parameter join
-            if mat == 'kba':
-                params = {
+            csv_path_skor = os.path.join(data_root, skor_file_name)
+            skor_layer = load_csv_table(csv_path_skor, f'skor_{mat}')
+            joined = processing.run(
+                "qgis:joinattributestable",
+                {
                     'INPUT': source,
-                    'FIELD': 'KBA_250',
-                    'INPUT_2': skor,
-                    'FIELD_2': 'EKOREGION',
-                    'FIELDS_TO_COPY': ['S_EK'],
+                    'FIELD': left_field,
+                    'INPUT_2': skor_layer,
+                    'FIELD_2': right_field,
+                    'FIELDS_TO_COPY': [],   # ambil semua kolom skor
                     'METHOD': 0,
                     'DISCARD_NONMATCHING': False,
                     'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-                }
-            elif mat == 'kva':
-                params = {
-                    'INPUT': source,
-                    'FIELD': 'KVA_250',
-                    'INPUT_2': skor,
-                    'FIELD_2': 'VEGETASI',
-                    'FIELDS_TO_COPY': ['S_VE'],
-                    'METHOD': 0,
-                    'DISCARD_NONMATCHING': False,
-                    'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-                }
-            else:  # pl
-                params = {
-                    'INPUT': source,
-                    'FIELD': 'LC',
-                    'INPUT_2': skor,
-                    'FIELD_2': 'LC',
-                    'FIELDS_TO_COPY': ['S_LC'],
-                    'METHOD': 0,
-                    'DISCARD_NONMATCHING': False,
-                    'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-                }
+                },
+                context=context, feedback=feedback
+            )["OUTPUT"]
+            return joined
 
-            return processing.run("qgis:joinattributestable", params)["OUTPUT"]
+        # 1) Overlay PL × Ekoregion (bawa field kunci untuk join skor)
+        inter = processing.run(
+            "qgis:intersection",
+            {
+                'INPUT': pl,
+                'OVERLAY': ekoregion,
+                'INPUT_FIELDS': ['LC'],
+                'OVERLAY_FIELDS': ['KBA_250', 'KVA_250'],
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
 
-        # Intersection PL × Ekoregion (bawa LC, KBA_250, KVA_250)
-        intersection_params = {
-            'INPUT': pl,
-            'OVERLAY': ekoregion,
-            'INPUT_FIELDS': ['LC'],
-            'OVERLAY_FIELDS': ['KBA_250', 'KVA_250'],
-            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-        }
-        source_intersect = processing.run("qgis:intersection", intersection_params)["OUTPUT"]
+        # 2) Join skor KBA, KVA, PL
+        src_kba = joinSkorMatra(inter, 'kba')
+        src_kva = joinSkorMatra(src_kba, 'kva')
+        src_pl  = joinSkorMatra(src_kva, 'pl')
 
-        # Join skor
-        source_kba = joinSkorMatra(source_intersect, 'kba')
-        source_kva = joinSkorMatra(source_kba, 'kva')
-        source_pl = joinSkorMatra(source_kva, 'pl')
-
-        # Hitung indeks
+        # 3) Hitung indeks JLH_Pangan
         bobot_ek = 0.28
         bobot_ve = 0.12
-        bobot_lc = 0.6
+        bobot_lc = 0.60
+        src_idx = processing.run(
+            "qgis:fieldcalculator",
+            {
+                'INPUT': src_pl,
+                'FIELD_NAME': 'JLH_Pangan',
+                'FIELD_TYPE': 0,
+                'FIELD_LENGTH': 20,
+                'FIELD_PRECISION': 3,
+                'NEW_FIELD': True,
+                'FORMULA': f'"S_EK" * {bobot_ek} + "S_VE" * {bobot_ve} + "S_LC" * {bobot_lc}',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
 
-        calculator_params = {
-            'INPUT': source_pl,
-            'FIELD_NAME': 'JLH_Pangan',
-            'FIELD_TYPE': 0,
-            'FIELD_LENGTH': 20,
-            'FIELD_PRECISION': 3,
-            'NEW_FIELD': True,
-            'FORMULA': f'"S_EK" * {bobot_ek} + "S_VE" * {bobot_ve} + "S_LC" * {bobot_lc}',
-            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-        }
-        source_calc_jasling = processing.run("qgis:fieldcalculator", calculator_params)["OUTPUT"]
+        # === CABANG OUTPUT ===
+        if self.OUTPUT_TYPE == 'Poligon':
+            # -------- Polygon mode: tampilkan kolom yang diminta --------
+            keep_cols = processing.run(
+                "qgis:refactorfields",
+                {
+                    "INPUT": src_idx,
+                    "FIELDS_MAPPING": [
+                        {"expression": '"EKOREGION"', "length": 254, "name": "EKOREGION", "precision": 0, "type": QVariant.String},
+                        {"expression": '"VEGETASI"',  "length": 254, "name": "VEGETASI",  "precision": 0, "type": QVariant.String},
+                        {"expression": '"LC"',        "length": 254, "name": "LC",        "precision": 0, "type": QVariant.String},
+                        {"expression": '"S_EK"',      "length": 0,  "name": "S_EK",      "precision": 0, "type": QVariant.Double},
+                        {"expression": '"S_VE"',      "length": 0,  "name": "S_VE",      "precision": 0, "type": QVariant.Double},
+                        {"expression": '"S_LC"',      "length": 0,  "name": "S_LC",      "precision": 0, "type": QVariant.Double},
+                        {"expression": '"JLH_Pangan"', "length": 0, "name": "JLH_Pangan","precision": 0, "type": QVariant.Double},
+                    ],
+                    "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+                },
+                context=context, feedback=feedback
+            )["OUTPUT"]
+            final_layer = keep_cols
 
-        # Overlay dengan GRID
-        intersection_params = {
-            'INPUT': source_calc_jasling,
-            'OVERLAY': grid,
-            'INPUT_FIELDS': [],
-            'OVERLAY_FIELDS': ['ID'],
-            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-        }
-        source_intersect_grid = processing.run("qgis:intersection", intersection_params)["OUTPUT"]
+        else:
+            # -------- Grid mode (default) --------
+            inter_grid = processing.run(
+                "qgis:intersection",
+                {
+                    'INPUT': src_idx,
+                    'OVERLAY': grid,
+                    'INPUT_FIELDS': [],
+                    'OVERLAY_FIELDS': ['ID'],
+                    'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+                },
+                context=context, feedback=feedback
+            )["OUTPUT"]
 
-        # Luas poligon hasil overlay
-        area_params = {
-            'INPUT': source_intersect_grid,
-            'FIELD_NAME': 'AREA_POLY_M2',
-            'FIELD_TYPE': 0,
-            'FIELD_LENGTH': 20,
-            'FIELD_PRECISION': 3,
-            'NEW_FIELD': True,
-            'FORMULA': '$area',
-            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-        }
-        source_area_poly = processing.run("qgis:fieldcalculator", area_params)["OUTPUT"]
+            area_poly = processing.run(
+                "qgis:fieldcalculator",
+                {
+                    'INPUT': inter_grid,
+                    'FIELD_NAME': 'AREA_POLY_M2',
+                    'FIELD_TYPE': 0,
+                    'FIELD_LENGTH': 20,
+                    'FIELD_PRECISION': 3,
+                    'NEW_FIELD': True,
+                    'FORMULA': '$area',
+                    'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+                },
+                context=context, feedback=feedback
+            )["OUTPUT"]
 
-        # === CHANGED: Hapus perhitungan $area pada layer GRID.
-        # Gantikan dengan summarize AREA_POLY_M2 per ID (di source_intersect_grid).
-        summarize_area_params = {
-            'INPUT': source_area_poly,
-            'CATEGORIES_FIELD_NAME': ['ID'],
-            'VALUES_FIELD_NAME': 'AREA_POLY_M2',
-            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-        }
-        area_by_id = processing.run("qgis:statisticsbycategories", summarize_area_params)["OUTPUT"]
+            area_by_id = processing.run(
+                "qgis:statisticsbycategories",
+                {
+                    'INPUT': area_poly,
+                    'CATEGORIES_FIELD_NAME': ['ID'],
+                    'VALUES_FIELD_NAME': 'AREA_POLY_M2',
+                    'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+                },
+                context=context, feedback=feedback
+            )["OUTPUT"]
 
-        # Ubah nama field 'sum' menjadi 'AREA_GRID_M2'
-        rename_area_sum_params = {
-            'INPUT': area_by_id,
-            'FIELD': 'sum',
-            'NEW_NAME': 'AREA_GRID_M2',
-            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-        }
-        area_by_id_renamed = processing.run("qgis:renametablefield", rename_area_sum_params)["OUTPUT"]
+            area_by_id_renamed = processing.run(
+                "qgis:renametablefield",
+                {
+                    'INPUT': area_by_id,
+                    'FIELD': 'sum',
+                    'NEW_NAME': 'AREA_GRID_M2',
+                    'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+                },
+                context=context, feedback=feedback
+            )["OUTPUT"]
 
-        # Join AREA_GRID_M2 kembali ke potongan poligon hasil overlay
-        join_area_sum_params = {
-            'INPUT': source_area_poly,
-            'FIELD': 'ID',
-            'INPUT_2': area_by_id_renamed,
-            'FIELD_2': 'ID',
-            'FIELDS_TO_COPY': ['AREA_GRID_M2'],
-            'METHOD': 0,
-            'DISCARD_NONMATCHING': False,
-            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-        }
-        source_join_area = processing.run("qgis:joinattributestable", join_area_sum_params)["OUTPUT"]
-        # === END CHANGED
+            inter_grid_with_area = processing.run(
+                "qgis:joinattributestable",
+                {
+                    'INPUT': area_poly,
+                    'FIELD': 'ID',
+                    'INPUT_2': area_by_id_renamed,
+                    'FIELD_2': 'ID',
+                    'FIELDS_TO_COPY': ['AREA_GRID_M2'],
+                    'METHOD': 0,
+                    'DISCARD_NONMATCHING': False,
+                    'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+                },
+                context=context, feedback=feedback
+            )["OUTPUT"]
 
-        # Proporsional JLH_Pangan
-        proporsional_params = {
-            'INPUT': source_join_area,
-            'FIELD_NAME': 'JLH_Pangan_Proporsional',
-            'FIELD_TYPE': 0,
-            'FIELD_LENGTH': 20,
-            'FIELD_PRECISION': 3,
-            'NEW_FIELD': True,
-            'FORMULA': '"JLH_Pangan" * ("AREA_POLY_M2" / "AREA_GRID_M2")',
-            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-        }
-        source_proporsional = processing.run("qgis:fieldcalculator", proporsional_params)["OUTPUT"]
+            prop = processing.run(
+                "qgis:fieldcalculator",
+                {
+                    'INPUT': inter_grid_with_area,
+                    'FIELD_NAME': 'JLH_Pangan_Proporsional',
+                    'FIELD_TYPE': 0,
+                    'FIELD_LENGTH': 20,
+                    'FIELD_PRECISION': 3,
+                    'NEW_FIELD': True,
+                    'FORMULA': '"JLH_Pangan" * ("AREA_POLY_M2" / "AREA_GRID_M2")',
+                    'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+                },
+                context=context, feedback=feedback
+            )["OUTPUT"]
 
-        # Agregasi per ID GRID
-        summarize_params = {
-            'INPUT': source_proporsional,
-            'CATEGORIES_FIELD_NAME': ['ID'],
-            'VALUES_FIELD_NAME': 'JLH_Pangan_Proporsional',
-            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-        }
-        source_summarized = processing.run("qgis:statisticsbycategories", summarize_params)["OUTPUT"]
+            summed = processing.run(
+                "qgis:statisticsbycategories",
+                {
+                    'INPUT': prop,
+                    'CATEGORIES_FIELD_NAME': ['ID'],
+                    'VALUES_FIELD_NAME': 'JLH_Pangan_Proporsional',
+                    'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+                },
+                context=context, feedback=feedback
+            )["OUTPUT"]
 
-        # Join balik ke GRID
-        join_summarized_params = {
-            'INPUT': grid,
-            'FIELD': 'ID',
-            'INPUT_2': source_summarized,
-            'FIELD_2': 'ID',
-            'FIELDS_TO_COPY': ['sum'],
-            'METHOD': 0,
-            'DISCARD_NONMATCHING': False,
-            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-        }
-        source_join_summarized = processing.run("qgis:joinattributestable", join_summarized_params)["OUTPUT"]
+            # Join 'sum' ke GRID lalu rename ke JLH_Pangan
+            grid_join = processing.run(
+                "qgis:joinattributestable",
+                {
+                    'INPUT': grid,
+                    'FIELD': 'ID',
+                    'INPUT_2': summed,
+                    'FIELD_2': 'ID',
+                    'FIELDS_TO_COPY': ['sum'],
+                    'METHOD': 0,
+                    'DISCARD_NONMATCHING': False,
+                    'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+                },
+                context=context, feedback=feedback
+            )["OUTPUT"]
 
-        # Rename field
-        rename_params = {
-            'INPUT': source_join_summarized,
-            'FIELD': 'sum',
-            'NEW_NAME': 'IJE_Pangan',
-            'OUTPUT': 'memory:'
-        }
-        source = processing.run("qgis:renametablefield", rename_params)["OUTPUT"]
+            final_layer = processing.run(
+                "qgis:renametablefield",
+                {
+                    'INPUT': grid_join,
+                    'FIELD': 'sum',
+                    'NEW_NAME': 'JLH_Pangan',
+                    'OUTPUT': 'memory:'
+                },
+                context=context, feedback=feedback
+            )["OUTPUT"]
 
-        # Output sink
+        # Tulis ke sink
         (sink, dest_id) = self.parameterAsSink(
-            parameters,
-            self.OUTPUT,
-            context,
-            source.fields(),
-            source.wkbType(),
-            source.sourceCrs()
+            parameters, self.OUTPUT, context,
+            final_layer.fields(), final_layer.wkbType(), final_layer.sourceCrs()
         )
 
-        total = 100.0 / source.featureCount() if source.featureCount() else 0
-        for current, feature in enumerate(source.getFeatures()):
+        total = 100.0 / final_layer.featureCount() if final_layer.featureCount() else 0
+        for current, feature in enumerate(final_layer.getFeatures()):
             if feedback.isCanceled():
                 break
             sink.addFeature(feature, QgsFeatureSink.FastInsert)

@@ -36,7 +36,8 @@ from qgis.core import (QgsProcessing,
                        QgsProcessingAlgorithm,
                        QgsProcessingParameterFeatureSource,
                        QgsProcessingParameterFeatureSink,
-                       QgsVectorLayer)
+                       QgsVectorLayer,
+                       QgsProcessingParameterEnum)
 import processing
 import os
 
@@ -63,6 +64,7 @@ class JLHPengaturKualitasUdara(QgsProcessingAlgorithm):
     PENUTUP_LAHAN = 'PENUTUP_LAHAN'
     EKOREGION = 'EKOREGION'
     GRID = 'GRID'
+    bentuk_output_list = ['Grid', 'Poligon']
 
     def initAlgorithm(self, config):
         """
@@ -92,8 +94,19 @@ class JLHPengaturKualitasUdara(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFeatureSource(
                 self.GRID,
-                self.tr('GRID'),
-                [QgsProcessing.TypeVectorAnyGeometry]
+                self.tr('Grid'),
+                [QgsProcessing.TypeVectorAnyGeometry],
+                optional=True
+            )
+        )
+
+        # Opsi Untuk Output ke Versi Grid Atau Tidak
+        self.addParameter(
+            QgsProcessingParameterEnum(
+                'BENTUK_OUTPUT',
+                self.tr('Bentuk Output'),
+                options=self.bentuk_output_list,
+                defaultValue=0
             )
         )
 
@@ -112,18 +125,19 @@ class JLHPengaturKualitasUdara(QgsProcessingAlgorithm):
         ekoregion = parameters["EKOREGION"]
         grid = parameters["GRID"]
 
-        # pl = self.parameterAsSource(parameters, self.PENUTUP_LAHAN, context)
-        # ekoregion = self.parameterAsSource(parameters, self.EKOREGION, context)
+        # Penentuan jenis output
+        bentuk_output_idx = self.parameterAsEnum(parameters, 'BENTUK_OUTPUT', context)
+        bentuk_output = self.bentuk_output_list[bentuk_output_idx]
 
         def joinSkorMatra(source, matra): 
             # Load CSV file containing score values for PL, KBA, and KVA
             match matra.lower():
                 case 'kba':
-                    skor_file_name = "skor_ekoregion_jlh_pengatur_kualitas_udara.csv"
+                    skor_file_name = "skor_kba_pku.csv"
                 case 'kva':
-                    skor_file_name = "skor_vegetasi_jlh_pengatur_kualitas_udara.csv"
+                    skor_file_name = "skor_kva_pku.csv"
                 case 'pl':
-                    skor_file_name = "skor_pl_jlh_pengatur_kualitas_udara.csv"
+                    skor_file_name = "skor_pl_pku.csv"
 
             csv_path_skor = f"{os.path.dirname(__file__)}/../../data/jlh_pku/{skor_file_name}"  # Update with the actual path to your CSV file
             uri_skor = f"file:///{csv_path_skor}?encoding=UTF-8&delimiter=;"
@@ -201,103 +215,123 @@ class JLHPengaturKualitasUdara(QgsProcessingAlgorithm):
         }
         source_calc_jasling = processing.run("qgis:fieldcalculator", calculator_params)["OUTPUT"]
         
-        # Intersection with GRID
-        intersection_params = {
-            'INPUT': source_calc_jasling,
-            'OVERLAY': grid,
-            'INPUT_FIELDS': [],
-            'OVERLAY_FIELDS': ['ID'],
-            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-        }
+        # Proses untuk output bentuk POLIGON atau GRID
+        # ============================================================
+        if bentuk_output == 'Poligon':
+            # Proses untuk output bentuk POLIGON
+            # ==============================
+            source = source_calc_jasling
 
-        source_intersect_grid = processing.run("qgis:intersection", intersection_params)["OUTPUT"]
+        elif bentuk_output == 'Grid':
+            # Proses untuk output bentuk GRID
+            # ==============================
+            # Langkah-langkah:
+            # 1. Overlay hasil perhitungan JLH_Air dengan GRID
+            # 2. Hitung luas poligon hasil overlay
+            # 3. Hitung proporsional JLH_Air untuk setiap poligon berdasarkan luasnya
+            # 4. Summarize JLH_Air_Proporsional berdasarkan ID GRID
+            # 5. Join hasil summarize kembali ke layer GRID
+            source_temp = source_calc_jasling
+            
+            # Intersection with GRID
+            intersection_params = {
+                'INPUT': source_temp,
+                'OVERLAY': grid,
+                'INPUT_FIELDS': [],
+                'OVERLAY_FIELDS': ['ID'],
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            }
 
-        # Luas poligon hasil overlay
-        area_params = {
-            'INPUT': source_intersect_grid,
-            'FIELD_NAME': 'AREA_POLY_M2',
-            'FIELD_TYPE': 0,
-            'FIELD_LENGTH': 20,
-            'FIELD_PRECISION': 3,
-            'NEW_FIELD': True,
-            'FORMULA': '$area',
-            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-        }
-        source_area_poly = processing.run("qgis:fieldcalculator", area_params)["OUTPUT"]
+            source_intersect_grid = processing.run("qgis:intersection", intersection_params)["OUTPUT"]
 
-        summarize_area_params = {
-            'INPUT': source_area_poly,
-            'CATEGORIES_FIELD_NAME': ['ID'],
-            'VALUES_FIELD_NAME': 'AREA_POLY_M2',
-            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-        }
-        area_by_id = processing.run("qgis:statisticsbycategories", summarize_area_params)["OUTPUT"]
+            # Luas poligon hasil overlay
+            area_params = {
+                'INPUT': source_intersect_grid,
+                'FIELD_NAME': 'AREA_POLY_M2',
+                'FIELD_TYPE': 0,
+                'FIELD_LENGTH': 20,
+                'FIELD_PRECISION': 3,
+                'NEW_FIELD': True,
+                'FORMULA': '$area',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            }
+            source_area_poly = processing.run("qgis:fieldcalculator", area_params)["OUTPUT"]
 
-        # Ubah nama field 'sum' menjadi 'AREA_GRID_M2'
-        rename_area_sum_params = {
-            'INPUT': area_by_id,
-            'FIELD': 'sum',
-            'NEW_NAME': 'AREA_GRID_M2',
-            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-        }
-        area_by_id_renamed = processing.run("qgis:renametablefield", rename_area_sum_params)["OUTPUT"]
+            summarize_area_params = {
+                'INPUT': source_area_poly,
+                'CATEGORIES_FIELD_NAME': ['ID'],
+                'VALUES_FIELD_NAME': 'AREA_POLY_M2',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            }
+            area_by_id = processing.run("qgis:statisticsbycategories", summarize_area_params)["OUTPUT"]
 
-        # Join AREA_GRID_M2 kembali ke potongan poligon hasil overlay
-        join_area_sum_params = {
-            'INPUT': source_area_poly,
-            'FIELD': 'ID',
-            'INPUT_2': area_by_id_renamed,
-            'FIELD_2': 'ID',
-            'FIELDS_TO_COPY': ['AREA_GRID_M2'],
-            'METHOD': 0,
-            'DISCARD_NONMATCHING': False,
-            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-        }
-        source_join_area = processing.run("qgis:joinattributestable", join_area_sum_params)["OUTPUT"]
+            # Ubah nama field 'sum' menjadi 'AREA_GRID_M2'
+            rename_area_sum_params = {
+                'INPUT': area_by_id,
+                'FIELD': 'sum',
+                'NEW_NAME': 'AREA_GRID_M2',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            }
+            area_by_id_renamed = processing.run("qgis:renametablefield", rename_area_sum_params)["OUTPUT"]
 
-        # Calculate proporsional JLH_Udara for each polygon based on the area
-        proporsional_params = {
-            'INPUT': source_join_area,
-            'FIELD_NAME': 'JLH_Udara_Proporsional',
-            'FIELD_TYPE': 0,  # 0 = Float
-            'FIELD_LENGTH': 20,
-            'FIELD_PRECISION': 3,
-            'NEW_FIELD': True,
-            'FORMULA': '"JLH_Udara" * ("AREA_POLY_M2" / "AREA_GRID_M2")',  # Calculate proportional JLH_Udara
-            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-        }
-        source_proporsional = processing.run("qgis:fieldcalculator", proporsional_params)["OUTPUT"]
+            # Join AREA_GRID_M2 kembali ke potongan poligon hasil overlay
+            join_area_sum_params = {
+                'INPUT': source_area_poly,
+                'FIELD': 'ID',
+                'INPUT_2': area_by_id_renamed,
+                'FIELD_2': 'ID',
+                'FIELDS_TO_COPY': ['AREA_GRID_M2'],
+                'METHOD': 0,
+                'DISCARD_NONMATCHING': False,
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            }
+            source_join_area = processing.run("qgis:joinattributestable", join_area_sum_params)["OUTPUT"]
 
-        # Summarize JLH_Udara_Proporsional by GRID ID
-        summarize_params = {
-            'INPUT': source_proporsional,
-            'CATEGORIES_FIELD_NAME': ['ID'],
-            'VALUES_FIELD_NAME': 'JLH_Udara_Proporsional',
-            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-        }
-        source_summarized = processing.run("qgis:statisticsbycategories", summarize_params)["OUTPUT"]
+            # Calculate proporsional JLH_Udara for each polygon based on the area
+            proporsional_params = {
+                'INPUT': source_join_area,
+                'FIELD_NAME': 'JLH_Udara_Proporsional',
+                'FIELD_TYPE': 0,  # 0 = Float
+                'FIELD_LENGTH': 20,
+                'FIELD_PRECISION': 3,
+                'NEW_FIELD': True,
+                'FORMULA': '"JLH_Udara" * ("AREA_POLY_M2" / "AREA_GRID_M2")',  # Calculate proportional JLH_Udara
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            }
+            source_proporsional = processing.run("qgis:fieldcalculator", proporsional_params)["OUTPUT"]
 
-        # Join the summarized JLH_Udara_Proporsional back to the GRID layer
-        join_summarized_params = {
-            'INPUT': grid,
-            'FIELD': 'ID',
-            'INPUT_2': source_summarized,
-            'FIELD_2': 'ID',
-            'FIELDS_TO_COPY': ['sum'],
-            'METHOD': 0,  # 0 = Create separate layer
-            'DISCARD_NONMATCHING': False,
-            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-        }
-        source_join_summarized = processing.run("qgis:joinattributestable", join_summarized_params)["OUTPUT"]
+            # Summarize JLH_Udara_Proporsional by GRID ID
+            summarize_params = {
+                'INPUT': source_proporsional,
+                'CATEGORIES_FIELD_NAME': ['ID'],
+                'VALUES_FIELD_NAME': 'JLH_Udara_Proporsional',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            }
+            source_summarized = processing.run("qgis:statisticsbycategories", summarize_params)["OUTPUT"]
 
-        # Rename the 'sum' field to 'JLH_Udara'
-        rename_params = {
-            'INPUT': source_join_summarized,          # your summarized layer
-            'FIELD': 'sum',          # existing field name
-            'NEW_NAME': 'IJE_Udara',     # new name
-            'OUTPUT': 'memory:'
-        }
-        source = processing.run("qgis:renametablefield", rename_params)["OUTPUT"]
+            # Join the summarized JLH_Udara_Proporsional back to the GRID layer
+            join_summarized_params = {
+                'INPUT': grid,
+                'FIELD': 'ID',
+                'INPUT_2': source_summarized,
+                'FIELD_2': 'ID',
+                'FIELDS_TO_COPY': ['sum'],
+                'METHOD': 0,  # 0 = Create separate layer
+                'DISCARD_NONMATCHING': False,
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            }
+            source_join_summarized = processing.run("qgis:joinattributestable", join_summarized_params)["OUTPUT"]
+
+            # Rename the 'sum' field to 'JLH_Udara'
+            rename_params = {
+                'INPUT': source_join_summarized,          # your summarized layer
+                'FIELD': 'sum',          # existing field name
+                'NEW_NAME': 'IJE_Udara',     # new name
+                'OUTPUT': 'memory:'
+            }
+            source_rename_params = processing.run("qgis:renametablefield", rename_params)["OUTPUT"]
+            
+            source = source_rename_params
 
         # Create a feature sink to store the output
         (sink, dest_id) = self.parameterAsSink(

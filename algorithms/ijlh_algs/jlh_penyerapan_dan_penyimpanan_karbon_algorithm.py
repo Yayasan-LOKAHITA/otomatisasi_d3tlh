@@ -36,7 +36,8 @@ from qgis.core import (QgsProcessing,
                        QgsProcessingAlgorithm,
                        QgsProcessingParameterFeatureSource,
                        QgsProcessingParameterFeatureSink,
-                       QgsVectorLayer)
+                       QgsVectorLayer,
+                       QgsProcessingParameterEnum)
 import processing
 import os
 
@@ -63,6 +64,7 @@ class JLHPenyerapanDanPenyimpananKarbon(QgsProcessingAlgorithm):
     PENUTUP_LAHAN = 'PENUTUP_LAHAN'
     EKOREGION = 'EKOREGION'
     GRID = 'GRID'
+    bentuk_output_list = ['Grid', 'Poligon']
 
     def initAlgorithm(self, config):
         """
@@ -92,8 +94,19 @@ class JLHPenyerapanDanPenyimpananKarbon(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFeatureSource(
                 self.GRID,
-                self.tr('GRID'),
+                self.tr('Grid'),
                 [QgsProcessing.TypeVectorAnyGeometry]
+                optional=True
+            )
+        )
+
+        # Opsi Untuk Output ke Versi Grid Atau Tidak
+        self.addParameter(
+            QgsProcessingParameterEnum(
+                'BENTUK_OUTPUT',
+                self.tr('Bentuk Output'),
+                options=self.bentuk_output_list,
+                defaultValue=0
             )
         )
 
@@ -103,7 +116,7 @@ class JLHPenyerapanDanPenyimpananKarbon(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFeatureSink(
                 self.OUTPUT,
-                self.tr('JLH Penyerapan Dan Penyimpanan Karbon')
+                self.tr('JLH Penyerapan dan Penyimpanan Karbon')
             )
         )
 
@@ -112,18 +125,19 @@ class JLHPenyerapanDanPenyimpananKarbon(QgsProcessingAlgorithm):
         ekoregion = parameters["EKOREGION"]
         grid = parameters["GRID"]
 
-        # pl = self.parameterAsSource(parameters, self.PENUTUP_LAHAN, context)
-        # ekoregion = self.parameterAsSource(parameters, self.EKOREGION, context)
+        # Penentuan jenis output
+        bentuk_output_idx = self.parameterAsEnum(parameters, 'BENTUK_OUTPUT', context)
+        bentuk_output = self.bentuk_output_list[bentuk_output_idx]
 
         def joinSkorMatra(source, matra): 
             # Load CSV file containing score values for PL, KBA, and KVA
             match matra.lower():
                 case 'kba':
-                    skor_file_name = "skor_ekoregion_jlh_penyerapan_dan_penyimpanan_karbon.csv"
+                    skor_file_name = "skor_kba_ppk.csv"
                 case 'kva':
-                    skor_file_name = "skor_vegetasi_jlh_penyerapan_dan_penyimpanan_karbon.csv"
+                    skor_file_name = "skor_kva_ppk.csv"
                 case 'pl':
-                    skor_file_name = "skor_pl_jlh_penyerapan_dan_penyimpanan_karbon.csv"
+                    skor_file_name = "skor_pl_ppk.csv"
 
             csv_path_skor = f"{os.path.dirname(__file__)}/../../data/jlh_ppk/{skor_file_name}"  # Update with the actual path to your CSV file
             uri_skor = f"file:///{csv_path_skor}?encoding=UTF-8&delimiter=;"
@@ -185,8 +199,8 @@ class JLHPenyerapanDanPenyimpananKarbon(QgsProcessingAlgorithm):
         source_pl = joinSkorMatra(source_kva, 'pl')
         
         # Calcule Jasling  [BOBOT PERLU DIRUBAH UNTUK JLH LAIN]
-        bobot_ek = 0.2  # Bobot Ekoregion
-        bobot_ve = 0.2  # Bobot Vegetasi
+        bobot_ek = 0.32  # Bobot Ekoregion
+        bobot_ve = 0.08  # Bobot Vegetasi
         bobot_lc = 0.6  # Bobot Penutup Lahan
 
         calculator_params =  {
@@ -201,107 +215,136 @@ class JLHPenyerapanDanPenyimpananKarbon(QgsProcessingAlgorithm):
         }
         source_calc_jasling = processing.run("qgis:fieldcalculator", calculator_params)["OUTPUT"]
         
-        # Intersection with GRID
-        intersection_params = {
-            'INPUT': source_calc_jasling,
-            'OVERLAY': grid,
-            'INPUT_FIELDS': [],
-            'OVERLAY_FIELDS': ['ID'],
-            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-        }
+        print(bentuk_output)
 
-        source_intersect_grid = processing.run("qgis:intersection", intersection_params)["OUTPUT"]
+        # Proses untuk output bentuk POLIGON atau GRID
+        # ============================================================
+        if bentuk_output == 'Poligon':
+            # Proses untuk output bentuk POLIGON
+            # ==============================
+            source = source_calc_jasling
+            
+        elif bentuk_output == 'Grid':
+            # Proses untuk output bentuk GRID
+            # ==============================
+            source_temp = source_calc_jasling
+            # elif bentuk_output == 'Grid':
+            # Proses untuk output bentuk GRID
+            # ==============================
+            # Langkah-langkah:
+            # 1. Overlay hasil perhitungan JLH_Karbon dengan GRID
+            # 2. Hitung luas poligon hasil overlay
+            # 3. Hitung proporsional JLH_Karbon untuk setiap poligon berdasarkan luasnya
+            # 4. Summarize JLH_Karbon_Proporsional berdasarkan ID GRID
+            # 5. Join hasil summarize kembali ke layer GRID
 
-        # Luas poligon hasil overlay
-        area_params = {
-            'INPUT': source_intersect_grid,
-            'FIELD_NAME': 'AREA_POLY_M2',
-            'FIELD_TYPE': 0,
-            'FIELD_LENGTH': 20,
-            'FIELD_PRECISION': 3,
-            'NEW_FIELD': True,
-            'FORMULA': '$area',
-            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-        }
-        source_area_poly = processing.run("qgis:fieldcalculator", area_params)["OUTPUT"]
+             # Overlay dengan GRID   
+            intersection_params = {
+                'INPUT': source_temp,
+                'OVERLAY': grid,
+                'INPUT_FIELDS': [],
+                'OVERLAY_FIELDS': ['ID'],
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            }
+            source_intersect_grid = processing.run("qgis:intersection", intersection_params)["OUTPUT"]
 
-        # === CHANGED: Hapus perhitungan $area pada layer GRID.
-        # Gantikan dengan summarize AREA_POLY_M2 per ID (di source_intersect_grid).
-        summarize_area_params = {
-            'INPUT': source_area_poly,
-            'CATEGORIES_FIELD_NAME': ['ID'],
-            'VALUES_FIELD_NAME': 'AREA_POLY_M2',
-            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-        }
-        area_by_id = processing.run("qgis:statisticsbycategories", summarize_area_params)["OUTPUT"]
+            # Luas poligon hasil overlay
+            area_params = {
+                'INPUT': source_intersect_grid,
+                'FIELD_NAME': 'AREA_POLY_M2',
+                'FIELD_TYPE': 0,
+                'FIELD_LENGTH': 20,
+                'FIELD_PRECISION': 3,
+                'NEW_FIELD': True,
+                'FORMULA': '$area',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            }
+            source_area_poly = processing.run("qgis:fieldcalculator", area_params)["OUTPUT"]
 
-        # Ubah nama field 'sum' menjadi 'AREA_GRID_M2'
-        rename_area_sum_params = {
-            'INPUT': area_by_id,
-            'FIELD': 'sum',
-            'NEW_NAME': 'AREA_GRID_M2',
-            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-        }
-        area_by_id_renamed = processing.run("qgis:renametablefield", rename_area_sum_params)["OUTPUT"]
+            # === CHANGED: Hapus perhitungan $area pada layer GRID.
+            # Gantikan dengan summarize AREA_POLY_M2 per ID (di source_intersect_grid).
+            summarize_area_params = {
+                'INPUT': source_area_poly,
+                'CATEGORIES_FIELD_NAME': ['ID'],
+                'VALUES_FIELD_NAME': 'AREA_POLY_M2',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            }
+            area_by_id = processing.run("qgis:statisticsbycategories", summarize_area_params)["OUTPUT"]
 
-        # Join AREA_GRID_M2 kembali ke potongan poligon hasil overlay
-        join_area_sum_params = {
-            'INPUT': source_area_poly,
-            'FIELD': 'ID',
-            'INPUT_2': area_by_id_renamed,
-            'FIELD_2': 'ID',
-            'FIELDS_TO_COPY': ['AREA_GRID_M2'],
-            'METHOD': 0,
-            'DISCARD_NONMATCHING': False,
-            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-        }
-        source_join_area = processing.run("qgis:joinattributestable", join_area_sum_params)["OUTPUT"]
-        # === END CHANGED
+            # Ubah nama field 'sum' menjadi 'AREA_GRID_M2'
+            rename_area_sum_params = {
+                'INPUT': area_by_id,
+                'FIELD': 'sum',
+                'NEW_NAME': 'AREA_GRID_M2',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            }
+            area_by_id_renamed = processing.run("qgis:renametablefield", rename_area_sum_params)["OUTPUT"]
 
-        # Calculate proporsional JLH_Karbon for each polygon based on the area
-        proporsional_params = {
-            'INPUT': source_join_area,
-            'FIELD_NAME': 'JLH_Karbon_Proporsional',
-            'FIELD_TYPE': 0,  # 0 = Float
-            'FIELD_LENGTH': 20,
-            'FIELD_PRECISION': 3,
-            'NEW_FIELD': True,
-            'FORMULA': '"JLH_Karbon" * ("AREA_POLY_M2" / "AREA_GRID_M2")',  # Calculate proportional JLH_Karbon
-            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-        }
-        source_proporsional = processing.run("qgis:fieldcalculator", proporsional_params)["OUTPUT"]
+            # Join AREA_GRID_M2 kembali ke potongan poligon hasil overlay
+            join_area_sum_params = {
+                'INPUT': source_area_poly,
+                'FIELD': 'ID',
+                'INPUT_2': area_by_id_renamed,
+                'FIELD_2': 'ID',
+                'FIELDS_TO_COPY': ['AREA_GRID_M2'],
+                'METHOD': 0,
+                'DISCARD_NONMATCHING': False,
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            }
+            source_join_area = processing.run("qgis:joinattributestable", join_area_sum_params)["OUTPUT"]
+            # === END CHANGED
+            
+            # Calculate proporsional JLH_Karbon for each polygon based on the area
+            proporsional_params = {
+                'INPUT': source_join_area,
+                'FIELD_NAME': 'JLH_Karbon_Proporsional',
+                'FIELD_TYPE': 0,  # 0 = Float
+                'FIELD_LENGTH': 20,
+                'FIELD_PRECISION': 3,
+                'NEW_FIELD': True,
+                'FORMULA': '"JLH_Karbon" * ("AREA_POLY_M2" / "AREA_GRID_M2")',  # Calculate proportional JLH_Karbon
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            }
+            source_proporsional = processing.run("qgis:fieldcalculator", proporsional_params)["OUTPUT"]
 
-        # Summarize JLH_Karbon_Proporsional by GRID ID
-        summarize_params = {
-            'INPUT': source_proporsional,
-            'CATEGORIES_FIELD_NAME': ['ID'],
-            'VALUES_FIELD_NAME': 'JLH_Karbon_Proporsional',
-            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-        }
-        source_summarized = processing.run("qgis:statisticsbycategories", summarize_params)["OUTPUT"]
+            # Summarize JLH_Karbon_Proporsional by GRID ID
+            summarize_params = {
+                'INPUT': source_proporsional,
+                'CATEGORIES_FIELD_NAME': ['ID'],
+                'VALUES_FIELD_NAME': 'JLH_Karbon_Proporsional',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            }
+            source_summarized = processing.run("qgis:statisticsbycategories", summarize_params)["OUTPUT"]
 
-        # Join the summarized JLH_Karbon_Proporsional back to the GRID layer
-        join_summarized_params = {
-            'INPUT': grid,
-            'FIELD': 'ID',
-            'INPUT_2': source_summarized,
-            'FIELD_2': 'ID',
-            'FIELDS_TO_COPY': ['sum'],
-            'METHOD': 0,  # 0 = Create separate layer
-            'DISCARD_NONMATCHING': False,
-            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-        }
-        source_join_summarized = processing.run("qgis:joinattributestable", join_summarized_params)["OUTPUT"]
+            # Join the summarized JLH_Karbon_Proporsional back to the GRID layer
+            join_summarized_params = {
+                'INPUT': grid,
+                'FIELD': 'ID',
+                'INPUT_2': source_summarized,
+                'FIELD_2': 'ID',
+                'FIELDS_TO_COPY': ['sum'],
+                'METHOD': 0,  # 0 = Create separate layer
+                'DISCARD_NONMATCHING': False,
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            }
+            source_join_summarized = processing.run("qgis:joinattributestable", join_summarized_params)["OUTPUT"]
 
-        # Rename the 'sum' field to 'JLH_Karbon'
-        rename_params = {
-            'INPUT': source_join_summarized,          # your summarized layer
-            'FIELD': 'sum',          # existing field name
-            'NEW_NAME': 'IJE_Karbon',     # new name
-            'OUTPUT': 'memory:'
-        }
-        source = processing.run("qgis:renametablefield", rename_params)["OUTPUT"]
+            # Rename the 'sum' field to 'JLH_Karbon'
+            rename_params = {
+                'INPUT': source_join_summarized,          # your summarized layer
+                'FIELD': 'sum',          # existing field name
+                'NEW_NAME': 'IJE_Karbon',     # new name
+                'OUTPUT': 'memory:'
+            }
+            source_rename_params = processing.run("qgis:renametablefield", rename_params)["OUTPUT"]
 
+            source = source_rename_params
+
+        # Kategorisasi JLH_Karbon
+        kategori_params = {}
+
+        # End Proses untuk output bentuk POLIGON atau GRID
+        # ============================================================
         # Create a feature sink to store the output
         (sink, dest_id) = self.parameterAsSink(
             parameters, 
@@ -338,7 +381,7 @@ class JLHPenyerapanDanPenyimpananKarbon(QgsProcessingAlgorithm):
         lowercase alphanumeric characters only and no spaces or other
         formatting characters.
         """
-        return 'JLH Penyerapan Dan Penyimpanan Karbon'
+        return 'JLH Penyerapan Penyedia Karbon'
 
     def displayName(self):
         """

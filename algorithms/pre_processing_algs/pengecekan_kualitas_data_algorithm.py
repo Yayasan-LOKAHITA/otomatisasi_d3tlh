@@ -37,6 +37,8 @@ from qgis.core import (QgsProcessing,
                        QgsProcessingParameterFeatureSource,
                        QgsProcessingParameterFeatureSink)
 
+import processing
+import os
 
 class PengecekanKualitasData(QgsProcessingAlgorithm):
     """
@@ -56,8 +58,11 @@ class PengecekanKualitasData(QgsProcessingAlgorithm):
     # used when calling the algorithm from another algorithm, or when
     # calling from the QGIS console.
 
-    OUTPUT = 'OUTPUT'
-    INPUT = 'INPUT'
+    PENUTUP_LAHAN_FIX = 'PENUTUP_LAHAN_FIX'
+    EKOREGION_FIX = 'EKOREGION_FIX'
+    PENUTUP_LAHAN = 'PENUTUP_LAHAN'
+    EKOREGION = 'EKOREGION'
+    KEE = 'KEE'
 
     def initAlgorithm(self, config):
         """
@@ -69,9 +74,26 @@ class PengecekanKualitasData(QgsProcessingAlgorithm):
         # geometry.
         self.addParameter(
             QgsProcessingParameterFeatureSource(
-                self.INPUT,
-                self.tr('Input layer'),
-                [QgsProcessing.TypeVectorAnyGeometry]
+                self.PENUTUP_LAHAN,
+                self.tr('Penutup Lahan'),
+                [QgsProcessing.TypeVectorAnyGeometry],
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterFeatureSource(
+                self.EKOREGION,
+                self.tr('Ekoregion'),
+                [QgsProcessing.TypeVectorAnyGeometry],
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterFeatureSource(
+                self.KEE,
+                self.tr('KEE'),
+                [QgsProcessing.TypeVectorAnyGeometry],
+                optional=True
             )
         )
 
@@ -80,27 +102,61 @@ class PengecekanKualitasData(QgsProcessingAlgorithm):
         # algorithm is run in QGIS).
         self.addParameter(
             QgsProcessingParameterFeatureSink(
-                self.OUTPUT,
-                self.tr('Output layer')
+                self.PENUTUP_LAHAN_FIX,
+                self.tr('Penutup Lahan Fixed')
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterFeatureSink(
+                self.EKOREGION_FIX,
+                self.tr('Ekoregion Fixed')
             )
         )
 
     def processAlgorithm(self, parameters, context, feedback):
-        """
-        Here is where the processing itself takes place.
-        """
+        # DATA INPUT
+        pl = parameters["PENUTUP_LAHAN"]
+        ekoregion = parameters["EKOREGION"]
+        if self.KEE != None:
+            kee = parameters["KEE"]
 
-        # Retrieve the feature source and sink. The 'dest_id' variable is used
-        # to uniquely identify the feature sink, and must be included in the
-        # dictionary returned by the processAlgorithm function.
-        source = self.parameterAsSource(parameters, self.INPUT, context)
-        (sink, dest_id) = self.parameterAsSink(parameters, self.OUTPUT,
-                context, source.fields(), source.wkbType(), source.sourceCrs())
+        # Fix Geometry PL
+        fix_geom_pl_params = {
+            'INPUT': pl,          
+            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+        }
+        fix_geom_eko_params = {
+            'INPUT': ekoregion,          
+            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+        }
+        pl_fix = processing.run("qgis:fixgeometries", fix_geom_pl_params)["OUTPUT"]
+        ekoregion_fix = processing.run("qgis:fixgeometries", fix_geom_eko_params)["OUTPUT"]
 
+        # Here we define the output sink and its fields and
+        # geometry type. The output will be a vector layer.
+        (sink, dest_id) = self.parameterAsSink(
+            parameters,
+            self.PENUTUP_LAHAN_FIX,
+            context,
+            pl_fix.fields(),
+            pl_fix.wkbType(),
+            pl_fix.sourceCrs()
+        )
+
+        (sink2, dest_id2) = self.parameterAsSink(
+            parameters,
+            self.EKOREGION_FIX,
+            context,
+            ekoregion_fix.fields(),
+            ekoregion_fix.wkbType(),
+            ekoregion_fix.sourceCrs()
+        )
+        
         # Compute the number of steps to display within the progress bar and
         # get features from source
-        total = 100.0 / source.featureCount() if source.featureCount() else 0
-        features = source.getFeatures()
+        total = 100.0 / pl_fix.featureCount() if pl_fix.featureCount() else 0
+        features = pl_fix.getFeatures()
 
         for current, feature in enumerate(features):
             # Stop the algorithm if cancel button has been clicked
@@ -112,14 +168,15 @@ class PengecekanKualitasData(QgsProcessingAlgorithm):
 
             # Update the progress bar
             feedback.setProgress(int(current * total))
+        
+        # Write features from ekoregion_fix
+        for feature in ekoregion_fix.getFeatures():
+            if feedback.isCanceled():
+                break
+            sink2.addFeature(feature, QgsFeatureSink.FastInsert)
 
-        # Return the results of the algorithm. In this case our only result is
-        # the feature sink which contains the processed features, but some
-        # algorithms may return multiple feature sinks, calculated numeric
-        # statistics, etc. These should all be included in the returned
-        # dictionary, with keys matching the feature corresponding parameter
-        # or output names.
-        return {self.OUTPUT: dest_id}
+        return {self.PENUTUP_LAHAN_FIX: dest_id, 
+                self.EKOREGION_FIX: dest_id2}
 
     def name(self):
         """
