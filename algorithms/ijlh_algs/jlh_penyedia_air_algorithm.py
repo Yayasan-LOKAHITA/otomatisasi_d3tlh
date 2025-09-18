@@ -375,14 +375,14 @@ class JLHPenyediaAir(QgsProcessingAlgorithm):
         if skor_jlh == 'Nasional':
             source = processing.run( "qgis:fieldcalculator", {
                 'INPUT': source,  # or iface.activeLayer()
-                'FIELD_NAME': 'JLH_Udara', # Overwrite existing field
+                'FIELD_NAME': 'JLH_Air', # Overwrite existing field
                 'NEW_FIELD': False,      
-                'FORMULA': f"""     round("JLH_Udara")    """,
+                'FORMULA': f"""     round("JLH_Air")    """,
                 'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT   # or path to file 
             })["OUTPUT"]
 
         # Kategorisasi JLH_Udara
-        nama_kolom_jlh = 'JLH_Udara'
+        nama_kolom_jlh = 'JLH_Air'
         source = processing.run( "qgis:fieldcalculator",
                                     {
                                         'INPUT': source,  # or iface.activeLayer()

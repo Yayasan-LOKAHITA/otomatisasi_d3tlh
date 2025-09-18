@@ -48,7 +48,7 @@ class MCA_GRID_Poligon_Algoritm(QgsProcessingAlgorithm):
     GRID = 'GRID'
     LAYER2 = 'LAYER2'
     LAYER2_FIELD = 'LAYER2_FIELD'
-    GRID_OUT = 'GRID_OUT'   # satu-satunya output
+    OUTPUT = 'OUTPUT'   # satu-satunya output
 
     def initAlgorithm(self, config=None):
         # GRID input
@@ -80,7 +80,7 @@ class MCA_GRID_Poligon_Algoritm(QgsProcessingAlgorithm):
         # GRID final
         self.addParameter(
             QgsProcessingParameterFeatureSink(
-                self.GRID_OUT,
+                self.OUTPUT,
                 self.tr('GRID dengan atribut dominan pada kolom yang dipilih')
             )
         )
@@ -267,13 +267,21 @@ class MCA_GRID_Poligon_Algoritm(QgsProcessingAlgorithm):
 
         # 10) Simpan output tunggal: GRID final
         (sink_grid, out_grid_id) = self.parameterAsSink(
-            parameters, self.GRID_OUT, context,
+            parameters, self.OUTPUT, context,
             grid_final.fields(), grid_final.wkbType(), grid_final.sourceCrs()
         )
         for f in grid_final.getFeatures():
             sink_grid.addFeature(f, QgsFeatureSink.FastInsert)
 
-        return { self.GRID_OUT: out_grid_id }
+        for current, feature in enumerate(grid_final.getFeatures()):
+            # Stop the algorithm if cancel button has been clicked
+            if feedback.isCanceled():
+                break
+
+            # Add a feature in the sink
+            sink_grid.addFeature(feature, QgsFeatureSink.FastInsert)
+
+        return { self.OUTPUT: out_grid_id }
 
     # ---- Boilerplate ----
     def name(self):

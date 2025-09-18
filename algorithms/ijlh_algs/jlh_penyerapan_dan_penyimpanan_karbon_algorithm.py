@@ -41,12 +41,7 @@ from qgis.core import (QgsProcessing,
 import processing
 import os
 
-
 class JLHPenyerapanDanPenyimpananKarbon(QgsProcessingAlgorithm):
-    # Constants used to refer to parameters and outputs. They will be
-    # used when calling the algorithm from another algorithm, or when
-    # calling from the QGIS console.
-
     OUTPUT = 'OUTPUT'
     PENUTUP_LAHAN = 'PENUTUP_LAHAN'
     EKOREGION = 'EKOREGION'
