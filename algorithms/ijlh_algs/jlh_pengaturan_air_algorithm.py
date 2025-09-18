@@ -34,7 +34,7 @@ from qgis.PyQt.QtCore import QCoreApplication
 from qgis.core import (QgsProcessing,
                        QgsFeatureSink,
                        QgsProcessingAlgorithm,
-                       QgsProcessingParameterFeatureSource,
+                       QgsProcessingParameterVectorLayer,
                        QgsProcessingParameterFeatureSink,
                        QgsVectorLayer,
                        QgsProcessingParameterEnum)
@@ -64,7 +64,10 @@ class JLHPengaturanAir(QgsProcessingAlgorithm):
     PENUTUP_LAHAN = 'PENUTUP_LAHAN'
     EKOREGION = 'EKOREGION'
     GRID = 'GRID'
+    BENTUK_OUTPUT = 'BENTUK_OUTPUT'
+    SKOR_JLH = 'SKOR_JLH'
     bentuk_output_list = ['Grid', 'Poligon']
+    skor_jlh_list = ['Kabupaten/Kota', 'Nasional']
 
     def initAlgorithm(self, config):
         """
@@ -72,11 +75,31 @@ class JLHPengaturanAir(QgsProcessingAlgorithm):
         with some other properties.
         """
 
+        # Settings for output type
+        self.addParameter(
+            QgsProcessingParameterEnum(
+                self.BENTUK_OUTPUT,
+                self.tr('Bentuk Output'),
+                options=self.bentuk_output_list,
+                defaultValue=1
+            )
+        )
+
+        # Settings for score type
+        self.addParameter(
+            QgsProcessingParameterEnum(
+                self.SKOR_JLH,
+                self.tr('Skor IJLH yang Digunakan'),
+                options=self.skor_jlh_list,
+                defaultValue=1
+            )
+        )
+
         # We add the input vector features source. It can have any kind of
         # geometry.
 
         self.addParameter(
-            QgsProcessingParameterFeatureSource(
+            QgsProcessingParameterVectorLayer(
                 self.PENUTUP_LAHAN,
                 self.tr('Penutup Lahan'),
                 [QgsProcessing.TypeVectorAnyGeometry]
@@ -84,7 +107,7 @@ class JLHPengaturanAir(QgsProcessingAlgorithm):
         )
 
         self.addParameter(
-            QgsProcessingParameterFeatureSource(
+            QgsProcessingParameterVectorLayer(
                 self.EKOREGION,
                 self.tr('Ekoregion'),
                 [QgsProcessing.TypeVectorAnyGeometry]
@@ -92,21 +115,11 @@ class JLHPengaturanAir(QgsProcessingAlgorithm):
         )
 
         self.addParameter(
-            QgsProcessingParameterFeatureSource(
+            QgsProcessingParameterVectorLayer(
                 self.GRID,
                 self.tr('Grid'),
                 [QgsProcessing.TypeVectorAnyGeometry],
                 optional=True
-            )
-        )
-
-        # Opsi Untuk Output ke Versi Grid Atau Tidak
-        self.addParameter(
-            QgsProcessingParameterEnum(
-                'BENTUK_OUTPUT',
-                self.tr('Bentuk Output'),
-                options=self.bentuk_output_list,
-                defaultValue=0
             )
         )
 
@@ -349,10 +362,39 @@ class JLHPengaturanAir(QgsProcessingAlgorithm):
             }
             source_rename_params = processing.run("qgis:renametablefield", rename_params)["OUTPUT"]
 
-            source = source_rename_params
+            # KRITERIA KHUSUS UNTUK JLH_PYA
+            # 1. Membuat Grid PL
+            gridded_pl = processing.run("d3tlh:mca_grid", {
+                'GRID': grid,
+                'LAYER2': pl,
+                'LAYER2_FIELD': 'LC',
+                'GRID_OUT': QgsProcessing.TEMPORARY_OUTPUT
+            })["OUTPUT"]
 
-        # Kategorisasi JLH_PengAir
-        kategori_params = {}
+            source = gridded_pl
+
+        # Kategorisasi JLH_Karbon
+        nama_kolom_jlh = 'JLH_Karbon'
+        source = processing.run( "qgis:fieldcalculator",
+                                    {
+                                        'INPUT': source,  # or iface.activeLayer()
+                                        'FIELD_NAME': 'Kategori_JLH',
+                                        'FIELD_TYPE': 2,        # String
+                                        'FIELD_LENGTH': 20,
+                                        'NEW_FIELD': True,
+                                        'FORMULA': f"""
+                                        CASE
+                                            WHEN "{nama_kolom_jlh}" >= 1.0 AND "{nama_kolom_jlh}" <= 1.8 THEN 'Sangat Rendah'
+                                            WHEN "{nama_kolom_jlh}" > 1.8 AND "{nama_kolom_jlh}" <= 2.6 THEN 'Rendah'
+                                            WHEN "{nama_kolom_jlh}" > 2.6 AND "{nama_kolom_jlh}" <= 3.4 THEN 'Sedang'
+                                            WHEN "{nama_kolom_jlh}" > 3.4 AND "{nama_kolom_jlh}" <= 4.2 THEN 'Tinggi'
+                                            WHEN "{nama_kolom_jlh}" > 4.2 AND "{nama_kolom_jlh}" <= 5.0 THEN 'Sangat Tinggi'
+                                            ELSE 'Tidak Diketahui'
+                                        END
+                                        """,
+                                        'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT   # or path to file
+                                    }
+                                )["OUTPUT"]
 
         # End Proses untuk output bentuk POLIGON atau GRID
         # ============================================================

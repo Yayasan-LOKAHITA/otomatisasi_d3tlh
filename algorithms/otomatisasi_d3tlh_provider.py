@@ -32,6 +32,10 @@ __revision__ = '$Format:%H$'
 
 from qgis.core import QgsProcessingProvider
 
+# Algoritma Pre-Processing
+from .pre_processing_algs.pengecekan_kualitas_data_algorithm import PengecekanKualitasData
+
+# Algoritma IJLH
 from .ijlh_algs.jlh_pengatur_kualitas_udara_algorithm import JLHPengaturKualitasUdara
 from .ijlh_algs.jlh_penyedia_air_algorithm import JLHPenyediaAir
 from .ijlh_algs.jlh_penyedia_pangan_algorithm import JLHPenyediaPangan
@@ -39,10 +43,11 @@ from .ijlh_algs.jlh_penyerapan_dan_penyimpanan_karbon_algorithm import JLHPenyer
 from .ijlh_algs.jlh_pendukung_habibat_dan_kehati_algorithm import JLHPendukungKehati
 from .ijlh_algs.jlh_pengaturan_air_algorithm import JLHPengaturanAir
 
+# Algoritma IKP
 from .ikp_algs.indeks_kemampuan_pemanfaatan_kehati_algorithm import IndeksKemampuanPemanfaatanKehati
 
-from .pre_processing_algs.pengecekan_kualitas_data_algorithm import PengecekanKualitasData
-
+# Algoritma lainnya
+from .utils_algs.mca_polygon_algorithms import MCA_GRID_Poligon_Algoritm
 
 class OtomatisasiD3TLHProvider(QgsProcessingProvider):
 
@@ -63,17 +68,23 @@ class OtomatisasiD3TLHProvider(QgsProcessingProvider):
         """
         Loads all algorithms belonging to this provider.
         """
+        # Algoritma Pre-Processing
+        self.addAlgorithm(PengecekanKualitasData())
+
+        # Algoritma IJLH
         self.addAlgorithm(JLHPengaturKualitasUdara())
         self.addAlgorithm(JLHPenyediaAir())
         self.addAlgorithm(JLHPenyediaPangan())
         self.addAlgorithm(JLHPenyerapanDanPenyimpananKarbon())
         self.addAlgorithm(JLHPendukungKehati())
-        self.addAlgorithm(IndeksKemampuanPemanfaatanKehati())
         self.addAlgorithm(JLHPengaturanAir())
-        self.addAlgorithm(PengecekanKualitasData())
         
-        # add additional algorithms here
-        # self.addAlgorithm(MyOtherAlgorithm())
+        # Algoritma IKP
+        self.addAlgorithm(IndeksKemampuanPemanfaatanKehati())
+
+        # Algoritma lainnya
+        self.addAlgorithm(MCA_GRID_Poligon_Algoritm())
+
 
     def id(self):
         """
@@ -81,7 +92,7 @@ class OtomatisasiD3TLHProvider(QgsProcessingProvider):
         string should be a unique, short, character only string, eg "qgis" or
         "gdal". This string should not be localised.
         """
-        return 'Otomatisasi D3TLH'
+        return 'd3tlh'
 
     def name(self):
         """

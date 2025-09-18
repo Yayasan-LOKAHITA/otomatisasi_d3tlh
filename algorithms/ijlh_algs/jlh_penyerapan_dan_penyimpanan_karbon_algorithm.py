@@ -34,7 +34,7 @@ from qgis.PyQt.QtCore import QCoreApplication
 from qgis.core import (QgsProcessing,
                        QgsFeatureSink,
                        QgsProcessingAlgorithm,
-                       QgsProcessingParameterFeatureSource,
+                       QgsProcessingParameterVectorLayer,
                        QgsProcessingParameterFeatureSink,
                        QgsVectorLayer,
                        QgsProcessingParameterEnum)
@@ -43,19 +43,6 @@ import os
 
 
 class JLHPenyerapanDanPenyimpananKarbon(QgsProcessingAlgorithm):
-    """
-    This is an example algorithm that takes a vector layer and
-    creates a new identical one.
-
-    It is meant to be used as an example of how to create your own
-    algorithms and explain methods and variables used to do it. An
-    algorithm like this will be available in all elements, and there
-    is not need for additional work.
-
-    All Processing algorithms should extend the QgsProcessingAlgorithm
-    class.
-    """
-
     # Constants used to refer to parameters and outputs. They will be
     # used when calling the algorithm from another algorithm, or when
     # calling from the QGIS console.
@@ -64,7 +51,12 @@ class JLHPenyerapanDanPenyimpananKarbon(QgsProcessingAlgorithm):
     PENUTUP_LAHAN = 'PENUTUP_LAHAN'
     EKOREGION = 'EKOREGION'
     GRID = 'GRID'
+    BENTUK_OUTPUT = 'BENTUK_OUTPUT'
+    SKOR_JLH = 'SKOR_JLH'
+    PULAU = 'PULAU'
     bentuk_output_list = ['Grid', 'Poligon']
+    skor_jlh_list = ['Kabupaten/Kota', 'Nasional']
+    pulau_list = ['Jawa', 'Sumatera', 'Kalimantan', 'Sulawesi', 'Balinusra', 'Maluku', 'Papua']
 
     def initAlgorithm(self, config):
         """
@@ -72,11 +64,42 @@ class JLHPenyerapanDanPenyimpananKarbon(QgsProcessingAlgorithm):
         with some other properties.
         """
 
+        # Setting untuk pulau
+        self.addParameter(
+            QgsProcessingParameterEnum(
+                self.PULAU,
+                self.tr('Pulau'),
+                options=self.pulau_list,
+                allowMultiple=True,
+                defaultValue=[0, 1, 2, 3, 4, 5, 6]  # Default to all options selected
+            )
+        )
+
+        # Settings for output type
+        self.addParameter(
+            QgsProcessingParameterEnum(
+                self.BENTUK_OUTPUT,
+                self.tr('Bentuk Output'),
+                options=self.bentuk_output_list,
+                defaultValue=1
+            )
+        )
+
+        # Settings for score type
+        self.addParameter(
+            QgsProcessingParameterEnum(
+                self.SKOR_JLH,
+                self.tr('Skor IJLH yang Digunakan'),
+                options=self.skor_jlh_list,
+                defaultValue=1
+            )
+        )
+
         # We add the input vector features source. It can have any kind of
         # geometry.
 
         self.addParameter(
-            QgsProcessingParameterFeatureSource(
+            QgsProcessingParameterVectorLayer(
                 self.PENUTUP_LAHAN,
                 self.tr('Penutup Lahan'),
                 [QgsProcessing.TypeVectorAnyGeometry]
@@ -84,7 +107,7 @@ class JLHPenyerapanDanPenyimpananKarbon(QgsProcessingAlgorithm):
         )
 
         self.addParameter(
-            QgsProcessingParameterFeatureSource(
+            QgsProcessingParameterVectorLayer(
                 self.EKOREGION,
                 self.tr('Ekoregion'),
                 [QgsProcessing.TypeVectorAnyGeometry]
@@ -92,21 +115,11 @@ class JLHPenyerapanDanPenyimpananKarbon(QgsProcessingAlgorithm):
         )
 
         self.addParameter(
-            QgsProcessingParameterFeatureSource(
+            QgsProcessingParameterVectorLayer(
                 self.GRID,
                 self.tr('Grid'),
-                [QgsProcessing.TypeVectorAnyGeometry]
+                [QgsProcessing.TypeVectorAnyGeometry],
                 optional=True
-            )
-        )
-
-        # Opsi Untuk Output ke Versi Grid Atau Tidak
-        self.addParameter(
-            QgsProcessingParameterEnum(
-                'BENTUK_OUTPUT',
-                self.tr('Bentuk Output'),
-                options=self.bentuk_output_list,
-                defaultValue=0
             )
         )
 
@@ -129,6 +142,10 @@ class JLHPenyerapanDanPenyimpananKarbon(QgsProcessingAlgorithm):
         bentuk_output_idx = self.parameterAsEnum(parameters, 'BENTUK_OUTPUT', context)
         bentuk_output = self.bentuk_output_list[bentuk_output_idx]
 
+        # Penentuan jenis skor
+        skor_jlh_idx = self.parameterAsEnum(parameters, 'SKOR_JLH', context)
+        skor_jlh = self.skor_jlh_list[skor_jlh_idx]
+
         def joinSkorMatra(source, matra): 
             # Load CSV file containing score values for PL, KBA, and KVA
             match matra.lower():
@@ -139,7 +156,11 @@ class JLHPenyerapanDanPenyimpananKarbon(QgsProcessingAlgorithm):
                 case 'pl':
                     skor_file_name = "skor_pl_ppk.csv"
 
-            csv_path_skor = f"{os.path.dirname(__file__)}/../../data/jlh_ppk/{skor_file_name}"  # Update with the actual path to your CSV file
+            if skor_jlh == 'Kabupaten/Kota' and matra.lower() == 'pl':
+                csv_path_skor = f"{os.path.dirname(__file__)}/../../data/jlh_ppk/kabupaten_kota/{skor_file_name}"  # Update with the actual path to your CSV file
+            else:
+                csv_path_skor = f"{os.path.dirname(__file__)}/../../data/jlh_ppk/{skor_file_name}"  # Update with the actual path to your CSV file
+
             uri_skor = f"file:///{csv_path_skor}?encoding=UTF-8&delimiter=;"
 
             skor = QgsVectorLayer(uri_skor, "csv_internal", "delimitedtext")
@@ -215,8 +236,6 @@ class JLHPenyerapanDanPenyimpananKarbon(QgsProcessingAlgorithm):
         }
         source_calc_jasling = processing.run("qgis:fieldcalculator", calculator_params)["OUTPUT"]
         
-        print(bentuk_output)
-
         # Proses untuk output bentuk POLIGON atau GRID
         # ============================================================
         if bentuk_output == 'Poligon':
@@ -228,15 +247,6 @@ class JLHPenyerapanDanPenyimpananKarbon(QgsProcessingAlgorithm):
             # Proses untuk output bentuk GRID
             # ==============================
             source_temp = source_calc_jasling
-            # elif bentuk_output == 'Grid':
-            # Proses untuk output bentuk GRID
-            # ==============================
-            # Langkah-langkah:
-            # 1. Overlay hasil perhitungan JLH_Karbon dengan GRID
-            # 2. Hitung luas poligon hasil overlay
-            # 3. Hitung proporsional JLH_Karbon untuk setiap poligon berdasarkan luasnya
-            # 4. Summarize JLH_Karbon_Proporsional berdasarkan ID GRID
-            # 5. Join hasil summarize kembali ke layer GRID
 
              # Overlay dengan GRID   
             intersection_params = {
@@ -333,15 +343,45 @@ class JLHPenyerapanDanPenyimpananKarbon(QgsProcessingAlgorithm):
             rename_params = {
                 'INPUT': source_join_summarized,          # your summarized layer
                 'FIELD': 'sum',          # existing field name
-                'NEW_NAME': 'IJE_Karbon',     # new name
+                'NEW_NAME': 'JLH_Karbon',     # new name
                 'OUTPUT': 'memory:'
             }
             source_rename_params = processing.run("qgis:renametablefield", rename_params)["OUTPUT"]
 
             source = source_rename_params
+        
+        # Pembulatan Skor Nasional
+        if skor_jlh == 'Nasional':
+            source = processing.run( "qgis:fieldcalculator", {
+                'INPUT': source,  # or iface.activeLayer()
+                'FIELD_NAME': 'JLH_Karbon', # Overwrite existing field
+                'NEW_FIELD': False,      
+                'FORMULA': f"""     round("JLH_Karbon")    """,
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT   # or path to file 
+            })["OUTPUT"]
 
         # Kategorisasi JLH_Karbon
-        kategori_params = {}
+        nama_kolom_jlh = 'JLH_Karbon'
+        source = processing.run( "qgis:fieldcalculator",
+                                    {
+                                        'INPUT': source,  # or iface.activeLayer()
+                                        'FIELD_NAME': 'Kategori_JLH',
+                                        'FIELD_TYPE': 2,        # String
+                                        'FIELD_LENGTH': 20,
+                                        'NEW_FIELD': True,
+                                        'FORMULA': f"""
+                                        CASE
+                                            WHEN "{nama_kolom_jlh}" >= 1.0 AND "{nama_kolom_jlh}" <= 1.8 THEN 'Sangat Rendah'
+                                            WHEN "{nama_kolom_jlh}" > 1.8 AND "{nama_kolom_jlh}" <= 2.6 THEN 'Rendah'
+                                            WHEN "{nama_kolom_jlh}" > 2.6 AND "{nama_kolom_jlh}" <= 3.4 THEN 'Sedang'
+                                            WHEN "{nama_kolom_jlh}" > 3.4 AND "{nama_kolom_jlh}" <= 4.2 THEN 'Tinggi'
+                                            WHEN "{nama_kolom_jlh}" > 4.2 AND "{nama_kolom_jlh}" <= 5.0 THEN 'Sangat Tinggi'
+                                            ELSE 'Tidak Diketahui'
+                                        END
+                                        """,
+                                        'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT   # or path to file
+                                    }
+                                )["OUTPUT"]
 
         # End Proses untuk output bentuk POLIGON atau GRID
         # ============================================================
