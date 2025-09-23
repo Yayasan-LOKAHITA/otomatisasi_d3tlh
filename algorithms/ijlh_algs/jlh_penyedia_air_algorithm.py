@@ -234,8 +234,8 @@ class JLHPenyediaAir(QgsProcessingAlgorithm):
         source_pl = joinSkorMatra(source_kva, 'pl')
         
         # Calcule Jasling  [BOBOT PERLU DIRUBAH UNTUK JLH LAIN]
-        bobot_ek = 0.32  # Bobot Ekoregion
-        bobot_ve = 0.08  # Bobot Vegetasi
+        bobot_ek = 0.28  # Bobot Ekoregion
+        bobot_ve = 0.12  # Bobot Vegetasi
         bobot_lc = 0.6  # Bobot Penutup Lahan
 
         calculator_params =  {
