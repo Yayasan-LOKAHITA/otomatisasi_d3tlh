@@ -1,33 +1,33 @@
 ﻿EKOREGION;EKOREGION_Standar;S_EK
-Danau;Danau;5
-Danau pegunungan;Danau;5
-Dataran fluvial bermaterial aluvium;Dataran fluvial bermaterial aluvium;4
-Dataran fluvial berombak-bergelombang bermaterial aluvium;Dataran fluvial berombak-bergelombang bermaterial aluvium;4
-Dataran fluviomarin bermaterial aluvium;Dataran fluviomarin bermaterial aluvium;4
-Dataran fluviovulkanik bermaterial aluvium;Dataran fluviovulkanik bermaterial aluvium;4
-Dataran lakustrin bermaterial aluvium;Dataran lakustrin bermaterial aluvium;4
-Dataran marin bermaterial batuan sedimen karbonat;Dataran marin bermaterial batuan sedimen karbonat;3
-Dataran marin berpasir bermaterial aluvium;Dataran marin berpasir bermaterial aluvium;3
-Dataran organik bermaterial gambut;Dataran organik bermaterial gambut;5
+Danau;Danau;4
+Danau pegunungan;Danau;4
+Dataran fluvial bermaterial aluvium;Dataran fluvial bermaterial aluvium;1
+Dataran fluvial berombak-bergelombang bermaterial aluvium;Dataran fluvial berombak-bergelombang bermaterial aluvium;2
+Dataran fluviomarin bermaterial aluvium;Dataran fluviomarin bermaterial aluvium;1
+Dataran fluviovulkanik bermaterial aluvium;Dataran fluviovulkanik bermaterial aluvium;2
+Dataran lakustrin bermaterial aluvium;Dataran lakustrin bermaterial aluvium;2
+Dataran marin bermaterial batuan sedimen karbonat;Dataran marin bermaterial batuan sedimen karbonat;4
+Dataran marin berpasir bermaterial aluvium;Dataran marin berpasir bermaterial aluvium;2
+Dataran organik bermaterial gambut;Dataran organik bermaterial gambut;2
 Dataran organik koralian bermaterial batuan sedimen karbonat;Dataran organik koralian bermaterial batuan sedimen karbonat;1
 Dataran organik koralian berombak-bergelombang bermaterial batuan sedimen karbonat;Dataran organik koralian berombak-bergelombang bermaterial batuan sedimen karbonat;1
 Dataran solusional karst bermaterial batuan sedimen karbonat;Dataran solusional karst bermaterial batuan sedimen karbonat;4
-Dataran solusional karst berombak-bergelombang bermaterial batuan sedimen karbonat;Dataran solusional karst berombak-bergelombang bermaterial batuan sedimen karbonat;4
+Dataran solusional karst berombak-bergelombang bermaterial batuan sedimen karbonat;Dataran solusional karst berombak-bergelombang bermaterial batuan sedimen karbonat;5
 Dataran struktural bermaterial batuan sedimen karbonat;Dataran struktural bermaterial batuan sedimen karbonat;4
 Dataran struktural berombak-bergelombang bermaterial batuan sedimen karbonat;Dataran struktural berombak-bergelombang bermaterial batuan sedimen karbonat;4
 Dataran struktural lipatan bermaterial batuan metamorfik;Dataran struktural lipatan bermaterial batuan metamorfik;2
 Dataran struktural lipatan bermaterial campuran batuan sedimen karbonat dan non karbonat;Dataran struktural lipatan bermaterial campuran batuan sedimen karbonat dan non karbonat;4
-Dataran struktural lipatan berombak-bergelombang bermaterial batuan metamorfik;Dataran struktural lipatan berombak-bergelombang bermaterial batuan metamorfik;3
+Dataran struktural lipatan berombak-bergelombang bermaterial batuan metamorfik;Dataran struktural lipatan berombak-bergelombang bermaterial batuan metamorfik;2
 Dataran struktural lipatan berombak-bergelombang bermaterial batuan sedimen karbonat;Dataran struktural lipatan berombak-bergelombang bermaterial batuan sedimen karbonat;4
-Dataran struktural lipatan berombak-bergelombang bermaterial batuan sedimen non karbonat;Dataran struktural lipatan berombak-bergelombang bermaterial batuan sedimen non karbonat;3
-Dataran struktural lipatan berombak-bergelombang bermaterial campuran batuan sedimen karbonat dan non karbonat;Dataran struktural lipatan berombak-bergelombang bermaterial campuran batuan sedimen karbonat dan non karbonat;3
+Dataran struktural lipatan berombak-bergelombang bermaterial batuan sedimen non karbonat;Dataran struktural lipatan berombak-bergelombang bermaterial batuan sedimen non karbonat;2
+Dataran struktural lipatan berombak-bergelombang bermaterial campuran batuan sedimen karbonat dan non karbonat;Dataran struktural lipatan berombak-bergelombang bermaterial campuran batuan sedimen karbonat dan non karbonat;2
 Dataran struktural plutonik berombak-bergelombang bermaterial batuan beku dalam;Dataran struktural plutonik berombak-bergelombang bermaterial batuan beku dalam;2
-Dataran vulkanik bermaterial piroklastik;Dataran vulkanik bermaterial piroklastik;4
+Dataran vulkanik bermaterial piroklastik;Dataran vulkanik bermaterial piroklastik;2
 Dataran vulkanik berombak-bergelombang bermaterial batuan beku luar;Dataran vulkanik berombak-bergelombang bermaterial batuan beku luar;2
-Dataran vulkanik berombak-bergelombang bermaterial campuran batuan beku luar dan piroklastik;Dataran vulkanik berombak-bergelombang bermaterial campuran batuan beku luar dan piroklastik;4
-Dataran vulkanik berombak-bergelombang bermaterial piroklastik;Dataran vulkanik berombak-bergelombang bermaterial piroklastik;4
+Dataran vulkanik berombak-bergelombang bermaterial campuran batuan beku luar dan piroklastik;Dataran vulkanik berombak-bergelombang bermaterial campuran batuan beku luar dan piroklastik;3
+Dataran vulkanik berombak-bergelombang bermaterial piroklastik;Dataran vulkanik berombak-bergelombang bermaterial piroklastik;2
 Dataran vulkanik kipas bermaterial piroklastik;Dataran vulkanik kipas bermaterial piroklastik;4
-Lembah sungai bermaterial aluvium;Lembah sungai bermaterial aluvium;5
+Lembah sungai bermaterial aluvium;Lembah sungai bermaterial aluvium;4
 Pegunungan denudasional bermaterial batuan metamorfik;Pegunungan denudasional bermaterial batuan metamorfik;2
 Pegunungan denudasional bermaterial batuan metamorfik (ultrabasa);Pegunungan denudasional bermaterial batuan metamorfik (ultrabasa);2
 Pegunungan denudasional bermaterial batuan sedimen karbonat;Pegunungan denudasional bermaterial batuan sedimen karbonat;3
@@ -40,9 +40,9 @@ Pegunungan kerucut vulkanik bermaterial batuan beku luar;Pegunungan kerucut vulk
 Pegunungan kerucut vulkanik bermaterial campuran batuan beku luar dan piroklastik;Pegunungan kerucut vulkanik bermaterial campuran batuan beku luar dan piroklastik;4
 Pegunungan kerucut vulkanik bermaterial piroklastik;Pegunungan kerucut vulkanik bermaterial piroklastik;4
 Pegunungan kerucut vulkanik lereng atas bermaterial campuran batuan beku luar dan piroklastik;Pegunungan kerucut vulkanik lereng atas bermaterial campuran batuan beku luar dan piroklastik;3
-Pegunungan kerucut vulkanik lereng bawah bermaterial batuan beku luar;Pegunungan kerucut vulkanik lereng bawah bermaterial batuan beku luar;3
+Pegunungan kerucut vulkanik lereng bawah bermaterial batuan beku luar;Pegunungan kerucut vulkanik lereng bawah bermaterial batuan beku luar;4
 Pegunungan kerucut vulkanik lereng bawah bermaterial campuran batuan beku luar dan piroklastik;Pegunungan kerucut vulkanik lereng bawah bermaterial campuran batuan beku luar dan piroklastik;3
-Pegunungan kerucut vulkanik lereng bawah bermaterial piroklastik;Pegunungan kerucut vulkanik lereng bawah bermaterial piroklastik;4
+Pegunungan kerucut vulkanik lereng bawah bermaterial piroklastik;Pegunungan kerucut vulkanik lereng bawah bermaterial piroklastik;3
 Pegunungan kerucut vulkanik lereng puncak bermaterial campuran batuan beku luar dan piroklastik;Pegunungan kerucut vulkanik lereng puncak bermaterial campuran batuan beku luar dan piroklastik;3
 Pegunungan kerucut vulkanik lereng tengah bermaterial campuran batuan beku luar dan piroklastik;Pegunungan kerucut vulkanik lereng tengah bermaterial campuran batuan beku luar dan piroklastik;3
 Pegunungan solusional karst bermaterial batuan sedimen karbonat;Pegunungan solusional karst bermaterial batuan sedimen karbonat;5
@@ -50,33 +50,33 @@ Pegunungan struktural lipatan bermaterial batuan metamorfik;Pegunungan struktura
 Pegunungan struktural lipatan bermaterial batuan sedimen karbonat;Pegunungan struktural lipatan bermaterial batuan sedimen karbonat;3
 Pegunungan struktural lipatan bermaterial batuan sedimen non karbonat;Pegunungan struktural lipatan bermaterial batuan sedimen non karbonat;3
 Pegunungan struktural lipatan bermaterial campuran batuan sedimen karbonat dan non karbonat;Pegunungan struktural lipatan bermaterial campuran batuan sedimen karbonat dan non karbonat;3
-Pegunungan struktural patahan bermaterial batuan metamorfik;Pegunungan struktural patahan bermaterial batuan metamorfik;2
-Pegunungan struktural plutonik bermaterial batuan beku dalam;Pegunungan struktural plutonik bermaterial batuan beku dalam;2
+Pegunungan struktural patahan bermaterial batuan metamorfik;Pegunungan struktural patahan bermaterial batuan metamorfik;3
+Pegunungan struktural plutonik bermaterial batuan beku dalam;Pegunungan struktural plutonik bermaterial batuan beku dalam;3
 Pegunungan vulkanik bermaterial batuan beku luar;Pegunungan vulkanik bermaterial batuan beku luar;2
 Pegunungan vulkanik bermaterial campuran batuan beku luar dan piroklastik;Pegunungan vulkanik bermaterial campuran batuan beku luar dan piroklastik;4
 Pegunungan vulkanik bermaterial piroklastik;Pegunungan vulkanik bermaterial piroklastik;4
 Pegunungan vulkanik lereng bawah bermaterial piroklastik;Pegunungan vulkanik lereng bawah bermaterial piroklastik;4
-Perbukitan denudasional bermaterial batuan metamorfik;Perbukitan denudasional bermaterial batuan metamorfik;2
-Perbukitan denudasional bermaterial batuan metamorfik (ultrabasa);Perbukitan denudasional bermaterial batuan metamorfik (ultrabasa);2
+Perbukitan denudasional bermaterial batuan metamorfik;Perbukitan denudasional bermaterial batuan metamorfik;3
+Perbukitan denudasional bermaterial batuan metamorfik (ultrabasa);Perbukitan denudasional bermaterial batuan metamorfik (ultrabasa);3
 Perbukitan denudasional bermaterial batuan sedimen karbonat;Perbukitan denudasional bermaterial batuan sedimen karbonat;3
 Perbukitan denudasional bermaterial batuan sedimen non karbonat;Perbukitan denudasional bermaterial batuan sedimen non karbonat;3
 Perbukitan denudasional bermaterial campuran batuan beku luar dan piroklastik;Perbukitan denudasional bermaterial campuran batuan beku luar dan piroklastik;4
 Perbukitan denudasional bermaterial campuran batuan sedimen karbonat dan non karbonat;Perbukitan denudasional bermaterial campuran batuan sedimen karbonat dan non karbonat;3
 Perbukitan denudasional bermaterial piroklastik;Perbukitan denudasional bermaterial piroklastik;4
 Perbukitan glasial bermaterial batuan sedimen karbonat;Perbukitan glasial bermaterial batuan sedimen karbonat;2
-Perbukitan kerucut vulkanik bermaterial batuan beku luar;Perbukitan kerucut vulkanik bermaterial batuan beku luar;2
+Perbukitan kerucut vulkanik bermaterial batuan beku luar;Perbukitan kerucut vulkanik bermaterial batuan beku luar;3
 Perbukitan kerucut vulkanik bermaterial campuran batuan beku luar dan piroklastik;Perbukitan kerucut vulkanik bermaterial campuran batuan beku luar dan piroklastik;4
 Perbukitan kerucut vulkanik bermaterial piroklastik;Perbukitan kerucut vulkanik bermaterial piroklastik;4
-Perbukitan kerucut vulkanik parasiter bermaterial batuan beku luar;Perbukitan kerucut vulkanik parasiter bermaterial batuan beku luar;2
+Perbukitan kerucut vulkanik parasiter bermaterial batuan beku luar;Perbukitan kerucut vulkanik parasiter bermaterial batuan beku luar;3
 Perbukitan kerucut vulkanik parasiter bermaterial campuran batuan beku luar dan piroklastik;Perbukitan kerucut vulkanik parasiter bermaterial campuran batuan beku luar dan piroklastik;4
 Perbukitan solusional karst bermaterial batuan sedimen karbonat;Perbukitan solusional karst bermaterial batuan sedimen karbonat;5
-Perbukitan struktural lipatan bermaterial batuan metamorfik;Perbukitan struktural lipatan bermaterial batuan metamorfik;2
+Perbukitan struktural lipatan bermaterial batuan metamorfik;Perbukitan struktural lipatan bermaterial batuan metamorfik;3
 Perbukitan struktural lipatan bermaterial batuan sedimen karbonat;Perbukitan struktural lipatan bermaterial batuan sedimen karbonat;3
 Perbukitan struktural lipatan bermaterial batuan sedimen non karbonat;Perbukitan struktural lipatan bermaterial batuan sedimen non karbonat;3
 Perbukitan struktural lipatan bermaterial campuran batuan sedimen karbonat dan non karbonat;Perbukitan struktural lipatan bermaterial campuran batuan sedimen karbonat dan non karbonat;3
 Perbukitan struktural patahan bermaterial batuan metamorfik;Perbukitan struktural patahan bermaterial batuan metamorfik;3
-Perbukitan struktural plutonik bermaterial batuan beku dalam;Perbukitan struktural plutonik bermaterial batuan beku dalam;2
-Perbukitan vulkanik bermaterial batuan beku luar;Perbukitan vulkanik bermaterial batuan beku luar;2
+Perbukitan struktural plutonik bermaterial batuan beku dalam;Perbukitan struktural plutonik bermaterial batuan beku dalam;3
+Perbukitan vulkanik bermaterial batuan beku luar;Perbukitan vulkanik bermaterial batuan beku luar;3
 Perbukitan vulkanik bermaterial campuran batuan beku luar dan piroklastik;Perbukitan vulkanik bermaterial campuran batuan beku luar dan piroklastik;4
 Perbukitan vulkanik bermaterial piroklastik;Perbukitan vulkanik bermaterial piroklastik;4
 Perbukitan vulkanik kubah lava bermaterial batuan beku luar;Perbukitan vulkanik kubah lava bermaterial batuan beku luar;1

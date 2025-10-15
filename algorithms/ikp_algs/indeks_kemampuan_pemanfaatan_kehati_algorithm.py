@@ -35,64 +35,319 @@ from qgis.core import (QgsProcessing,
                        QgsFeatureSink,
                        QgsProcessingAlgorithm,
                        QgsProcessingParameterFeatureSource,
-                       QgsProcessingParameterFeatureSink)
+                       QgsProcessingParameterFeatureSink,
+                       QgsProcessingParameterVectorLayer,
+                       QgsVectorLayer)
 
+import processing, os
 
 class IndeksKemampuanPemanfaatanKehati(QgsProcessingAlgorithm):
-    """
-    This is an example algorithm that takes a vector layer and
-    creates a new identical one.
+    # Parameters BCPI
+    GRID_PGA = 'GRID_PGA'
+    GRID_PPK = 'GRID_PPK'
+    GRID_PGN = 'GRID_PGN'
+    GRID_PHK = 'GRID_PHK'
+    # Parameters BI
+    EKOREGION = 'EKOREGION'
+    PL = 'PL'
+    HABITAT = 'HABITAT'
+    KK = 'KK'
 
-    It is meant to be used as an example of how to create your own
-    algorithms and explain methods and variables used to do it. An
-    algorithm like this will be available in all elements, and there
-    is not need for additional work.
-
-    All Processing algorithms should extend the QgsProcessingAlgorithm
-    class.
-    """
-
-    # Constants used to refer to parameters and outputs. They will be
-    # used when calling the algorithm from another algorithm, or when
-    # calling from the QGIS console.
-
+    # Output
     OUTPUT = 'OUTPUT'
-    INPUT = 'INPUT'
 
     def initAlgorithm(self, config):
-        """
-        Here we define the inputs and output of the algorithm, along
-        with some other properties.
-        """
-
         # We add the input vector features source. It can have any kind of
         # geometry.
         self.addParameter(
-            QgsProcessingParameterFeatureSource(
-                self.INPUT,
-                self.tr('Input layer'),
+            QgsProcessingParameterVectorLayer(
+                self.GRID_PGA,
+                self.tr('GRID JLH Pengaturan Air'),
                 [QgsProcessing.TypeVectorAnyGeometry]
             )
         )
 
-        # We add a feature sink in which to store our processed features (this
-        # usually takes the form of a newly created vector layer when the
-        # algorithm is run in QGIS).
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.GRID_PPK,
+                self.tr('GRID JLH Karbon'),
+                [QgsProcessing.TypeVectorAnyGeometry]
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.GRID_PYP,
+                self.tr('GRID JLH Penyedia Pangan'),
+                [QgsProcessing.TypeVectorAnyGeometry]
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.GRID_PHK,
+                self.tr('GRID JLH Kehati'),
+                [QgsProcessing.TypeVectorAnyGeometry]
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.EKOREGION,
+                self.tr('Data Ekoregion'),
+                [QgsProcessing.TypeVectorAnyGeometry]
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.PL,
+                self.tr('Data Penutup Lahan'),
+                [QgsProcessing.TypeVectorAnyGeometry]
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.HABITAT,
+                self.tr('Data Tipe Habitat IUCN'),
+                [QgsProcessing.TypeVectorAnyGeometry]
+            )
+        )
+
         self.addParameter(
             QgsProcessingParameterFeatureSink(
                 self.OUTPUT,
-                self.tr('Output layer')
+                self.tr('IKP Kehati')
             )
         )
 
     def processAlgorithm(self, parameters, context, feedback):
-        """
-        Here is where the processing itself takes place.
-        """
+        # Parameters BCPI
+        grid_pga = self.parameterAsSource(parameters, self.GRID_PGA, context)
+        grid_ppk = self.parameterAsSource(parameters, self.GRID_PPK, context)
+        grid_pgn = self.parameterAsSource(parameters, self.GRID_PGN, context)
+        grid_phk = self.parameterAsSource(parameters, self.GRID_PHK, context)
 
-        # Retrieve the feature source and sink. The 'dest_id' variable is used
-        # to uniquely identify the feature sink, and must be included in the
-        # dictionary returned by the processAlgorithm function.
+        # Parameters BI
+        pl = self.parameterAsSource(parameters, self.PL, context)
+        ekoregion = self.parameterAsSource(parameters, self.EKOREGION, context)
+
+        # Perhitungan BCPI
+        # Join KPPK_24, KPGN_24, KPHK_24 ke GRID_PGA
+        grid_bcpi1 = processing.run(
+            "qgis:joinattributestable",
+            {
+                    'INPUT': grid_pga,
+                    'FIELD': 'ID',
+                    'INPUT_2': grid_ppk,
+                    'FIELD_2': 'ID',
+                    'FIELDS_TO_COPY': ['KPPK_24'],
+                    'METHOD': 0,
+                    'DISCARD_NONMATCHING': False,
+                    'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            }
+        )["OUTPUT"]
+
+        grid_bcpi2 = processing.run(
+            "qgis:joinattributestable",
+            {
+                    'INPUT': grid_bcpi1,
+                    'FIELD': 'ID',
+                    'INPUT_2': grid_pgn,
+                    'FIELD_2': 'ID',
+                    'FIELDS_TO_COPY': ['KPGN_24'],
+                    'METHOD': 0,
+                    'DISCARD_NONMATCHING': False,
+                    'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            }
+        )["OUTPUT"]
+
+        grid_bcpi3 = processing.run(
+            "qgis:joinattributestable",
+            {
+                    'INPUT': grid_bcpi2,
+                    'FIELD': 'ID',
+                    'INPUT_2': grid_phk,
+                    'FIELD_2': 'ID',
+                    'FIELDS_TO_COPY': ['KPHK_24'],
+                    'METHOD': 0,
+                    'DISCARD_NONMATCHING': False,
+                    'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            }
+        )["OUTPUT"]
+
+        # Hitung BCPI
+        grid_bcpi = processing.run(
+            "qgis:fieldcalculator",
+            {
+                'INPUT': grid_bcpi3,
+                'FIELD_NAME': 'BCPI',
+                'FIELD_TYPE': 0,  # Decimal number (real)
+                'FIELD_LENGTH': 10,
+                'FIELD_PRECISION': 3,
+                'NEW_FIELD': True,
+                'FORMULA': '( "KPGA_24" + "KPPK_24" + "KPGN_24" + "KPHK_24" ) / 3',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            }
+        )["OUTPUT"]
+
+        # Klasifikasi BCPI
+        grid_bcpi_klas = processing.run(
+            "qgis:fieldcalculator",
+            {
+                'INPUT': ekoregion,
+                'FIELD_NAME': 'KLS_BCPI',
+                'FIELD_TYPE': 4,  # Text (string),
+                'FIELD_LENGTH': 20,
+                'NEW_FIELD': True,
+                'FORMULA': '''
+                CASE
+                    WHEN "BCPI" <= 1.8 THEN 'Sangat Rendah'
+                    WHEN "BCPI" > 1.8 AND "BCPI" <= 2.6 THEN 'Rendah'
+                    WHEN "BCPI" > 2.6 AND "BCPI" <= 3.4 THEN 'Sedang'
+                    WHEN "BCPI" > 3.4 AND "BCPI" <= 4.2 THEN 'Tinggi'
+                    WHEN "BCPI" > 4.2 THEN 'Sangat Tinggi'
+                    ELSE 0
+                END
+                ''',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            }
+        )["OUTPUT"]
+
+        # HITUNG BI
+        # Perhitungan IKG
+        sebaran_karst_gambut = processing.run(
+            "native:extractbyexpression",
+            {
+                'INPUT': grid_bcpi_klas,
+                'EXPRESSION': '''
+                "KBA_250" IN (
+                    'Dataran organik bermaterial gambut',
+                    'Dataran solusional karst bermaterial batuan sedimen karbonat',
+                    'Dataran solusional karst berombak-bergelombang bermaterial batuan sedimen karbonat',
+                    'Pegunungan solusional karst bermaterial batuan sedimen karbonat',
+                    'Perbukitan solusional karst bermaterial batuan sedimen karbonat'
+                )''',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            }
+        )["OUTPUT"]
+
+        # intersect sebaran karst dan gambut dengan PL
+        intersect_karst_gambut = processing.run(
+            "qgis:intersection",
+            {
+                'INPUT': sebaran_karst_gambut,
+                'OVERLAY': pl,
+                'INPUT_FIELDS': [],
+                'OVERLAY_FIELDS': [],
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            }
+        )["OUTPUT"]
+
+        # Perhitungan indeks sebaran karst dan gambut (IKG)
+        ikg = processing.run(
+            "qgis:fieldcalculator",
+            {
+                'INPUT': intersect_karst_gambut,
+                'FIELD_NAME': 'KLS_KG',
+                'FIELD_TYPE': 1,  # Whole number (integer)
+                'NEW_FIELD': True,
+                'FORMULA': '''
+                    CASE
+                        WHEN "KBA_250" NOT NULL AND "PL" IN ('Permukiman', 'Permukiman transmigrasi', 'Bandara/Pelabuhan', 'Tanah terbuka', 'Pertambangan')
+                            THEN 1
+                        WHEN "KBA_250" NOT NULL AND "PL" IN ('Pertanian lahan kering', 'Pertanian lahan kering campuran', 'Perkebunan', 'Sawah', 'Tambak')
+                            THEN 2
+                        WHEN "KBA_250" NOT NULL AND "PL" IN ('Hutan tanaman', 'Rawa', 'Semak belukar', 'Semak belukar rawa')
+                            THEN 3
+                        WHEN "KBA_250" NOT NULL AND "PL" IN ('Hutan rawa primer', 'Hutan rawa sekunder')
+                            THEN 4
+                        WHEN "KBA_250" NOT NULL AND "PL" IN ('Hutan lahan kering primer', 'Hutan lahan kering sekunder', 'Hutan mangrove primer', 'Hutan mangrove sekunder', 'Savana/Padang rumput', 'Tubuh air')
+                            THEN 5
+                        ELSE NULL
+                    END
+                ''',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            }
+        )["OUTPUT"]    
+
+        # Perhitungan ISP (Indikator Keragaman Tipe Habitat)
+        # Load data KK
+        plugin_root = os.path.dirname(__file__)
+        data_root = os.path.join(plugin_root, "data", f"jlh_phk")
+        data_root_kk = os.path.join(data_root, "KK")
+        kk_path = os.path.join(data_root_kk, "KK.gpkg")
+        kk = QgsVectorLayer(kk_path, "KK", "ogr")
+        habitat = self.parameterAsSource(parameters, self.HABITAT, context)
+
+        # Intersect ekoregion dengan habitat
+        habitat = processing.run(
+            "qgis:intersection",
+            {
+                'INPUT': ekoregion,
+                'OVERLAY': habitat,
+                'INPUT_FIELDS': [],
+                'OVERLAY_FIELDS': [],
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            }
+        )["OUTPUT"]
+
+        # Delete feature dengan nilai NULL pada field 'HABITAT'
+        habitat_nonull = processing.run(
+            "native:extractbyexpression",
+            {
+                'INPUT': habitat,
+                'EXPRESSION': '"HABITAT" IS NOT NULL',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            }
+        )["OUTPUT"]
+
+        # Union habitat dengan PL
+        union_habitat_pl = processing.run(
+            "qgis:union",
+            {
+                'INPUT': habitat_nonull,
+                'OVERLAY': pl,
+                'INPUT_FIELDS': [],
+                'OVERLAY_FIELDS': [],
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            }
+        )["OUTPUT"]
+        
+        # Hapus feture dengan nilai PL tertentu
+        union_habitat_pl_clean = processing.run(
+            "native:extractbyexpression",
+            {
+                'INPUT': union_habitat_pl,
+                'EXPRESSION': '''
+                    "PL" NOT IN ('Bandara/Pelabuhan', 'Permukiman', 'Pertambangan', 'Tanah Terbuka', 'Transmigrasi')
+                ''',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            }
+        )["OUTPUT"]
+
+        # Hitung jumlah habitat di setiap ekoregion (output field : ekoregion, jumlah_habitat)
+        jlh_habitat = processing.run(
+            "qgis:statisticsbycategories",
+            {
+                'INPUT': union_habitat_pl_clean,
+                'VALUES_FIELD_NAME': 'HABITAT',
+                'CATEGORIES_FIELD_NAME': 'EKO_250',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            }
+        )["OUTPUT"]
+
+        
+                    
+
+
+
+
+
+
+        
+
         source = self.parameterAsSource(parameters, self.INPUT, context)
         (sink, dest_id) = self.parameterAsSink(parameters, self.OUTPUT,
                 context, source.fields(), source.wkbType(), source.sourceCrs())
@@ -153,7 +408,7 @@ class IndeksKemampuanPemanfaatanKehati(QgsProcessingAlgorithm):
         contain lowercase alphanumeric characters only and no spaces or other
         formatting characters.
         """
-        return '03. Indeks Kemampuan Pemanfaatan (IKP)'
+        return '04. Indeks Kemampuan Pemanfaatan (IKP)'
 
     def tr(self, string):
         return QCoreApplication.translate('Processing', string)

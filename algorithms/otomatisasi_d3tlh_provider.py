@@ -34,6 +34,8 @@ from qgis.core import QgsProcessingProvider
 
 # Algoritma Pre-Processing
 from .pre_processing_algs.pengecekan_kualitas_data_algorithm import PengecekanKualitasData
+from .pre_processing_algs.pulau_algorithm import AddPulauFieldAlgorithm
+from .pre_processing_algs.standarisasi_skema_data_algorithm import StandarisasiSkemaData
 
 # Algoritma IJLH
 from .ijlh_algs.jlh_pengatur_kualitas_udara_algorithm import JLHPengaturKualitasUdara
@@ -43,11 +45,19 @@ from .ijlh_algs.jlh_penyerapan_dan_penyimpanan_karbon_algorithm import JLHPenyer
 from .ijlh_algs.jlh_pendukung_habibat_dan_kehati_algorithm import JLHPendukungKehati
 from .ijlh_algs.jlh_pengaturan_air_algorithm import JLHPengaturanAir
 
+from .ikp_algs.indeks_kemampuan_pemanfaatan_lahan_algorithm import IKPLahanAlgorithm
+
+from .pop_algs.distribusi_penduduk_algorithm import DistribusiPendudukSGSRI
+
 # Algoritma IKP
 from .ikp_algs.indeks_kemampuan_pemanfaatan_kehati_algorithm import IndeksKemampuanPemanfaatanKehati
+from .ikp_algs.indeks_kemampuan_pemanfaatan_udara_algorithm import IKPUdaraAlgorithm
 
 # Algoritma lainnya
 from .utils_algs.mca_polygon_algorithms import MCA_GRID_Poligon_Algoritm
+from .utils_algs.grid_algorithm import GridIndonesiaAlgorithm
+from .utils_algs.klasifikasi_jalan_algorithm import StandarisasiKelasJalanInteractiveAlgorithm
+from .utils_algs.klasifikasi_pl_kwshutan_algorithm import KlasifikasiPLatauKawasanHutan
 
 class OtomatisasiD3TLHProvider(QgsProcessingProvider):
 
@@ -70,6 +80,8 @@ class OtomatisasiD3TLHProvider(QgsProcessingProvider):
         """
         # Algoritma Pre-Processing
         self.addAlgorithm(PengecekanKualitasData())
+        self.addAlgorithm(AddPulauFieldAlgorithm())
+        self.addAlgorithm(StandarisasiSkemaData())
 
         # Algoritma IJLH
         self.addAlgorithm(JLHPengaturKualitasUdara())
@@ -80,10 +92,16 @@ class OtomatisasiD3TLHProvider(QgsProcessingProvider):
         self.addAlgorithm(JLHPengaturanAir())
         
         # Algoritma IKP
+        self.addAlgorithm(DistribusiPendudukSGSRI())
         self.addAlgorithm(IndeksKemampuanPemanfaatanKehati())
+        self.addAlgorithm(IKPLahanAlgorithm())
+        self.addAlgorithm(IKPUdaraAlgorithm())
 
         # Algoritma lainnya
         self.addAlgorithm(MCA_GRID_Poligon_Algoritm())
+        self.addAlgorithm(GridIndonesiaAlgorithm())
+        self.addAlgorithm(StandarisasiKelasJalanInteractiveAlgorithm())
+        self.addAlgorithm(KlasifikasiPLatauKawasanHutan())
 
 
     def id(self):
