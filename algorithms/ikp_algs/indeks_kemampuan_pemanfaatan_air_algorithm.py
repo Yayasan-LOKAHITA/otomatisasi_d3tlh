@@ -126,13 +126,20 @@ class IndeksKemampuanPemanfaatanAir(QgsProcessingAlgorithm):
                 [QgsProcessing.TypeVectorAnyGeometry]
             )
          )
-         self.addParameter(
-            QgsProcessingParameterMapLayer(
-                self.IP,
-                self.tr('Tabel Indeks Pencemar (CSV yang dimuat di QGIS)'),
-                optional=False
-            )
-        )
+
+         parameterCSV = QgsProcessingParameterFile(
+            self.IP,
+            self.tr('Tabel Indeks Pencemar (CSV)'),
+            extension='csv',
+            optional=False
+         )
+         parameterCSV.setHelp(
+            'Select the CSV table containing pollutant index data.'
+            '<br>For more information, visit: '
+            '<a href="https://docs.qgis.org/latest/en/docs/user_manual/processing/">QGIS Processing Docs</a>'
+         )
+         self.addParameter(parameterCSV)
+
          self.addParameter(
             QgsProcessingParameterVectorLayer(
                 self.POP,
@@ -162,7 +169,7 @@ class IndeksKemampuanPemanfaatanAir(QgsProcessingAlgorithm):
         )
 
         # Path file CSV internal
-        csv_path_pl = os.path.join(plugin_dir, "data", "ikp_air", "pl_csv_semicolon.csv")
+        csv_path_pl = os.path.join(plugin_dir, "data", "ikp_air", "bobot_pl.csv")
 
         # Cek keberadaan file
         if not os.path.exists(csv_path_pl):
@@ -893,7 +900,7 @@ class IndeksKemampuanPemanfaatanAir(QgsProcessingAlgorithm):
         return 'ikp_air'
 
     def displayName(self):
-        return self.tr('Indeks Kemampuan Pemanfaatan Air')
+        return self.tr('IKP Air')
 
     def group(self):
         """
@@ -907,6 +914,45 @@ class IndeksKemampuanPemanfaatanAir(QgsProcessingAlgorithm):
 
     def tr(self, string):
         return QCoreApplication.translate('Processing', string)
+    
+    def shortHelpString(self):
+        return """
+            <h2>Algorithm Description</h2>
+            <p>
+            This algorithm calculates the <b>Pollutant Index (Indeks Pencemar)</b>
+            from input environmental monitoring data.
+            </p>
+
+            <h3>Input Parameters</h3>
+            <ul>
+            <li><b>Tabel Indeks Pencemar (CSV)</b> — CSV table containing pollutant concentration data.</li>
+            <li><b>Boundary Layer</b> — Polygon layer defining spatial zones for aggregation.</li>
+            </ul>
+
+            <h3>Output</h3>
+            <p>
+            A vector layer with new fields for pollutant index (IP) and classification.
+            </p>
+
+            <h3>Formula</h3>
+            <p>
+            The calculation follows:
+            <br><code>IP = (Ci / Lij) × 100</code>
+            <br>where:
+            <ul>
+            <li><code>Ci</code> = pollutant concentration</li>
+            <li><code>Lij</code> = quality standard limit</li>
+            </ul>
+            </p>
+
+            <h3>CSV Files Template</h3>
+            <p>
+            Sample CSV files can be found in the plugin's data directory:
+            <a href="https://docs.qgis.org/latest/en/docs/user_manual/processing/">QGIS Processing Docs</a>
+            </p>
+
+            <br>
+        """
 
     def createInstance(self):
         return IndeksKemampuanPemanfaatanAir()

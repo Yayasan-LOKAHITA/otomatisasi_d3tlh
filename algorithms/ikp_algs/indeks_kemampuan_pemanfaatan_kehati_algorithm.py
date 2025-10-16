@@ -77,7 +77,7 @@ class IndeksKemampuanPemanfaatanKehati(QgsProcessingAlgorithm):
 
         self.addParameter(
             QgsProcessingParameterVectorLayer(
-                self.GRID_PYP,
+                self.GRID_PGN,
                 self.tr('GRID JLH Penyedia Pangan'),
                 [QgsProcessing.TypeVectorAnyGeometry]
             )
@@ -412,6 +412,13 @@ class IndeksKemampuanPemanfaatanKehati(QgsProcessingAlgorithm):
 
     def tr(self, string):
         return QCoreApplication.translate('Processing', string)
+    
+    def shortHelpString(self):
+        return self.tr('''
+Menghitung IKP Air per GRID.
+Modul ini digunakan untuk menghitung indeks kemampuan pemanfaatan Air.
+
+    ''')
 
     def createInstance(self):
         return IndeksKemampuanPemanfaatanKehati()

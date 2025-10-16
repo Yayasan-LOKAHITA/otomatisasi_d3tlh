@@ -52,6 +52,7 @@ from .pop_algs.distribusi_penduduk_algorithm import DistribusiPendudukSGSRI
 # Algoritma IKP
 from .ikp_algs.indeks_kemampuan_pemanfaatan_kehati_algorithm import IndeksKemampuanPemanfaatanKehati
 from .ikp_algs.indeks_kemampuan_pemanfaatan_udara_algorithm import IKPUdaraAlgorithm
+from .ikp_algs.indeks_kemampuan_pemanfaatan_air_algorithm import IndeksKemampuanPemanfaatanAir
 
 # Algoritma lainnya
 from .utils_algs.mca_polygon_algorithms import MCA_GRID_Poligon_Algoritm
@@ -96,6 +97,7 @@ class OtomatisasiD3TLHProvider(QgsProcessingProvider):
         self.addAlgorithm(IndeksKemampuanPemanfaatanKehati())
         self.addAlgorithm(IKPLahanAlgorithm())
         self.addAlgorithm(IKPUdaraAlgorithm())
+        self.addAlgorithm(IndeksKemampuanPemanfaatanAir())
 
         # Algoritma lainnya
         self.addAlgorithm(MCA_GRID_Poligon_Algoritm())
