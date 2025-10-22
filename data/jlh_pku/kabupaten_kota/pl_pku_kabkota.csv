@@ -1,46 +1,46 @@
-﻿PL,S_PL
-Bandara/Pelabuhan,1
-Hutan Lahan Kering Primer,5
-Hutan Lahan Kering Sekunder,5
-Hutan Rawa Primer,5
-Hutan Rawa Sekunder,5
-Hutan Tanaman,4
-Perkebunan,3
-Permukiman,2
-Pertambangan,1
-Pertanian Lahan Kering,3
-Pertanian Lahan Kering Campur,3
-Rawa,5
-Savana/Padang Rumput,3
-Sawah,3
-Semak Belukar,3
-Semak Belukar Rawa,5
-Tambak,3
-Perkebunan Pohon,3.75
-Perkebunan Perdu,3.25
-Perkebunan Terna,3
-Perkebunan Semak,3.25
-Perkebunan Palma,3.5
-Permukiman Perkotaan,2
-Permukiman Perdesaan,3
-Transmigrasi,3
-Tubuh Air Alami,5
-Tubuh Air Buatan,4.67
-Sungai,5
-Kolam Bekas Tambang,4.33
-Embung,4.67
-Lahan Terbuka,1
-Lahan Terbuka Diperkeras,1
-Lahan Terbuka Berpasir,1.5
-Lahan Terbuka Berbatu,1
-Lahan Terbuka Berlumpur,1.5
-RTH Perkotaan,4
-Hutan Kota,4
-Industri,2
-Saluran Air (Tidak Dirinci),5
-Kolam Oksidasi dan Pengelolaan Limbah,2
-Tempat Penimbunan dan Pembuangan Sampah,1
-Hutan Mangrove Primer,5
-Hutan Mangrove Sekunder,5
-Savana,3
-Padang Rumput,2
+﻿PL;S_PL
+Bandara/Pelabuhan;1
+Hutan Lahan Kering Primer;5
+Hutan Lahan Kering Sekunder;5
+Hutan Rawa Primer;5
+Hutan Rawa Sekunder;5
+Hutan Tanaman;4
+Perkebunan;3
+Permukiman;2
+Pertambangan;1
+Pertanian Lahan Kering;3
+Pertanian Lahan Kering Campur;3
+Rawa;5
+Savana/Padang Rumput;3
+Sawah;3
+Semak Belukar;3
+Semak Belukar Rawa;5
+Tambak;3
+Perkebunan Pohon;3.75
+Perkebunan Perdu;3.25
+Perkebunan Terna;3
+Perkebunan Semak;3.25
+Perkebunan Palma;3.5
+Permukiman Perkotaan;2
+Permukiman Perdesaan;3
+Transmigrasi;3
+Tubuh Air Alami;5
+Tubuh Air Buatan;4.67
+Sungai;5
+Kolam Bekas Tambang;4.33
+Embung;4.67
+Lahan Terbuka;1
+Lahan Terbuka Diperkeras;1
+Lahan Terbuka Berpasir;1.5
+Lahan Terbuka Berbatu;1
+Lahan Terbuka Berlumpur;1.5
+RTH Perkotaan;4
+Hutan Kota;4
+Industri;2
+Saluran Air (Tidak Dirinci);5
+Kolam Oksidasi dan Pengelolaan Limbah;2
+Tempat Penimbunan dan Pembuangan Sampah;1
+Hutan Mangrove Primer;5
+Hutan Mangrove Sekunder;5
+Savana;3
+Padang Rumput;2

@@ -49,7 +49,7 @@ class IndeksKemampuanPemanfaatanKehati(QgsProcessingAlgorithm):
     GRID_PHK = 'GRID_PHK'
     # Parameters BI
     EKOREGION = 'EKOREGION'
-    PL = 'PL'
+    GRID_PL = 'GRID_PL'
     HABITAT = 'HABITAT'
     KK = 'KK'
 
@@ -101,7 +101,7 @@ class IndeksKemampuanPemanfaatanKehati(QgsProcessingAlgorithm):
 
         self.addParameter(
             QgsProcessingParameterVectorLayer(
-                self.PL,
+                self.GRID_PL,
                 self.tr('Data Penutup Lahan'),
                 [QgsProcessing.TypeVectorAnyGeometry]
             )
@@ -130,7 +130,7 @@ class IndeksKemampuanPemanfaatanKehati(QgsProcessingAlgorithm):
         grid_phk = self.parameterAsSource(parameters, self.GRID_PHK, context)
 
         # Parameters BI
-        pl = self.parameterAsSource(parameters, self.PL, context)
+        pl = self.parameterAsSource(parameters, self.GRID_PL, context)
         ekoregion = self.parameterAsSource(parameters, self.EKOREGION, context)
 
         # Perhitungan BCPI
@@ -187,7 +187,7 @@ class IndeksKemampuanPemanfaatanKehati(QgsProcessingAlgorithm):
                 'FIELD_LENGTH': 10,
                 'FIELD_PRECISION': 3,
                 'NEW_FIELD': True,
-                'FORMULA': '( "KPGA_24" + "KPPK_24" + "KPGN_24" + "KPHK_24" ) / 3',
+                'FORMULA': '( "KPGA_24" + "KPPK_24" + "KPGN_24" + "KPHK_24" ) / 4',
                 'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
             }
         )["OUTPUT"]
@@ -220,7 +220,7 @@ class IndeksKemampuanPemanfaatanKehati(QgsProcessingAlgorithm):
         sebaran_karst_gambut = processing.run(
             "native:extractbyexpression",
             {
-                'INPUT': grid_bcpi_klas,
+                'INPUT': ekoregion,
                 'EXPRESSION': '''
                 "KBA_250" IN (
                     'Dataran organik bermaterial gambut',
@@ -240,7 +240,7 @@ class IndeksKemampuanPemanfaatanKehati(QgsProcessingAlgorithm):
                 'INPUT': sebaran_karst_gambut,
                 'OVERLAY': pl,
                 'INPUT_FIELDS': [],
-                'OVERLAY_FIELDS': [],
+                'OVERLAY_FIELDS': ['PL'],
                 'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
             }
         )["OUTPUT"]
@@ -272,71 +272,35 @@ class IndeksKemampuanPemanfaatanKehati(QgsProcessingAlgorithm):
             }
         )["OUTPUT"]    
 
-        # Perhitungan ISP (Indikator Keragaman Tipe Habitat)
+        # 2b. Perhitungan ISP (Indikator Keragaman Tipe Habitat)
         # Load data KK
         plugin_root = os.path.dirname(__file__)
         data_root = os.path.join(plugin_root, "data", f"jlh_phk")
         data_root_kk = os.path.join(data_root, "KK")
         kk_path = os.path.join(data_root_kk, "KK.gpkg")
         kk = QgsVectorLayer(kk_path, "KK", "ogr")
-        habitat = self.parameterAsSource(parameters, self.HABITAT, context)
-
-        # Intersect ekoregion dengan habitat
-        habitat = processing.run(
-            "qgis:intersection",
-            {
-                'INPUT': ekoregion,
-                'OVERLAY': habitat,
-                'INPUT_FIELDS': [],
-                'OVERLAY_FIELDS': [],
-                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-            }
-        )["OUTPUT"]
-
-        # Delete feature dengan nilai NULL pada field 'HABITAT'
-        habitat_nonull = processing.run(
-            "native:extractbyexpression",
-            {
-                'INPUT': habitat,
-                'EXPRESSION': '"HABITAT" IS NOT NULL',
-                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-            }
-        )["OUTPUT"]
-
-        # Union habitat dengan PL
-        union_habitat_pl = processing.run(
-            "qgis:union",
-            {
-                'INPUT': habitat_nonull,
-                'OVERLAY': pl,
-                'INPUT_FIELDS': [],
-                'OVERLAY_FIELDS': [],
-                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-            }
-        )["OUTPUT"]
+        habitat = self.parameterAsSource(parameters, self.HABITAT, context) #Polygonize Raster
         
-        # Hapus feture dengan nilai PL tertentu
-        union_habitat_pl_clean = processing.run(
-            "native:extractbyexpression",
-            {
-                'INPUT': union_habitat_pl,
-                'EXPRESSION': '''
-                    "PL" NOT IN ('Bandara/Pelabuhan', 'Permukiman', 'Pertambangan', 'Tanah Terbuka', 'Transmigrasi')
-                ''',
-                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-            }
-        )["OUTPUT"]
+        # Here we use Zonal stat method because intersection takes a lot of time.
 
-        # Hitung jumlah habitat di setiap ekoregion (output field : ekoregion, jumlah_habitat)
-        jlh_habitat = processing.run(
-            "qgis:statisticsbycategories",
-            {
-                'INPUT': union_habitat_pl_clean,
-                'VALUES_FIELD_NAME': 'HABITAT',
-                'CATEGORIES_FIELD_NAME': 'EKO_250',
-                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-            }
-        )["OUTPUT"]
+        #1. GRID_PL to Raster
+
+        #2. Zonal stat PL on habitat vector (pick majority)
+
+        #3. Delete (extractbyattribute) habitat buatan (Habitat dengan PL Majority tertentu)
+
+        #4. Intersect Vektor Habitat Natural dengan WE
+
+        #4. Calculate for every WE (Wilayah Ekoregion) How Many habitat there
+
+        #5. Calculate ISP based on how many species on every WE
+
+        #2c. PERHITUNGAN RTE
+
+        #2d. PERHITUNGAN 
+
+
+        
 
         
                     
