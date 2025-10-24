@@ -25,9 +25,6 @@
 __author__ = 'Yayasan Lokahita'
 __date__ = '2025-08-15'
 __copyright__ = '(C) 2025 by Yayasan Lokahita'
-
-# This will get replaced with a git SHA1 when you do a git archive
-
 __revision__ = '$Format:%H$'
 
 from qgis.PyQt.QtCore import QCoreApplication
@@ -48,7 +45,8 @@ class IKPLahanAlgorithm(QgsProcessingAlgorithm):
     P_KWSHUTAN = 'P_KWSHUTAN'        # Kawasan Hutan (kwshutan)
     P_GRID_POP = 'P_GRID_POP'        # GRID Distribusi Penduduk (kolom: ID, POPGRIDYY)
     P_YEAR = 'P_YEAR'                # Tahun (e.g., 2024 → kolom suffix 24)
-    P_JEP = 'P_JEP'                  # Jejak Ekologis Pangan (double)
+    P_JEP = 'P_JEP'                  # Jejak Ekologis Pangan (SJEPGN)
+    P_JEB = 'P_JEB'                  # Jejak Ekologis Built-Up Land (SJEBUILT)
 
     # Output
     OUTPUT = 'OUTPUT'
@@ -76,11 +74,11 @@ Modul ini digunakan untuk menghitung indeks kemampuan pemanfaatan lahan.
 
 Berikut beberapa langkah dasar:
 1. Siapkan data dasar: grid penyedia pangan, penutup lahan, kawasan hutan, dan distribusi penduduk.
-2. Tentukan tahun & standar (SJEPGN): Pilih tahun analisis (mis. 2024) dan nilai jejak ekologis pangan.
-3. Tetapkan area yang boleh dimanfaatkan berdasarkan KPGN, jenis penutup lahan, dan status kawasan hutan yang selanjutnya dikategorikan ke dalam kategori Ketersediaan Lahan Pangan & Hunian, Ketersediaan Lahan Hunian, atau Tidak Dihitung.
+2. Tentukan tahun & standar: Pilih tahun analisis (mis. 2024) serta nilai jejak ekologis pangan (SJEPGN) dan built-up land (SJEBUILT).
+3. Tetapkan area yang boleh dimanfaatkan berdasarkan KPGN, jenis penutup lahan, dan status kawasan hutan, lalu kategorikan.
 4. Ukur ketersediaan lahan per grid dalam satuan hektar.
 5. Tambahkan data penduduk per grid.
-6. Hitung kebutuhan (KEB_HA) & indeks (IKPLHN)
+6. Hitung kebutuhan (KEB_HA) dan indeks (IKPLHN).
 7. Klasifikasikan IKPLHN: Sangat Rendah, Rendah, Sedang, Tinggi, Sangat Tinggi (dan Tidak Dihitung bila 0).''')
 
     def createInstance(self):
@@ -128,7 +126,15 @@ Berikut beberapa langkah dasar:
                 self.P_JEP,
                 self.tr('Jejak Ekologis Pangan (SJEPGN)'),
                 type=QgsProcessingParameterNumber.Double,
-                defaultValue=0.08894
+                defaultValue=0.06690
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterNumber(
+                self.P_JEB,
+                self.tr('Jejak Ekologis Built-Up Land (SJEBUILT)'),
+                type=QgsProcessingParameterNumber.Double,
+                defaultValue=0.0024956
             )
         )
         self.addParameter(
@@ -145,7 +151,8 @@ Berikut beberapa langkah dasar:
         kwsh_src = parameters[self.P_KWSHUTAN]
         grid_pop_src = parameters[self.P_GRID_POP]
         year = int(self.parameterAsDouble(parameters, self.P_YEAR, context))
-        jep = float(self.parameterAsDouble(parameters, self.P_JEP, context))
+        jep = float(self.parameterAsDouble(parameters, self.P_JEP, context))   # SJEPGN
+        jeb = float(self.parameterAsDouble(parameters, self.P_JEB, context))   # SJEBUILT
 
         yy = f"{year % 100:02d}"    # 2024 -> '24'
         fld_kpgn = f"KPGN_{yy}"
@@ -155,22 +162,19 @@ Berikut beberapa langkah dasar:
         grid_src_layer = self.parameterAsSource(parameters, self.P_GRID_KPGN, context)
         crs_out = grid_src_layer.sourceCrs()
 
-        # [PATCH] Normalisasi CRS: samakan PL & Kawasan ke CRS GRID sebelum overlay
+        # === Normalisasi CRS: samakan PL & Kawasan ke CRS GRID ===
         pl_src = processing.run(
             'native:reprojectlayer',
             {'INPUT': pl_src, 'TARGET_CRS': crs_out, 'OUTPUT': 'TEMPORARY_OUTPUT'},
             context=context, feedback=feedback
         )['OUTPUT']
-
         kwsh_src = processing.run(
             'native:reprojectlayer',
             {'INPUT': kwsh_src, 'TARGET_CRS': crs_out, 'OUTPUT': 'TEMPORARY_OUTPUT'},
             context=context, feedback=feedback
         )['OUTPUT']
 
-        # (Opsional) grid_pop_src hanya untuk join atribut → tidak wajib direproject
-
-        # 0. Build spatial index pada input (setelah normalisasi CRS)
+        # 0. Build spatial index pada input
         processing.run('native:createspatialindex', {'INPUT': grid_src}, context=context, feedback=feedback)
         processing.run('native:createspatialindex', {'INPUT': pl_src},   context=context, feedback=feedback)
         processing.run('native:createspatialindex', {'INPUT': kwsh_src}, context=context, feedback=feedback)
@@ -188,7 +192,6 @@ Berikut beberapa langkah dasar:
             {'INPUT': pl_src, 'PREDICATE': [0], 'INTERSECT': extent_poly, 'OUTPUT': 'TEMPORARY_OUTPUT'},
             context=context, feedback=feedback
         )['OUTPUT']
-
         kwsh_sub = processing.run(
             'native:extractbylocation',
             {'INPUT': kwsh_src, 'PREDICATE': [0], 'INTERSECT': extent_poly, 'OUTPUT': 'TEMPORARY_OUTPUT'},
@@ -201,20 +204,16 @@ Berikut beberapa langkah dasar:
             {'INPUT': kwsh_sub, 'OUTPUT': 'TEMPORARY_OUTPUT'},
             context=context, feedback=feedback
         )['OUTPUT']
-
         kwsh_nonkon = processing.run(
             'native:extractbyexpression',
             {'INPUT': kwsh_fix, 'EXPRESSION': "kwshutan <> 'Hutan Konservasi'", 'OUTPUT': 'TEMPORARY_OUTPUT'},
             context=context, feedback=feedback
         )['OUTPUT']
-
         kwsh_nonkon_dis = processing.run(
             'native:dissolve',
             {'INPUT': kwsh_nonkon, 'FIELD': ['kwshutan'], 'OUTPUT': 'TEMPORARY_OUTPUT'},
             context=context, feedback=feedback
         )['OUTPUT']
-
-        # [PATCH] Validasi geometri pasca dissolve
         kwsh_nonkon_dis = processing.run(
             'native:fixgeometries',
             {'INPUT': kwsh_nonkon_dis, 'OUTPUT': 'TEMPORARY_OUTPUT'},
@@ -227,18 +226,13 @@ Berikut beberapa langkah dasar:
             {'INPUT': pl_sub, 'OUTPUT': 'TEMPORARY_OUTPUT'},
             context=context, feedback=feedback
         )['OUTPUT']
-
         pl_allowed = processing.run(
             'native:extractbyexpression',
-            {
-                'INPUT': pl_fix,
-                'EXPRESSION': "PL NOT IN ('Pertambangan','Bandara/ Pelabuhan','Permukiman','Transmigrasi','Lahan Terbuka')",
-                'OUTPUT': 'TEMPORARY_OUTPUT'
-            },
+            {'INPUT': pl_fix,
+             'EXPRESSION': "PL NOT IN ('Pertambangan','Bandara/ Pelabuhan','Permukiman','Transmigrasi','Lahan Terbuka')",
+             'OUTPUT': 'TEMPORARY_OUTPUT'},
             context=context, feedback=feedback
         )['OUTPUT']
-
-        # [PATCH] Validasi geometri PL tersaring
         pl_allowed = processing.run(
             'native:fixgeometries',
             {'INPUT': pl_allowed, 'OUTPUT': 'TEMPORARY_OUTPUT'},
@@ -248,37 +242,28 @@ Berikut beberapa langkah dasar:
         # 4. Intersect PL_allowed ∩ Kawasan_nonKonservasi (mask)
         mask = processing.run(
             'native:intersection',
-            {
-                'INPUT': pl_allowed,
-                'OVERLAY': kwsh_nonkon_dis,
-                'INPUT_FIELDS': [], 'OVERLAY_FIELDS': [], 'OVERLAY_FIELDS_PREFIX': '',
-                'OUTPUT': 'TEMPORARY_OUTPUT'
-            },
+            {'INPUT': pl_allowed, 'OVERLAY': kwsh_nonkon_dis,
+             'INPUT_FIELDS': [], 'OVERLAY_FIELDS': [], 'OVERLAY_FIELDS_PREFIX': '',
+             'OUTPUT': 'TEMPORARY_OUTPUT'},
             context=context, feedback=feedback
         )['OUTPUT']
-
-        # [PATCH] Pastikan mask valid sebelum dipakai lagi
         mask = processing.run(
             'native:fixgeometries',
             {'INPUT': mask, 'OUTPUT': 'TEMPORARY_OUTPUT'},
             context=context, feedback=feedback
         )['OUTPUT']
 
-        # 5. Subset GRID yang beririsan mask, lalu intersect sekali
+        # 5. GRID ∩ mask
         grid_sub = processing.run(
             'native:extractbylocation',
             {'INPUT': grid_src, 'PREDICATE': [0], 'INTERSECT': mask, 'OUTPUT': 'TEMPORARY_OUTPUT'},
             context=context, feedback=feedback
         )['OUTPUT']
-
         inter = processing.run(
             'native:intersection',
-            {
-                'INPUT': grid_sub,
-                'OVERLAY': mask,
-                'INPUT_FIELDS': [], 'OVERLAY_FIELDS': [], 'OVERLAY_FIELDS_PREFIX': '',
-                'OUTPUT': 'TEMPORARY_OUTPUT'
-            },
+            {'INPUT': grid_sub, 'OVERLAY': mask,
+             'INPUT_FIELDS': [], 'OVERLAY_FIELDS': [], 'OVERLAY_FIELDS_PREFIX': '',
+             'OUTPUT': 'TEMPORARY_OUTPUT'},
             context=context, feedback=feedback
         )['OUTPUT']
 
@@ -304,271 +289,237 @@ Berikut beberapa langkah dasar:
 
         ket = processing.run(
             'native:fieldcalculator',
-            {
-                'INPUT': kept,
-                'FIELD_NAME': 'REMARK',
-                'FIELD_TYPE': 2,  # String
-                'FIELD_LENGTH': 255,
-                'FIELD_PRECISION': 0,
-                'NEW_FIELD': True,
-                'FORMULA': expr_ket,
-                'OUTPUT': 'TEMPORARY_OUTPUT'
-            },
+            {'INPUT': kept, 'FIELD_NAME': 'REMARK',
+             'FIELD_TYPE': 2, 'FIELD_LENGTH': 255, 'FIELD_PRECISION': 0,
+             'NEW_FIELD': True, 'FORMULA': expr_ket,
+             'OUTPUT': 'TEMPORARY_OUTPUT'},
             context=context, feedback=feedback
         )['OUTPUT']
 
-        # 7. Hitung luas (EPSG:3395) → Luas_Ha
+        # 7. Luas (EPSG:3395)
         repro = processing.run(
             'native:reprojectlayer',
             {'INPUT': ket, 'TARGET_CRS': 'EPSG:3395', 'OUTPUT': 'TEMPORARY_OUTPUT'},
             context=context, feedback=feedback
         )['OUTPUT']
-
         with_area = processing.run(
             'native:fieldcalculator',
-            {
-                'INPUT': repro,
-                'FIELD_NAME': 'Luas_Ha',
-                'FIELD_TYPE': 0,   # Double
-                'FIELD_LENGTH': 20,
-                'FIELD_PRECISION': 6,
-                'NEW_FIELD': True,
-                'FORMULA': '$area / 10000',
-                'OUTPUT': 'TEMPORARY_OUTPUT'
-            },
+            {'INPUT': repro, 'FIELD_NAME': 'Luas_Ha',
+             'FIELD_TYPE': 0, 'FIELD_LENGTH': 20, 'FIELD_PRECISION': 6,
+             'NEW_FIELD': True, 'FORMULA': '$area / 10000',
+             'OUTPUT': 'TEMPORARY_OUTPUT'},
             context=context, feedback=feedback
         )['OUTPUT']
 
-        # Ringkas keseluruhan (dua kategori utama saja) -> KET_HA
+        # Ringkas KET_HA
         filt = processing.run(
             'native:extractbyexpression',
-            {
-                'INPUT': with_area,
-                'EXPRESSION': "\"REMARK\" IN ('Ketersediaan Lahan Pangan dan Hunian','Ketersediaan Lahan Hunian')",
-                'OUTPUT': 'TEMPORARY_OUTPUT'
-            },
+            {'INPUT': with_area,
+             'EXPRESSION': "\"REMARK\" IN ('Ketersediaan Lahan Pangan dan Hunian','Ketersediaan Lahan Hunian')",
+             'OUTPUT': 'TEMPORARY_OUTPUT'},
             context=context, feedback=feedback
         )['OUTPUT']
-
         stats = processing.run(
             'qgis:statisticsbycategories',
-            {
-                'INPUT': filt,
-                'CATEGORIES_FIELD_NAME': ['ID'],
-                'VALUES_FIELD_NAME': 'Luas_Ha',
-                'OUTPUT': 'TEMPORARY_OUTPUT'
-            },
+            {'INPUT': filt, 'CATEGORIES_FIELD_NAME': ['ID'],
+             'VALUES_FIELD_NAME': 'Luas_Ha', 'OUTPUT': 'TEMPORARY_OUTPUT'},
             context=context, feedback=feedback
         )['OUTPUT']
-
         ket_tbl = processing.run(
             'native:fieldcalculator',
-            {
-                'INPUT': stats,
-                'FIELD_NAME': 'KET_HA',
-                'FIELD_TYPE': 0,
-                'FIELD_LENGTH': 20,
-                'FIELD_PRECISION': 6,
-                'NEW_FIELD': True,
-                'FORMULA': 'coalesce("sum", 0)',
-                'OUTPUT': 'TEMPORARY_OUTPUT'
-            },
+            {'INPUT': stats, 'FIELD_NAME': 'KET_HA',
+             'FIELD_TYPE': 0, 'FIELD_LENGTH': 20, 'FIELD_PRECISION': 6,
+             'NEW_FIELD': True, 'FORMULA': 'coalesce("sum", 0)',
+             'OUTPUT': 'TEMPORARY_OUTPUT'},
             context=context, feedback=feedback
         )['OUTPUT']
-
         ket_keep = processing.run(
             'native:retainfields',
             {'INPUT': ket_tbl, 'FIELDS': ['ID', 'KET_HA'], 'OUTPUT': 'TEMPORARY_OUTPUT'},
             context=context, feedback=feedback
         )['OUTPUT']
 
-        # --- Tambahan: ringkas per REMARK agar label ikut ke level GRID ---
-        # a) Pangan & Hunian
+        # Ringkas per kategori (untuk REMARK level grid)
         filt_ph = processing.run(
             'native:extractbyexpression',
-            {'INPUT': with_area,
-             'EXPRESSION': "\"REMARK\" = 'Ketersediaan Lahan Pangan dan Hunian'",
+            {'INPUT': with_area, 'EXPRESSION': "\"REMARK\" = 'Ketersediaan Lahan Pangan dan Hunian'",
              'OUTPUT': 'TEMPORARY_OUTPUT'},
             context=context, feedback=feedback
         )['OUTPUT']
-
         stats_ph = processing.run(
             'qgis:statisticsbycategories',
-            {'INPUT': filt_ph,
-             'CATEGORIES_FIELD_NAME': ['ID'],
-             'VALUES_FIELD_NAME': 'Luas_Ha',
-             'OUTPUT': 'TEMPORARY_OUTPUT'},
+            {'INPUT': filt_ph, 'CATEGORIES_FIELD_NAME': ['ID'],
+             'VALUES_FIELD_NAME': 'Luas_Ha', 'OUTPUT': 'TEMPORARY_OUTPUT'},
             context=context, feedback=feedback
         )['OUTPUT']
-
         ph_tbl = processing.run(
             'native:fieldcalculator',
-            {'INPUT': stats_ph,
-             'FIELD_NAME': 'KET_PH_HA', 'FIELD_TYPE': 0, 'FIELD_LENGTH': 20, 'FIELD_PRECISION': 6,
+            {'INPUT': stats_ph, 'FIELD_NAME': 'KET_PH_HA',
+             'FIELD_TYPE': 0, 'FIELD_LENGTH': 20, 'FIELD_PRECISION': 6,
              'NEW_FIELD': True, 'FORMULA': 'coalesce("sum",0)',
              'OUTPUT': 'TEMPORARY_OUTPUT'},
             context=context, feedback=feedback
         )['OUTPUT']
-
         ph_keep = processing.run(
             'native:retainfields',
             {'INPUT': ph_tbl, 'FIELDS': ['ID', 'KET_PH_HA'], 'OUTPUT': 'TEMPORARY_OUTPUT'},
             context=context, feedback=feedback
         )['OUTPUT']
 
-        # b) Hunian
         filt_h = processing.run(
             'native:extractbyexpression',
-            {'INPUT': with_area,
-             'EXPRESSION': "\"REMARK\" = 'Ketersediaan Lahan Hunian'",
+            {'INPUT': with_area, 'EXPRESSION': "\"REMARK\" = 'Ketersediaan Lahan Hunian'",
              'OUTPUT': 'TEMPORARY_OUTPUT'},
             context=context, feedback=feedback
         )['OUTPUT']
-
         stats_h = processing.run(
             'qgis:statisticsbycategories',
-            {'INPUT': filt_h,
-             'CATEGORIES_FIELD_NAME': ['ID'],
-             'VALUES_FIELD_NAME': 'Luas_Ha',
-             'OUTPUT': 'TEMPORARY_OUTPUT'},
+            {'INPUT': filt_h, 'CATEGORIES_FIELD_NAME': ['ID'],
+             'VALUES_FIELD_NAME': 'Luas_Ha', 'OUTPUT': 'TEMPORARY_OUTPUT'},
             context=context, feedback=feedback
         )['OUTPUT']
-
         h_tbl = processing.run(
             'native:fieldcalculator',
-            {'INPUT': stats_h,
-             'FIELD_NAME': 'KET_HUN_HA', 'FIELD_TYPE': 0, 'FIELD_LENGTH': 20, 'FIELD_PRECISION': 6,
+            {'INPUT': stats_h, 'FIELD_NAME': 'KET_HUN_HA',
+             'FIELD_TYPE': 0, 'FIELD_LENGTH': 20, 'FIELD_PRECISION': 6,
              'NEW_FIELD': True, 'FORMULA': 'coalesce("sum",0)',
              'OUTPUT': 'TEMPORARY_OUTPUT'},
             context=context, feedback=feedback
         )['OUTPUT']
-
         h_keep = processing.run(
             'native:retainfields',
             {'INPUT': h_tbl, 'FIELDS': ['ID', 'KET_HUN_HA'], 'OUTPUT': 'TEMPORARY_OUTPUT'},
             context=context, feedback=feedback
         )['OUTPUT']
 
-        # 8. Join KET_HA + per-kategori + POPGRIDYY ke GRID penuh
+        # 8. Join ringkasan + POPGRID ke GRID
         joined1 = processing.run(
             'native:joinattributestable',
-            {
-                'INPUT': grid_src, 'FIELD': 'ID',
-                'INPUT_2': ket_keep, 'FIELD_2': 'ID',
-                'FIELDS_TO_COPY': ['KET_HA'],
-                'METHOD': 1,
-                'DISCARD_NONMATCHING': False,
-                'PREFIX': '',
-                'OUTPUT': 'TEMPORARY_OUTPUT'
-            },
+            {'INPUT': grid_src, 'FIELD': 'ID',
+             'INPUT_2': ket_keep, 'FIELD_2': 'ID',
+             'FIELDS_TO_COPY': ['KET_HA'],
+             'METHOD': 1, 'DISCARD_NONMATCHING': False, 'PREFIX': '',
+             'OUTPUT': 'TEMPORARY_OUTPUT'},
             context=context, feedback=feedback
         )['OUTPUT']
-
         joined1b = processing.run(
             'native:joinattributestable',
-            {
-                'INPUT': joined1, 'FIELD': 'ID',
-                'INPUT_2': ph_keep, 'FIELD_2': 'ID',
-                'FIELDS_TO_COPY': ['KET_PH_HA'],
-                'METHOD': 1, 'DISCARD_NONMATCHING': False, 'PREFIX': '',
-                'OUTPUT': 'TEMPORARY_OUTPUT'
-            }, context=context, feedback=feedback
+            {'INPUT': joined1, 'FIELD': 'ID',
+             'INPUT_2': ph_keep, 'FIELD_2': 'ID',
+             'FIELDS_TO_COPY': ['KET_PH_HA'],
+             'METHOD': 1, 'DISCARD_NONMATCHING': False, 'PREFIX': '',
+             'OUTPUT': 'TEMPORARY_OUTPUT'},
+            context=context, feedback=feedback
         )['OUTPUT']
-
         joined1c = processing.run(
             'native:joinattributestable',
-            {
-                'INPUT': joined1b, 'FIELD': 'ID',
-                'INPUT_2': h_keep, 'FIELD_2': 'ID',
-                'FIELDS_TO_COPY': ['KET_HUN_HA'],
-                'METHOD': 1, 'DISCARD_NONMATCHING': False, 'PREFIX': '',
-                'OUTPUT': 'TEMPORARY_OUTPUT'
-            }, context=context, feedback=feedback
+            {'INPUT': joined1b, 'FIELD': 'ID',
+             'INPUT_2': h_keep, 'FIELD_2': 'ID',
+             'FIELDS_TO_COPY': ['KET_HUN_HA'],
+             'METHOD': 1, 'DISCARD_NONMATCHING': False, 'PREFIX': '',
+             'OUTPUT': 'TEMPORARY_OUTPUT'},
+            context=context, feedback=feedback
         )['OUTPUT']
-
         joined2 = processing.run(
             'native:joinattributestable',
-            {
-                'INPUT': joined1c, 'FIELD': 'ID',
-                'INPUT_2': grid_pop_src, 'FIELD_2': 'ID',
-                'FIELDS_TO_COPY': [fld_pop],
-                'METHOD': 1,
-                'DISCARD_NONMATCHING': False,
-                'PREFIX': '',
-                'OUTPUT': 'TEMPORARY_OUTPUT'
-            },
+            {'INPUT': joined1c, 'FIELD': 'ID',
+             'INPUT_2': grid_pop_src, 'FIELD_2': 'ID',
+             'FIELDS_TO_COPY': [fld_pop],
+             'METHOD': 1, 'DISCARD_NONMATCHING': False, 'PREFIX': '',
+             'OUTPUT': 'TEMPORARY_OUTPUT'},
             context=context, feedback=feedback
         )['OUTPUT']
 
-        # Bentuk REMARK (final) di level GRID dari keberadaan kategori
+        # REMARK final level GRID
         ket_final = processing.run(
             'native:fieldcalculator',
-            {
-                'INPUT': joined2,
-                'FIELD_NAME': 'REMARK', 'FIELD_TYPE': 2, 'FIELD_LENGTH': 255, 'FIELD_PRECISION': 0,
-                'NEW_FIELD': True,
-                'FORMULA': (
-                    "CASE "
-                    "WHEN coalesce(\"KET_PH_HA\",0) > 0 AND coalesce(\"KET_HUN_HA\",0) = 0 "
-                    "THEN 'Ketersediaan Lahan Pangan dan Hunian' "
-                    "WHEN coalesce(\"KET_PH_HA\",0) = 0 AND coalesce(\"KET_HUN_HA\",0) > 0 "
-                    "THEN 'Ketersediaan Lahan Hunian' "
-                    "WHEN coalesce(\"KET_PH_HA\",0) > 0 AND coalesce(\"KET_HUN_HA\",0) > 0 "
-                    "THEN 'Pangan & Hunian (Campuran)' "
-                    "ELSE 'Lahan Tidak Dihitung' END"
-                ),
-                'OUTPUT': 'TEMPORARY_OUTPUT'
-            },
+            {'INPUT': joined2, 'FIELD_NAME': 'REMARK',
+             'FIELD_TYPE': 2, 'FIELD_LENGTH': 255, 'FIELD_PRECISION': 0,
+             'NEW_FIELD': True,
+             'FORMULA': (
+                 "CASE "
+                 "WHEN coalesce(\"KET_PH_HA\",0) > 0 AND coalesce(\"KET_HUN_HA\",0) = 0 "
+                 "THEN 'Ketersediaan Lahan Pangan dan Hunian' "
+                 "WHEN coalesce(\"KET_PH_HA\",0) = 0 AND coalesce(\"KET_HUN_HA\",0) > 0 "
+                 "THEN 'Ketersediaan Lahan Hunian' "
+                 "WHEN coalesce(\"KET_PH_HA\",0) > 0 AND coalesce(\"KET_HUN_HA\",0) > 0 "
+                 "THEN 'Pangan & Hunian (Campuran)' "
+                 "ELSE 'Lahan Tidak Dihitung' END"
+             ),
+             'OUTPUT': 'TEMPORARY_OUTPUT'},
             context=context, feedback=feedback
         )['OUTPUT']
 
         base = processing.run(
             'native:retainfields',
-            {
-                'INPUT': ket_final,
-                # Tampilkan REMARK di output akhir (tanpa membawa kolom per-kategori jika tak diperlukan)
-                'FIELDS': ['ID', 'PULAU', fld_kpgn, 'KET_HA', fld_pop, 'REMARK'],
-                'OUTPUT': 'TEMPORARY_OUTPUT'
-            },
+            {'INPUT': ket_final,
+             'FIELDS': ['ID', 'PULAU', fld_kpgn, 'KET_HA', fld_pop, 'REMARK'],
+             'OUTPUT': 'TEMPORARY_OUTPUT'},
             context=context, feedback=feedback
         )['OUTPUT']
 
-        # 9. Turunan field
+        # 9. Turunan field (SJEPGN, SJEBUILT, SJELHN, KEB_HA, AB_POP, IKPLHN, KIKPLHN)
         step_std = processing.run(
             'native:fieldcalculator',
-            {
-                'INPUT': base,
-                'FIELD_NAME': 'SJEPGN',
-                'FIELD_TYPE': 0, 'FIELD_LENGTH': 20, 'FIELD_PRECISION': 6,
-                'NEW_FIELD': True,
-                'FORMULA': f'{jep}',
-                'OUTPUT': 'TEMPORARY_OUTPUT'
-            },
+            {'INPUT': base, 'FIELD_NAME': 'SJEPGN',
+             'FIELD_TYPE': 0, 'FIELD_LENGTH': 20, 'FIELD_PRECISION': 6,
+             'NEW_FIELD': True, 'FORMULA': f'{jep}',
+             'OUTPUT': 'TEMPORARY_OUTPUT'},
             context=context, feedback=feedback
         )['OUTPUT']
 
+        step_built = processing.run(
+            'native:fieldcalculator',
+            {'INPUT': step_std, 'FIELD_NAME': 'SJEBUILT',
+             'FIELD_TYPE': 0, 'FIELD_LENGTH': 20, 'FIELD_PRECISION': 6,
+             'NEW_FIELD': True, 'FORMULA': f'{jeb}',
+             'OUTPUT': 'TEMPORARY_OUTPUT'},
+            context=context, feedback=feedback
+        )['OUTPUT']
+
+        step_sjel = processing.run(
+            'native:fieldcalculator',
+            {'INPUT': step_built, 'FIELD_NAME': 'SJELHN',
+             'FIELD_TYPE': 0, 'FIELD_LENGTH': 20, 'FIELD_PRECISION': 6,
+             'NEW_FIELD': True, 'FORMULA': 'coalesce("SJEPGN",0) + coalesce("SJEBUILT",0)',
+             'OUTPUT': 'TEMPORARY_OUTPUT'},
+            context=context, feedback=feedback
+        )['OUTPUT']
+
+        # KEB_HA: aturan sesuai permintaan (pakai SJELHN & REMARK)
         step_keb = processing.run(
             'native:fieldcalculator',
-            {
-                'INPUT': step_std,
-                'FIELD_NAME': 'KEB_HA',
-                'FIELD_TYPE': 0, 'FIELD_LENGTH': 20, 'FIELD_PRECISION': 6,
-                'NEW_FIELD': True,
-                'FORMULA': f"coalesce(\"SJEPGN\",0) * coalesce(\"{fld_pop}\",0)",
-                'OUTPUT': 'TEMPORARY_OUTPUT'
-            },
+            {'INPUT': step_sjel, 'FIELD_NAME': 'KEB_HA',
+             'FIELD_TYPE': 0, 'FIELD_LENGTH': 20, 'FIELD_PRECISION': 6,
+             'NEW_FIELD': True,
+             'FORMULA': (
+                 "CASE "
+                 f"WHEN \"REMARK\" IN ('Ketersediaan Lahan Pangan dan Hunian','Ketersediaan Lahan Hunian') "
+                 f"THEN CASE WHEN coalesce(\"{fld_pop}\",0)=0 "
+                 "THEN coalesce(\"SJELHN\",0) "
+                 f"ELSE coalesce(\"SJELHN\",0)*coalesce(\"{fld_pop}\",0) END "
+                 "WHEN \"REMARK\" = 'Lahan Tidak Dihitung' "
+                 f"THEN coalesce(\"SJELHN\",0)*coalesce(\"{fld_pop}\",0) "
+                 f"ELSE coalesce(\"SJELHN\",0)*coalesce(\"{fld_pop}\",0) END"
+             ),
+             'OUTPUT': 'TEMPORARY_OUTPUT'},
             context=context, feedback=feedback
         )['OUTPUT']
 
+        # AB_POP = KET_HA / SJELHN  (integer, aman dari nol/NULL)
         step_ab = processing.run(
             'native:fieldcalculator',
             {
                 'INPUT': step_keb,
                 'FIELD_NAME': 'AB_POP',
-                'FIELD_TYPE': 1, 'FIELD_LENGTH': 10, 'FIELD_PRECISION': 0,
+                'FIELD_TYPE': 1,  # Integer
+                'FIELD_LENGTH': 10,
+                'FIELD_PRECISION': 0,
                 'NEW_FIELD': True,
-                'FORMULA': "to_int( case when coalesce(\"SJEPGN\",0)=0 "
-                           "then 0 else coalesce(\"KET_HA\",0)/nullif(\"SJEPGN\",0) end )",
+                'FORMULA': (
+                    'to_int( case when coalesce("SJELHN",0)=0 '
+                    'then 0 else coalesce("KET_HA",0)/nullif("SJELHN",0) end )'
+                ),
                 'OUTPUT': 'TEMPORARY_OUTPUT'
             },
             context=context, feedback=feedback
@@ -576,15 +527,12 @@ Berikut beberapa langkah dasar:
 
         step_ikp = processing.run(
             'native:fieldcalculator',
-            {
-                'INPUT': step_ab,
-                'FIELD_NAME': 'IKPLHN',
-                'FIELD_TYPE': 0, 'FIELD_LENGTH': 20, 'FIELD_PRECISION': 6,
-                'NEW_FIELD': True,
-                'FORMULA': "case when coalesce(\"KEB_HA\",0)=0 "
-                           "then 0 else coalesce(\"KET_HA\",0)/nullif(\"KEB_HA\",0) end",
-                'OUTPUT': 'TEMPORARY_OUTPUT'
-            },
+            {'INPUT': step_ab, 'FIELD_NAME': 'IKPLHN',
+             'FIELD_TYPE': 0, 'FIELD_LENGTH': 20, 'FIELD_PRECISION': 6,
+             'NEW_FIELD': True,
+             'FORMULA': "case when coalesce(\"KEB_HA\",0)=0 "
+                        "then 0 else coalesce(\"KET_HA\",0)/nullif(\"KEB_HA\",0) end",
+             'OUTPUT': 'TEMPORARY_OUTPUT'},
             context=context, feedback=feedback
         )['OUTPUT']
 
@@ -597,17 +545,12 @@ Berikut beberapa langkah dasar:
             "WHEN (\"IKPLHN\" > 2) THEN 'Sangat Tinggi' "
             "ELSE 'Tidak Dihitung' END"
         )
-
         final_tmp = processing.run(
             'native:fieldcalculator',
-            {
-                'INPUT': step_ikp,
-                'FIELD_NAME': 'KIKPLHN',
-                'FIELD_TYPE': 2, 'FIELD_LENGTH': 255, 'FIELD_PRECISION': 0,
-                'NEW_FIELD': True,
-                'FORMULA': expr_kik,
-                'OUTPUT': 'TEMPORARY_OUTPUT'
-            },
+            {'INPUT': step_ikp, 'FIELD_NAME': 'KIKPLHN',
+             'FIELD_TYPE': 2, 'FIELD_LENGTH': 255, 'FIELD_PRECISION': 0,
+             'NEW_FIELD': True, 'FORMULA': expr_kik,
+             'OUTPUT': 'TEMPORARY_OUTPUT'},
             context=context, feedback=feedback
         )['OUTPUT']
 

@@ -675,9 +675,9 @@ class JLHPendukungKehati(QgsProcessingAlgorithm):
             final_field_mappings = [
                 {'name': 'ID', 'type': 10, 'expression': 'ID'},
                 {'name': 'PULAU', 'type': 10, 'expression': 'PULAU'},
-                {'name': f'{self.JLH}_{tahun[-2:]}', 'type': 6, 'precision' : 2, 'expression': f'JLH_{self.JLH}'},
+                {'name': f'{self.JLH}_{tahun[-2:]}', 'type': 6, 'precision' : 2, 'expression': f'round("JLH_{self.JLH}", 2)'},
                 {'name': f'K{self.JLH}_{tahun[-2:]}', 'type': 10, 'expression': f'Kategori_JLH_{self.JLH}'},
-                {'name': f'{self.JLH}_{tahun[-2:]}_KK', 'type': 6, 'precision' : 2, 'expression': f'JLH_{self.JLH}_KK'},
+                {'name': f'{self.JLH}_{tahun[-2:]}_KK', 'type': 6, 'precision' : 2, 'expression': f'round("JLH_{self.JLH}_KK",2)'},
                 {'name': f'K{self.JLH}_{tahun[-2:]}_KK', 'type': 10, 'expression': f'Kategori_JLH_{self.JLH}_KK'}
             ]
         
@@ -749,6 +749,89 @@ class JLHPendukungKehati(QgsProcessingAlgorithm):
 
     def tr(self, string):
         return QCoreApplication.translate('Processing', string)
+    
+    def shortHelpString(self):
+        return self.tr('''
+        <b>Indeks Jasa Lingkungan Pendukung Habitat dan Keanekaragaman Hayati (IJLH_PHK)</b>
+        <i>Habitat and Biodiversity Supporting Ecosystem Service Index (IJLH_PHK)</i>
+
+        <h3>🇮🇩 Deskripsi (Bahasa Indonesia)</h3>
+        Algoritma ini digunakan untuk menghitung nilai <b>Indeks Jasa Lingkungan yang mendukung keberlangsungan habitat dan keanekaragaman hayati (IJLH_PHK)</b> 
+        berdasarkan parameter spasial tertentu di Indonesia. Pengembangan metode ini mengacu pada <b>Dokumen Petunjuk Teknis D3TLH 2024</b> 
+        dan telah disesuaikan dengan kebutuhan analisis spasial pada tingkat nasional dan pulau.
+
+        <h4>🎯 Tujuan:</h4>
+        Menilai tingkat dukungan ekosistem terhadap kelestarian keanekaragaman hayati melalui
+        analisis spasial terhadap tutupan lahan, karakteristik vegetasi, dan ekoregion.
+                       
+        <h4>🗺️ Input yang Dibutuhkan:</h4>
+        <ul>
+            <li><b>1. Peta Tutupan Lahan</b> (data vektor dengan kolom <code>PL</code>)</li>
+            <li><b>2. Peta Ekoregion</b> (data vektor dengan kolom <code>KBA_250</code> dan <code>KVA_250</code>)</li>
+            <li><b>3. Data Vektor Grid Area Kajian</b> (opsional, digunakan jika bentuk output grid)</li>
+        </ul>
+                       
+        <h4>📤 Output:</h4>
+        <ul>
+            <li>Peta vektor hasil <b>Indeks IJLH Habitat dan Kehati (IJLH_PHK)</b></li>
+        </ul>      
+        
+        <h4>⚙️ Metodologi:</h4>
+        Nilai indeks dihitung dengan pendekatan berbasis skor dan pembobotan antara data tutupan lahan 
+        dan ekoregion. Skor diklasifikasikan sesuai kategori ekologi dan dikombinasikan untuk menghasilkan indeks akhir.
+
+        <h4>🧭 Contoh Penggunaan:</h4>
+        1. Pilih area kajian (nasional atau per pulau). Jika area kajian berskala pulau, pastikan data penutup lahan memiliki kolom <code>PULAU</code>.
+        2. Pilih bentuk output (Poligon atau Grid). Jika menggunakan Grid, wajib menginput data Grid yang dapat dibuat melalui modul Utility.
+        3. Tentukan tahun data penutup lahan.
+        4. Input data Penutup Lahan (<code>PL</code>) dan data Ekoregion (<code>KBA_250</code>, <code>KVA_250</code>).
+        5. (Opsional) Input data Grid untuk analisis berbasis grid.
+
+        <h4>📚 Referensi:</h4>
+        - Dokumen Petunjuk Teknis D3TLH 2024
+        - Dokumen Petunjuk Teknis D3TLH 2025
+
+        <hr>
+
+        <h3>🌍 Description (English)</h3>
+        This algorithm calculates the <b>Habitat and Biodiversity Supporting Ecosystem Service Index (IJLH_PHK)</b> 
+        based on spatial parameters specific to Indonesia. The method follows the <b>D3TLH Technical Guideline 2024</b> 
+        and has been adjusted for spatial analysis at national and island scales.
+
+        <h4>🎯 Purpose:</h4>
+        To evaluate ecosystem support for biodiversity conservation through spatial analysis 
+        of land cover, vegetation characteristics, and ecoregion zones.
+
+        <h4>🗺️ Required Inputs:</h4>
+        <ul>
+            <li><b>Land Cover Map</b> (vector data with <code>PL</code> field)</li>
+            <li><b>Ecoregion Map</b> (vector data with <code>KBA_250</code> and <code>KVA_250</code> fields)</li>
+            <li><b>Grid Area Layer</b> (optional, required if output type is Grid)</li>
+        </ul>
+
+        <h4>📤 Output:</h4>
+        <ul>
+            <li>Vector map of <b>IJLH Habitat and Biodiversity Index (IJLH_PHK)</b></li>
+        </ul>      
+
+        <h4>⚙️ Methodology:</h4>
+        The index is calculated using a scoring and weighting approach between land cover and ecoregion data. Scores are classified based on ecological categories and combined to produce the final index.
+
+        <h4>🧭 Example Workflow:</h4>
+        1. Select the study area (national or island scale). If island scale, ensure land cover data contains a <code>PULAU</code> column.
+        2. Choose output type (Polygon or Grid). If using Grid, provide the Grid layer generated via the Utility module.
+        3. Specify the land cover data year.
+        4. Input the Land Cover (<code>PL</code>) and Ecoregion (<code>KBA_250</code>, <code>KVA_250</code>) datasets.
+        5. Optionally input Grid data for grid-based analysis.
+
+        <h4>📚 References:</h4>
+        - D3TLH Technical Guideline 2024
+        - D3TLH Technical Guideline 2025
+                       
+        <hr>
+                       
+        <b><i>Notes : Disarankan untuk tidak menyimpan output secara temporary.<i><b> 
+        ''')
 
     def createInstance(self):
         return JLHPendukungKehati()

@@ -264,11 +264,35 @@ class IKPUdaraAlgorithm(QgsProcessingAlgorithm):
                 'NEW_FIELD': True,
                 'FORMULA': '''
                     CASE
-                        WHEN "IKU_PM25" >= 90 THEN 5
-                        WHEN "IKU_PM25" >= 70 AND "IKU_PM25" < 90 THEN 4
-                        WHEN "IKU_PM25" >= 50 AND "IKU_PM25" < 70 THEN 3
-                        WHEN "IKU_PM25" >= 25 AND "IKU_PM25" < 50 THEN 2
-                        WHEN "IKU_PM25" < 25 THEN 1
+                        WHEN "IKU_PM25" >= 95 THEN 5
+                        WHEN "IKU_PM25" >= 85 AND "IKU_PM25" < 95 THEN 4
+                        WHEN "IKU_PM25" >= 60 AND "IKU_PM25" < 85 THEN 3
+                        WHEN "IKU_PM25" >= 30 AND "IKU_PM25" < 60 THEN 2
+                        WHEN "IKU_PM25" < 30 THEN 1
+                    END
+                ''',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
+
+        # IPS (Indeks Proyeksi Suhu) sudah ada pada layer input 'ips'
+        nama_kolom = 'IPS'
+        # Kategorisasi IPS
+        kategori_ips = processing.run(
+            "qgis:fieldcalculator",
+            {
+                'INPUT': ips,
+                'FIELD_NAME': 'IKU_IPS',
+                'FIELD_TYPE': 1,
+                'NEW_FIELD': True,
+                'FORMULA': f'''
+                    CASE
+                        WHEN "{nama_kolom}" <= 0.8 THEN 5
+                        WHEN "{nama_kolom}" > 0.8 AND "{nama_kolom}" <= 1.1 THEN 4
+                        WHEN "{nama_kolom}" > 1.1 AND "{nama_kolom}" <= 1.3 THEN 3
+                        WHEN "{nama_kolom}" > 1.3 AND "{nama_kolom}" <= 1.5 THEN 2
+                        WHEN "{nama_kolom}" > 1.5 THEN 1
                     END
                 ''',
                 'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
@@ -307,7 +331,7 @@ class IKPUdaraAlgorithm(QgsProcessingAlgorithm):
                 'FIELD_LENGTH': 20,
                 'FIELD_PRECISION': 3,
                 'NEW_FIELD': True,
-                'FORMULA': f'("KPKU_24"+"NORM_HEAT"+IKU_PM25)/3',
+                'FORMULA': f'("KPKU_24"+"IKU_IPS"+IKU_PM25)/3',
                 'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
             },
             context=context, feedback=feedback
@@ -351,7 +375,6 @@ class IKPUdaraAlgorithm(QgsProcessingAlgorithm):
                 context=context, feedback=feedback
         )["OUTPUT"]
 
-        
         final = IKP_udara_grid
 
         (sink, dest_id) = self.parameterAsSink(

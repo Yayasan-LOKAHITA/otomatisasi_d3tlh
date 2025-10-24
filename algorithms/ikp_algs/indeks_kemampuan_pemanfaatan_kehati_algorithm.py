@@ -37,7 +37,8 @@ from qgis.core import (QgsProcessing,
                        QgsProcessingParameterFeatureSource,
                        QgsProcessingParameterFeatureSink,
                        QgsProcessingParameterVectorLayer,
-                       QgsVectorLayer)
+                       QgsVectorLayer,
+                       QgsProcessingParameterRasterLayer)
 
 import processing, os
 
@@ -49,9 +50,10 @@ class IndeksKemampuanPemanfaatanKehati(QgsProcessingAlgorithm):
     GRID_PHK = 'GRID_PHK'
     # Parameters BI
     EKOREGION = 'EKOREGION'
+    PL = 'PL'
     GRID_PL = 'GRID_PL'
     HABITAT = 'HABITAT'
-    KK = 'KK'
+    WILAYAH_EKOREGION = 'WILAYAH_EKOREGION'
 
     # Output
     OUTPUT = 'OUTPUT'
@@ -94,14 +96,14 @@ class IndeksKemampuanPemanfaatanKehati(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterVectorLayer(
                 self.EKOREGION,
-                self.tr('Data Ekoregion'),
+                self.tr('Data Unit Ekoregion (Dengan kolom KBA_250 dan KVA_250)'),
                 [QgsProcessing.TypeVectorAnyGeometry]
             )
         )
 
         self.addParameter(
             QgsProcessingParameterVectorLayer(
-                self.GRID_PL,
+                self.PL,
                 self.tr('Data Penutup Lahan'),
                 [QgsProcessing.TypeVectorAnyGeometry]
             )
@@ -109,6 +111,22 @@ class IndeksKemampuanPemanfaatanKehati(QgsProcessingAlgorithm):
 
         self.addParameter(
             QgsProcessingParameterVectorLayer(
+                self.GRID_PL,
+                self.tr('Data Grid Penutup Lahan'),
+                [QgsProcessing.TypeVectorAnyGeometry]
+            )
+        )
+        
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.WILAYAH_EKOREGION,
+                self.tr('Wilayah Ekoregion'),
+                [QgsProcessing.TypeVectorAnyGeometry]
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterRasterLayer(
                 self.HABITAT,
                 self.tr('Data Tipe Habitat IUCN'),
                 [QgsProcessing.TypeVectorAnyGeometry]
@@ -124,14 +142,14 @@ class IndeksKemampuanPemanfaatanKehati(QgsProcessingAlgorithm):
 
     def processAlgorithm(self, parameters, context, feedback):
         # Parameters BCPI
-        grid_pga = self.parameterAsSource(parameters, self.GRID_PGA, context)
-        grid_ppk = self.parameterAsSource(parameters, self.GRID_PPK, context)
-        grid_pgn = self.parameterAsSource(parameters, self.GRID_PGN, context)
-        grid_phk = self.parameterAsSource(parameters, self.GRID_PHK, context)
+        grid_pga = parameters[self.GRID_PGA]
+        grid_ppk = parameters[self.GRID_PPK]
+        grid_pgn = parameters[self.GRID_PGN]
+        grid_phk = parameters[self.GRID_PHK]
 
         # Parameters BI
-        pl = self.parameterAsSource(parameters, self.GRID_PL, context)
-        ekoregion = self.parameterAsSource(parameters, self.EKOREGION, context)
+        pl = parameters[self.GRID_PL]
+        ekoregion = parameters[self.EKOREGION]
 
         # Perhitungan BCPI
         # Join KPPK_24, KPGN_24, KPHK_24 ke GRID_PGA
@@ -142,11 +160,12 @@ class IndeksKemampuanPemanfaatanKehati(QgsProcessingAlgorithm):
                     'FIELD': 'ID',
                     'INPUT_2': grid_ppk,
                     'FIELD_2': 'ID',
-                    'FIELDS_TO_COPY': ['KPPK_24'],
+                    'FIELDS_TO_COPY': ['PPK_24'],
                     'METHOD': 0,
                     'DISCARD_NONMATCHING': False,
                     'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-            }
+            },
+            context=context, feedback=feedback
         )["OUTPUT"]
 
         grid_bcpi2 = processing.run(
@@ -156,11 +175,12 @@ class IndeksKemampuanPemanfaatanKehati(QgsProcessingAlgorithm):
                     'FIELD': 'ID',
                     'INPUT_2': grid_pgn,
                     'FIELD_2': 'ID',
-                    'FIELDS_TO_COPY': ['KPGN_24'],
+                    'FIELDS_TO_COPY': ['PGN_24'],
                     'METHOD': 0,
                     'DISCARD_NONMATCHING': False,
                     'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-            }
+            },
+            context=context, feedback=feedback
         )["OUTPUT"]
 
         grid_bcpi3 = processing.run(
@@ -170,11 +190,12 @@ class IndeksKemampuanPemanfaatanKehati(QgsProcessingAlgorithm):
                     'FIELD': 'ID',
                     'INPUT_2': grid_phk,
                     'FIELD_2': 'ID',
-                    'FIELDS_TO_COPY': ['KPHK_24'],
+                    'FIELDS_TO_COPY': ['PHK_24_KK'],
                     'METHOD': 0,
                     'DISCARD_NONMATCHING': False,
                     'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-            }
+            },
+            context=context, feedback=feedback
         )["OUTPUT"]
 
         # Hitung BCPI
@@ -185,20 +206,21 @@ class IndeksKemampuanPemanfaatanKehati(QgsProcessingAlgorithm):
                 'FIELD_NAME': 'BCPI',
                 'FIELD_TYPE': 0,  # Decimal number (real)
                 'FIELD_LENGTH': 10,
-                'FIELD_PRECISION': 3,
+                'FIELD_PRECISION': 2,
                 'NEW_FIELD': True,
-                'FORMULA': '( "KPGA_24" + "KPPK_24" + "KPGN_24" + "KPHK_24" ) / 4',
+                'FORMULA': '( "PGA_24_KK" + "PPK_24" + "PGN_24" + "PHK_24_KK" ) / 4',
                 'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-            }
+            },
+            context=context, feedback=feedback
         )["OUTPUT"]
 
         # Klasifikasi BCPI
         grid_bcpi_klas = processing.run(
             "qgis:fieldcalculator",
             {
-                'INPUT': ekoregion,
+                'INPUT': grid_bcpi,
                 'FIELD_NAME': 'KLS_BCPI',
-                'FIELD_TYPE': 4,  # Text (string),
+                'FIELD_TYPE': 2,  # Text (string),
                 'FIELD_LENGTH': 20,
                 'NEW_FIELD': True,
                 'FORMULA': '''
@@ -212,8 +234,11 @@ class IndeksKemampuanPemanfaatanKehati(QgsProcessingAlgorithm):
                 END
                 ''',
                 'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-            }
+            },
+            context=context, feedback=feedback
         )["OUTPUT"]
+
+        feedback.pushInfo('✅ Perhitungan BCPI selesai.')
 
         # HITUNG BI
         # Perhitungan IKG
@@ -230,7 +255,8 @@ class IndeksKemampuanPemanfaatanKehati(QgsProcessingAlgorithm):
                     'Perbukitan solusional karst bermaterial batuan sedimen karbonat'
                 )''',
                 'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-            }
+            },
+            context=context, feedback=feedback
         )["OUTPUT"]
 
         # intersect sebaran karst dan gambut dengan PL
@@ -242,7 +268,8 @@ class IndeksKemampuanPemanfaatanKehati(QgsProcessingAlgorithm):
                 'INPUT_FIELDS': [],
                 'OVERLAY_FIELDS': ['PL'],
                 'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-            }
+            },
+            context=context, feedback=feedback
         )["OUTPUT"]
 
         # Perhitungan indeks sebaran karst dan gambut (IKG)
@@ -255,22 +282,25 @@ class IndeksKemampuanPemanfaatanKehati(QgsProcessingAlgorithm):
                 'NEW_FIELD': True,
                 'FORMULA': '''
                     CASE
-                        WHEN "KBA_250" NOT NULL AND "PL" IN ('Permukiman', 'Permukiman transmigrasi', 'Bandara/Pelabuhan', 'Tanah terbuka', 'Pertambangan')
+                        WHEN "PL" IN ('Permukiman', 'Permukiman Transmigrasi', 'Bandara/Pelabuhan', 'Tanah Terbuka', 'Pertambangan')
                             THEN 1
-                        WHEN "KBA_250" NOT NULL AND "PL" IN ('Pertanian lahan kering', 'Pertanian lahan kering campuran', 'Perkebunan', 'Sawah', 'Tambak')
+                        WHEN "PL" IN ('Pertanian Lahan Kering', 'Pertanian Lahan Kering Campur', 'Perkebunan', 'Sawah', 'Tambak')
                             THEN 2
-                        WHEN "KBA_250" NOT NULL AND "PL" IN ('Hutan tanaman', 'Rawa', 'Semak belukar', 'Semak belukar rawa')
+                        WHEN "PL" IN ('Hutan Tanaman', 'Rawa', 'Semak Belukar', 'Semak Belukar Rawa')
                             THEN 3
-                        WHEN "KBA_250" NOT NULL AND "PL" IN ('Hutan rawa primer', 'Hutan rawa sekunder')
+                        WHEN "PL" IN ('Hutan Rawa Primer', 'Hutan Rawa Sekunder')
                             THEN 4
-                        WHEN "KBA_250" NOT NULL AND "PL" IN ('Hutan lahan kering primer', 'Hutan lahan kering sekunder', 'Hutan mangrove primer', 'Hutan mangrove sekunder', 'Savana/Padang rumput', 'Tubuh air')
+                        WHEN "PL" IN ('Hutan Lahan Kering Primer', 'Hutan Lahan Kering Sekunder', 'Hutan Mangrove Primer', 'Hutan Mangrove Sekunder', 'Savana/Padang Rumput', 'Tubuh Air')
                             THEN 5
                         ELSE NULL
                     END
                 ''',
                 'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-            }
+            },
+            context=context, feedback=feedback
         )["OUTPUT"]    
+
+        feedback.pushInfo('✅ Perhitungan Indeks Sebaran Karst dan Gambut selesai.')
 
         # 2b. Perhitungan ISP (Indikator Keragaman Tipe Habitat)
         # Load data KK
@@ -279,40 +309,435 @@ class IndeksKemampuanPemanfaatanKehati(QgsProcessingAlgorithm):
         data_root_kk = os.path.join(data_root, "KK")
         kk_path = os.path.join(data_root_kk, "KK.gpkg")
         kk = QgsVectorLayer(kk_path, "KK", "ogr")
-        habitat = self.parameterAsSource(parameters, self.HABITAT, context) #Polygonize Raster
+        habitat = parameters[self.HABITAT]
+        wilayah_ekoregion = parameters[self.WILAYAH_EKOREGION]
         
         # Here we use Zonal stat method because intersection takes a lot of time.
-
-        #1. GRID_PL to Raster
-
-        #2. Zonal stat PL on habitat vector (pick majority)
+        #1. Gridding habitat raster from IUCN in 30" vector Grid using Zonal Stat
+        habitat = processing.run(
+            "qgis:zonalstatisticsfb",
+            {
+                'INPUT': pl,
+                'INPUT_RASTER': habitat,
+                'RASTER_BAND': 1,
+                'COLUMN_PREFIX': 'habitat_',
+                'STATISTICS': [9], # majority
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
 
         #3. Delete (extractbyattribute) habitat buatan (Habitat dengan PL Majority tertentu)
+        habitat_natural = processing.run(
+            "native:extractbyexpression",
+            {
+                'INPUT': habitat,
+                'EXPRESSION': '''
+                "PL" NOT IN ('Bandara/Pelabuhan', 'Permukiman', 'Pertambangan', 'Tanah Terbuka', 'Permukiman Transmigrasi')
+                ''',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
 
         #4. Intersect Vektor Habitat Natural dengan WE
+        habitat_we = processing.run(
+            "qgis:intersection",
+            {
+                'INPUT': habitat_natural,
+                'OVERLAY': wilayah_ekoregion,
+                'INPUT_FIELDS': ['habitat_majority'],
+                'OVERLAY_FIELDS': ['NAMA_WE'],
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
 
-        #4. Calculate for every WE (Wilayah Ekoregion) How Many habitat there
+        #4. Calculate for every WE (Wilayah Ekoregion) How Many unique habitat there
+        habitat_we_count = processing.run(
+            "qgis:statisticsbycategories",
+            {
+                'INPUT': habitat_we,
+                'CATEGORIES_FIELD_NAME': 'NAMA_WE',
+                'VALUES_FIELD_NAME': 'habitat_majority',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
+
+        #5. Join back count result to habitat_we_count
+        habitat_we_count_joined = processing.run(
+            "qgis:joinattributestable",
+            {
+                    'INPUT': wilayah_ekoregion,
+                    'FIELD': 'NAMA_WE',
+                    'INPUT_2': habitat_we_count,
+                    'FIELD_2': 'NAMA_WE',
+                    'FIELDS_TO_COPY': ['unique'],
+                    'METHOD': 0,
+                    'DISCARD_NONMATCHING': False,
+                    'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
 
         #5. Calculate ISP based on how many species on every WE
+        isp = processing.run(
+            "qgis:fieldcalculator",
+            {
+                'INPUT': habitat_we_count_joined,
+                'FIELD_NAME': 'ISP',
+                'FIELD_TYPE': 1,  # Decimal number (real)
+                'NEW_FIELD': True,
+                'FORMULA': '''
+                    CASE
+                        WHEN "unique" <= 8 THEN 1
+                        WHEN "unique" <= 12 THEN 2
+                        WHEN "unique" <= 15 THEN 3
+                        WHEN "unique" <= 19 THEN 4
+                        WHEN "unique" >= 20 THEN 5
+                        ELSE 0
+                    END
+                ''',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
 
-        #2c. PERHITUNGAN RTE
+        # #2c. PERHITUNGAN RTE
+        # rte = parameters[self.RTE]
 
-        #2d. PERHITUNGAN 
+        # # Intersect RTE dengan WE
+        # rte_we = processing.run(
+        #     "qgis:intersection",
+        #     {
+        #         'INPUT': rte,
+        #         'OVERLAY': wilayah_ekoregion,
+        #         'INPUT_FIELDS': ['SCI_NAME'],
+        #         'OVERLAY_FIELDS': ['NAMA_WE'],
+        #         'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+        #     },
+        #     context=context, feedback=feedback
+        # )["OUTPUT"]
 
+        # # Calculate RTE count per WE
+        # rte_we_count = processing.run(
+        #     "qgis:statisticsbycategories",
+        #     {
+        #         'INPUT': rte_we,
+        #         'CATEGORIES_FIELD_NAME': 'NAMA_WE',
+        #         'VALUES_FIELD_NAME': 'SCI_NAME',
+        #         'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+        #     },
+        #     context=context, feedback=feedback
+        # )["OUTPUT"]
 
-        
+        # # Join back RTE count to WE
+        # rte_we_count_joined = processing.run(
+        #     "qgis:joinattributestable",
+        #     {
+        #             'INPUT': isp,
+        #             'FIELD': 'NAMA_WE',
+        #             'INPUT_2': rte_we_count,
+        #             'FIELD_2': 'NAMA_WE',
+        #             'FIELDS_TO_COPY': ['count'],
+        #             'METHOD': 0,
+        #             'DISCARD_NONMATCHING': False,
+        #             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+        #     },
+        #     context=context, feedback=feedback
+        # )["OUTPUT"]
 
-        
-                    
+        # # Calculate RTE score per WE
+        # isp_rte = processing.run(
+        #     "qgis:fieldcalculator",
+        #     {
+        #         'INPUT': rte_we_count_joined,
+        #         'FIELD_NAME': 'JML_RTE',
+        #         'FIELD_TYPE': 1,
+        #         'NEW_FIELD': True,
+        #         'FORMULA': '''
+        #             CASE
+        #                 WHEN "count" <= 29300 THEN 1
+        #                 WHEN "count" > 29300 AND "count" <= 76000 THEN 2
+        #                 WHEN "count" > 76000 AND "count" <= 148130 THEN 3   
+        #                 WHEN "count" > 148130 AND "count" <= 285000 THEN 4
+        #                 WHEN "count" > 285000 THEN 5
+        #                 ELSE 0
+        #             END
+        #         ''',
+        #         'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+        #     },
+        #     context=context, feedback=feedback
+        # )["OUTPUT"]
 
+        #2d. PERHITUNGAN INDEKS KONEKTIVITAS HUTAN
+        # Ambil Feature PL = Hutan Lahan Kering Primer, Hutan Lahan Kering Sekunder, Hutan Mangrove Primer, Hutan Mangrove Sekunder, Hutan Rawa Primer, Hutan Rawa Sekunder, Hutan Tanaman
+        pl = parameters[self.PL]
+        hutan = processing.run(
+            "native:extractbyexpression",
+            {
+                'INPUT': pl,
+                'EXPRESSION': '''
+                "PL" IN (
+                    'Hutan Lahan Kering Primer',
+                    'Hutan Lahan Kering Sekunder',
+                    'Hutan Mangrove Primer',
+                    'Hutan Mangrove Sekunder',
+                    'Hutan Rawa Primer',
+                    'Hutan Rawa Sekunder',
+                    'Hutan Tanaman'
+                )''',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
 
+        # Multipart to singlepart hutan
+        hutan = processing.run(
+            "native:multiparttosingleparts",
+            {
+                'INPUT': hutan,
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
 
+        # 2. Reproject dahulu ke EPSG:3395
+        hutan = processing.run(
+            "native:reprojectlayer",
+            {
+                'INPUT': hutan,
+                'TARGET_CRS': 'EPSG:3395',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
 
+        # # 3. Buffer Hutan 10 meter dengan dissolve namun tetap separate features
+        hutan_buffer = processing.run(
+            "native:buffer",
+            {
+                'INPUT': hutan,
+                'DISTANCE': 100,
+                'SEGMENTS': 5,
+                'END_CAP_STYLE': 0,
+                'JOIN_STYLE': 0,
+                'MITER_LIMIT': 2,
+                'DISSOLVE': True,
+                'SEPARATE_DISJOINT': True,
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
 
+        # 4. Buat kolom identitas untuk setiap feature buffer hutan
+        hutan_buffer_id = processing.run(
+            "qgis:fieldcalculator",
+            {
+                'INPUT': hutan_buffer,
+                'FIELD_NAME': 'ID_BUF',
+                'FIELD_TYPE': 1,  # Whole number (integer)
+                'NEW_FIELD': True,
+                'FORMULA': '@row_number',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
 
-        
+        # 5. Buat kolom luas area pada hutan asli
+        hutan = processing.run(
+            "qgis:fieldcalculator",
+            {
+                'INPUT': hutan,
+                'FIELD_NAME': 'LUAS_HUTAN',
+                'FIELD_TYPE': 0,  # Decimal number (real)
+                'FIELD_PRECISION': 2,
+                'NEW_FIELD': True,
+                'FORMULA': '$area',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
 
-        source = self.parameterAsSource(parameters, self.INPUT, context)
+        # 6. Buat kolom luas square pada hutan asli
+        hutan = processing.run(
+            "qgis:fieldcalculator",
+            {
+                'INPUT': hutan,
+                'FIELD_NAME': 'LUAS_SQ_HUTAN',
+                'FIELD_TYPE': 0,  # Decimal number (real)
+                'FIELD_PRECISION': 3,
+                'NEW_FIELD': True,
+                'FORMULA': '$area * $area',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
+
+        # Dissolve hutan
+        hutan = processing.run(
+            "native:dissolve",
+            {
+                'INPUT': hutan,
+                'FIELD': [],
+                'SEPARATE_DISJOINT': True,
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
+
+        # 5. Join by location antara hutan_buffer_id dengan hutan asli untuk mendapatkan luas hutan asli dalam setiap buffer
+        hutan_buffer_join = processing.run(
+            "qgis:joinattributesbylocation",
+            {
+                'INPUT': hutan,
+                'JOIN': hutan_buffer_id,
+                'PREDICATE': [0],  # intersects
+                'JOIN_FIELDS': ['ID_BUF'],
+                'METHOD': 0,  # Create separate feature for each matching feature (one-to
+                'DISCARD_NONMATCHING': False,
+                'PREFIX': '',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
+
+        # 6. Calculate EMS (area total is sum of LUAS_HUTAN per ID_BUF)
+        area_ems = processing.run(
+            "qgis:statisticsbycategories",
+            {
+                'INPUT': hutan_buffer_join,
+                'CATEGORIES_FIELD_NAME': 'ID_BUF',
+                'VALUES_FIELD_NAME': 'LUAS_HUTAN',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
+
+        # 7. Join back area_ems to hutan_buffer_id
+        hutan_buffer_ems = processing.run(
+            "qgis:joinattributestable",
+            {
+                    'INPUT': hutan_buffer_join,
+                    'FIELD': 'ID_BUF',
+                    'INPUT_2': area_ems,
+                    'FIELD_2': 'ID_BUF',
+                    'FIELDS_TO_COPY': ['sum'],
+                    'METHOD': 0,
+                    'DISCARD_NONMATCHING': False,
+                    'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
+
+        # 7. Rename field sum to total_area
+        hutan_buffer_ems = processing.run(
+            "qgis:renametablefield",
+            {
+                'INPUT': hutan_buffer_ems,
+                'FIELD': 'sum',
+                'NEW_NAME': 'total_area',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
+
+        # 8. Calculate area square EMS (area square total is sum of LUAS_SQ_HUTAN per ID_BUF)
+        # area_square_ems = processing.run(
+        #     "qgis:statisticsbycategories",
+        #     {
+        #         'INPUT': hutan_buffer_join,
+        #         'CATEGORIES_FIELD_NAME': 'ID_BUF',
+        #         'VALUES_FIELD_NAME': 'LUAS_SQ_HUTAN',
+        #         'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+        #     },
+        #     context=context, feedback=feedback
+        # )["OUTPUT"]
+
+        # # 9. Join back area_square_ems to hutan_buffer_id
+        # hutan_with_full_area = processing.run(
+        #     "qgis:joinattributestable",
+        #     {
+        #             'INPUT': hutan_buffer_join,
+        #             'FIELD': 'ID_BUF',
+        #             'INPUT_2': area_square_ems,
+        #             'FIELD_2': 'ID_BUF',
+        #             'FIELDS_TO_COPY': ['sum'],
+        #             'METHOD': 0,
+        #             'DISCARD_NONMATCHING': False,
+        #             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+        #     },
+        #     context=context, feedback=feedback
+        # )["OUTPUT"]
+
+        # # 7. Rename field sum to square_total_area
+        # hutan_with_full_area = processing.run(
+            "qgis:renametablefield",
+            {
+                'INPUT': hutan_with_full_area,
+                'FIELD': 'sum',
+                'NEW_NAME': 'square_total_area',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
+
+        # # 10. Calculate EMS value
+        # ems = processing.run(
+        #     "qgis:fieldcalculator",
+        #     {
+        #         'INPUT': hutan_with_full_area,
+        #         'FIELD_NAME': 'EMS',
+        #         'FIELD_TYPE': 0,  # Decimal number (real)
+        #         'FIELD_PRECISION': 2,
+        #         'NEW_FIELD': True,
+        #         'FORMULA': '"square_total_area" / "total_area"',
+        #         'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+        #     },
+        #     context=context, feedback=feedback
+        # )["OUTPUT"]
+
+        # # 11. Calculate Koherensi 
+        # koherensi = processing.run(
+        #     "qgis:fieldcalculator",
+        #     {
+        #         'INPUT': ems,
+        #         'FIELD_NAME': 'EMS_COH',
+        #         'FIELD_TYPE': 0,  # Decimal number (real)
+        #         'FIELD_PRECISION': 2,
+        #         'NEW_FIELD': True,
+        #         'FORMULA': '(EMS / total_area)*100',
+        #         'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+        #     },
+        #     context=context, feedback=feedback
+        # )["OUTPUT"]
+
+        # # 12. Classify Konektivitas Hutan
+        # konektivitas_hutan = processing.run(
+        #     "qgis:fieldcalculator",
+        #     {
+        #         'INPUT': koherensi,
+        #         'FIELD_NAME': 'KLS_KONEK',
+        #         'FIELD_TYPE': 1,  # Text (string)
+        #         'FIELD_LENGTH': 20,
+        #         'NEW_FIELD': True,
+        #         'FORMULA': '''
+        #             CASE
+        #                 WHEN "EMS_COH" <= 20 THEN 1
+        #                 WHEN "EMS_COH" > 20 AND "EMS_COH" <= 39 THEN 2
+        #                 WHEN "EMS_COH" > 39 AND "EMS_COH" <= 59 THEN 3
+        #                 WHEN "EMS_COH" > 59 AND "EMS_COH" <= 79 THEN 4
+        #                 WHEN "EMS_COH" > 79 THEN 5
+        #                 ELSE 0
+        #             END
+        #         ''',
+        #         'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+        #     },
+        #     context=context, feedback=feedback
+        # )["OUTPUT"]
+
+        source = hutan_buffer_ems
         (sink, dest_id) = self.parameterAsSink(parameters, self.OUTPUT,
                 context, source.fields(), source.wkbType(), source.sourceCrs())
 

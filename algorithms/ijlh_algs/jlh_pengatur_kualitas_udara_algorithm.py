@@ -475,8 +475,8 @@ class JLHPengaturKualitasUdara(QgsProcessingAlgorithm):
         ]
         else :
             final_field_mappings = [
-            {'name': 'ID', 'type': 10, 'expression': 'ID'},                {'name': 'PULAU', 'type': 10, 'expression': 'PULAU'},
-            {'name': f'{self.JLH}_{tahun[-2:]}', 'type': 6, 'precision' : 2, 'expression': f'JLH_{self.JLH}'},
+            {'name': 'ID', 'type': 10, 'expression': 'ID'}, {'name': 'PULAU', 'type': 10, 'expression': 'PULAU'},
+            {'name': f'{self.JLH}_{tahun[-2:]}', 'type': 6, 'precision' : 2, 'expression': f'round("JLH_{self.JLH}",2)'},
             {'name': f'K{self.JLH}_{tahun[-2:]}', 'type': 10, 'expression': f'Kategori_JLH_{self.JLH}'},
         ]
         out_src = processing.run(
@@ -529,6 +529,46 @@ class JLHPengaturKualitasUdara(QgsProcessingAlgorithm):
 
     def tr(self, string):
         return QCoreApplication.translate('Processing', string)
+    
+    def shortHelpString(self):
+        self.tr('''
+        <b>Indeks Jasa Lingkungan Hidup Pengatur Kualitas Udara (JLH_PKU)</b><br><br>
+        Algoritma ini digunakan untuk menghitung nilai indeks jasa lingkungan hidup 
+        yang berhubungan dengan kemampuan ekosistem dalam memperbaiki dan menjaga kualitas udara. 
+        Metode ini disusun berdasarkan dokumen Petunjuk Teknis D3TLH 2024 yang telah disesuaikan.
+
+        <h4>Tujuan:</h4>
+        Menilai kontribusi ekosistem terhadap perbaikan kualitas udara 
+        melalui analisis spasial tutupan lahan dan ekoregion yang memengaruhi kemampuan penyaringan dan serapan polutan udara.
+
+        <h4>Input yang dibutuhkan:</h4>
+        <ul>
+            <li>Peta Tutupan Lahan (data vector dengan kolom PL)</li>
+            <li>Peta Ekoregion (data vector dengan kolom KBA_250 dan KVA_250)</li>
+            <li>Data Vector Grid Area Kajian (opsional)</li>
+        </ul>
+
+        <h4>Output:</h4>
+        <ul>
+            <li>Peta Vector Indeks JLH Pengatur Kualitas Udara (JLH_PKU)</li>
+        </ul>
+
+        <h4>Metodologi:</h4>
+        Nilai indeks dihitung menggunakan pembobotan berdasarkan tipe vegetasi 
+        dan zona ekoregion yang memiliki kemampuan berbeda dalam menyerap dan menetralisir polutan.
+
+        <h4>Contoh Penggunaan:</h4>
+        1. Pilih area kajian (nasional atau per pulau). Jika skala pulau maka data penutup lahan wajib memiliki kolom <b>PULAU</b>.<br>
+        2. Tentukan bentuk output (Poligon atau Grid). Jika Grid, wajib input data Grid.<br>
+        3. Input tahun data penutup lahan.<br>
+        4. Input data Penutup Lahan (kolom PL) dan Ekoregion (kolom KBA_250 dan KVA_250).<br>
+        5. Input data Grid (opsional).<br>
+
+        <h4>Referensi:</h4>
+        Dokumen Petunjuk Teknis D3TLH 2024<br>
+        Dokumen Petunjuk Teknis D3TLH 2025
+        ''')
+
 
     def createInstance(self):
         return JLHPengaturKualitasUdara()

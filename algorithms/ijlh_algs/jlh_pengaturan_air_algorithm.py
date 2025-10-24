@@ -343,18 +343,32 @@ class JLHPengaturanAir(QgsProcessingAlgorithm):
         if bentuk_output == 'Poligon':
             out_src_temp = src_idx
 
-            # Kriteria khusus: PL == 'Tubuh Air' → JLH_PengAir_KK = 5, else = JLH_PengAir (hasil SAW)
-            out_src_kk_poli = {
-                'INPUT': out_src_temp,
-                'FIELD_NAME': f'JLH_{self.JLH}_KK',
-                'FIELD_TYPE': 0,             # Float
-                'FIELD_LENGTH': 20,
-                'FIELD_PRECISION': 2,
-                'NEW_FIELD': True,
-                'FORMULA': f'CASE WHEN "PL" = \'Tubuh Air\' THEN 5 ELSE "JLH_{self.JLH}" END',
-                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-            }
-            out_src = processing.run("qgis:fieldcalculator", out_src_kk_poli)["OUTPUT"]
+            if skor_jlh == 'Kabupaten/Kota':
+                # Kriteria khususL PL == Tubuh Air Alami, Tubuh Air Buatan, Sungai, Embung -> JLH = 5
+                out_src_kk_poli = {
+                    'INPUT': out_src_temp,
+                    'FIELD_NAME': f'JLH_{self.JLH}_KK',
+                    'FIELD_TYPE': 0,             # Float
+                    'FIELD_LENGTH': 20,
+                    'FIELD_PRECISION': 2,
+                    'NEW_FIELD': True,
+                    'FORMULA': f'CASE WHEN "PL" IN (\'Tubuh Air Alami\', \'Tubuh Air Buatan\', \'Sungai\') THEN 5 ELSE "JLH_{self.JLH}" END',
+                    'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+                }
+                out_src = processing.run("qgis:fieldcalculator", out_src_kk_poli)["OUTPUT"]
+            else:
+                # Kriteria khusus: PL == 'Tubuh Air' → JLH_PengAir_KK = 5, else = JLH_PengAir (hasil SAW)
+                out_src_kk_poli = {
+                    'INPUT': out_src_temp,
+                    'FIELD_NAME': f'JLH_{self.JLH}_KK',
+                    'FIELD_TYPE': 0,             # Float
+                    'FIELD_LENGTH': 20,
+                    'FIELD_PRECISION': 2,
+                    'NEW_FIELD': True,
+                    'FORMULA': f'CASE WHEN "PL" = \'Tubuh Air\' THEN 5 ELSE "JLH_{self.JLH}" END',
+                    'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+                }
+                out_src = processing.run("qgis:fieldcalculator", out_src_kk_poli)["OUTPUT"]
         
         else:
             inter_grid = processing.run(
@@ -486,16 +500,29 @@ class JLHPengaturanAir(QgsProcessingAlgorithm):
             source_join_pl_mca_jlh = processing.run("qgis:joinattributestable", join_pl_mca_jlh)["OUTPUT"]
             
             # Kriteria khusus: PL == 'Tubuh Air' → JLH_PengAir_KK = 5, else = JLH_PengAir (hasil SAW)
-            out_src_kk_grid = {
-                'INPUT': source_join_pl_mca_jlh,
-                'FIELD_NAME': f'JLH_{self.JLH}_KK',
-                'FIELD_TYPE': 0,             # Float
-                'FIELD_LENGTH': 20,
-                'FIELD_PRECISION': 2,
-                'NEW_FIELD': True,
-                'FORMULA': f'CASE WHEN "PL" = \'Tubuh Air\' THEN 5 ELSE "JLH_{self.JLH}" END',
-                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-            }
+            if skor_jlh == 'Kabupaten/Kota':
+                out_src_kk_grid = {
+                    'INPUT': source_join_pl_mca_jlh,
+                    'FIELD_NAME': f'JLH_{self.JLH}_KK',
+                    'FIELD_TYPE': 0,             # Float
+                    'FIELD_LENGTH': 20,
+                    'FIELD_PRECISION': 2,
+                    'NEW_FIELD': True,
+                    'FORMULA': f'CASE WHEN "PL" IN (\'Tubuh Air Alami\', \'Tubuh Air Buatan\', \'Sungai\') THEN 5 ELSE "JLH_{self.JLH}" END',
+                    'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+                }
+            else:
+                out_src_kk_grid = {
+                    'INPUT': source_join_pl_mca_jlh,
+                    'FIELD_NAME': f'JLH_{self.JLH}_KK',
+                    'FIELD_TYPE': 0,             # Float
+                    'FIELD_LENGTH': 20,
+                    'FIELD_PRECISION': 2,
+                    'NEW_FIELD': True,
+                    'FORMULA': f'CASE WHEN "PL" = \'Tubuh Air\' THEN 5 ELSE "JLH_{self.JLH}" END',
+                    'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+                }
+
             out_src = processing.run("qgis:fieldcalculator", out_src_kk_grid)["OUTPUT"]
 
         # 8) Kolom kategori
@@ -555,18 +582,18 @@ class JLHPengaturanAir(QgsProcessingAlgorithm):
                 {'name': f'KBA_{self.JLH}', 'type': 6, 'expression': 'S_EK'},
                 {'name': f'KVA_{self.JLH}', 'type': 6, 'expression': 'S_VE'},
                 {'name': f'PL{tahun[-2:]}_{self.JLH}', 'type': 6, 'expression': 'S_PL'},
-                {'name': f'{self.JLH}_{tahun[-2:]}', 'type': 6, 'precision' : 2, 'expression': f'JLH_{self.JLH}'},
+                {'name': f'{self.JLH}_{tahun[-2:]}', 'type': 6, 'precision' : 2, 'expression': f'round("JLH_{self.JLH}", 2)'},
                 {'name': f'K{self.JLH}_{tahun[-2:]}', 'type': 10, 'expression': f'Kategori_JLH_{self.JLH}'},
-                {'name': f'{self.JLH}_{tahun[-2:]}_KK', 'type': 6, 'precision' : 2, 'expression': f'JLH_{self.JLH}_KK'},
+                {'name': f'{self.JLH}_{tahun[-2:]}_KK', 'type': 6, 'precision' : 2, 'expression': f'round("JLH_{self.JLH}_KK", 2)'},
                 {'name': f'K{self.JLH}_{tahun[-2:]}_KK', 'type': 10, 'expression': f'Kategori_JLH_{self.JLH}_KK'}
             ]
         else :
             final_field_mappings = [
                 {'name': 'ID', 'type': 10, 'expression': 'ID'},
                 {'name': 'PULAU', 'type': 10, 'expression': 'PULAU'},
-                {'name': f'{self.JLH}_{tahun[-2:]}', 'type': 6, 'precision' : 2, 'expression': f'JLH_{self.JLH}'},
+                {'name': f'{self.JLH}_{tahun[-2:]}', 'type': 6, 'precision' : 2, 'expression': f'round("JLH_{self.JLH}", 2)'},
                 {'name': f'K{self.JLH}_{tahun[-2:]}', 'type': 10, 'expression': f'Kategori_JLH_{self.JLH}'},
-                {'name': f'{self.JLH}_{tahun[-2:]}_KK', 'type': 6, 'precision' : 2, 'expression': f'JLH_{self.JLH}_KK'},
+                {'name': f'{self.JLH}_{tahun[-2:]}_KK', 'type': 6, 'precision' : 2, 'expression': f'round("JLH_{self.JLH}_KK",2)'},
                 {'name': f'K{self.JLH}_{tahun[-2:]}_KK', 'type': 10, 'expression': f'Kategori_JLH_{self.JLH}_KK'}
             ]
         out_src = processing.run(
@@ -610,5 +637,104 @@ class JLHPengaturanAir(QgsProcessingAlgorithm):
     def tr(self, string):
         return QCoreApplication.translate('Processing', string)
 
+    def shortHelpString(self):
+        return self.tr('''
+        <b>Indeks Jasa Lingkungan Pengendalian Genangan Air (IJLH_PGA)</b><br>
+        <i>Flood Regulation Ecosystem Service Index (IJLH_PGA)</i>
+
+        <h3>🇮🇩 Deskripsi (Bahasa Indonesia)</h3>
+        Algoritma ini digunakan untuk menghitung nilai <b>Indeks Jasa Lingkungan Pengendalian Genangan Air (IJLH_PGA)</b> 
+        yang menggambarkan kemampuan ekosistem dalam mengatur aliran air permukaan, mengurangi limpasan, 
+        serta mencegah genangan atau banjir. Metode pengembangan algoritma ini disusun berdasarkan 
+        <b>Dokumen Petunjuk Teknis D3TLH 2024</b> dan telah disesuaikan untuk analisis spasial di Indonesia.
+
+        <h4>🎯 Tujuan:</h4>
+        Menilai kemampuan ekosistem dalam mengendalikan genangan air melalui analisis spasial terhadap 
+        penutup lahan dan karakteristik ekoregion yang mempengaruhi daya serap dan pengaturan air.
+
+        <h4>🗺️ Input yang Dibutuhkan:</h4>
+        <ul>
+            <li><b>1. Peta Tutupan Lahan</b> (data vektor dengan kolom <code>PL</code>)</li>
+            <li><b>2. Peta Ekoregion</b> (data vektor dengan kolom <code>KBA_250</code> dan <code>KVA_250</code>)</li>
+            <li><b>3. Data Vektor Grid Area Kajian</b> (opsional, digunakan jika bentuk output grid)</li>
+        </ul>
+
+        <h4>📤 Output:</h4>
+        <ul>
+            <li>Peta vektor hasil <b>Indeks IJLH Pengendalian Genangan Air (IJLH_PGA)</b></li>
+        </ul>      
+
+        <h4>⚙️ Metodologi:</h4>
+        Nilai indeks dihitung menggunakan pendekatan <b>skoring dan pembobotan</b> 
+        berdasarkan kombinasi antara jenis penutup lahan dan zona ekoregion. 
+        Hasil kombinasi menunjukkan tingkat kemampuan ekosistem dalam:
+        <ul>
+            <li>Menahan limpasan permukaan,</li>
+            <li>Mengatur aliran air,</li>
+            <li>Mengurangi potensi genangan dan banjir.</li>
+        </ul>
+
+        <h4>🧭 Contoh Penggunaan:</h4>
+        1. Pilih area kajian (nasional atau per pulau). Jika area kajian berskala pulau, pastikan data penutup lahan memiliki kolom <code>PULAU</code>.  
+        2. Pilih bentuk output (Poligon atau Grid). Jika menggunakan Grid, wajib menginput data Grid dari modul Utility.  
+        3. Tentukan tahun data penutup lahan.  
+        4. Input data Penutup Lahan (<code>PL</code>) dan Ekoregion (<code>KBA_250</code>, <code>KVA_250</code>).  
+        5. (Opsional) Input data Grid untuk analisis berbasis grid.
+
+        <h4>📚 Referensi:</h4>
+        - Dokumen Petunjuk Teknis D3TLH 2024  
+        - Dokumen Petunjuk Teknis D3TLH 2025  
+
+        <hr>
+
+        <h3>🌍 Description (English)</h3>
+        This algorithm calculates the <b>Flood Regulation Ecosystem Service Index (IJLH_PGA)</b>, 
+        representing the ecosystem's ability to regulate surface water flow, reduce runoff, 
+        and prevent flooding or waterlogging. The method follows the <b>D3TLH Technical Guideline 2024</b> 
+        and has been adjusted for spatial analysis in Indonesia.
+
+        <h4>🎯 Purpose:</h4>
+        To assess the ecosystem's capacity to control flood and surface water accumulation 
+        through spatial analysis of land cover and ecoregion characteristics.
+
+        <h4>🗺️ Required Inputs:</h4>
+        <ul>
+            <li><b>Land Cover Map</b> (vector data with <code>PL</code> field)</li>
+            <li><b>Ecoregion Map</b> (vector data with <code>KBA_250</code> and <code>KVA_250</code> fields)</li>
+            <li><b>Grid Area Layer</b> (optional, required if output type is Grid)</li>
+        </ul>
+
+        <h4>📤 Output:</h4>
+        <ul>
+            <li>Vector map of <b>Flood Regulation Ecosystem Service Index (IJLH_PGA)</b></li>
+        </ul>      
+
+        <h4>⚙️ Methodology:</h4>
+        The index is calculated using a <b>scoring and weighting approach</b> 
+        between land cover and ecoregion parameters. The combined classification 
+        reflects the ecosystem’s capacity to:
+        <ul>
+            <li>Reduce surface runoff,</li>
+            <li>Regulate water flow,</li>
+            <li>Lower the potential for flooding and waterlogging.</li>
+        </ul>
+
+        <h4>🧭 Example Workflow:</h4>
+        1. Select the study area (national or island scale). If island scale, ensure land cover data contains a <code>PULAU</code> column.  
+        2. Choose output type (Polygon or Grid). If using Grid, provide the Grid layer generated via the Utility module.  
+        3. Specify the land cover data year.  
+        4. Input the Land Cover (<code>PL</code>) and Ecoregion (<code>KBA_250</code>, <code>KVA_250</code>) datasets.  
+        5. Optionally input Grid data for grid-based analysis.
+
+        <h4>📚 References:</h4>
+        - D3TLH Technical Guideline 2024  
+        - D3TLH Technical Guideline 2025
+                       
+        <hr>
+                       
+        <b><i>Notes : Disarankan untuk tidak menyimpan output secara temporary.<i><b> 
+        ''')
+    
+        
     def createInstance(self):
         return JLHPengaturanAir()
