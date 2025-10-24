@@ -292,7 +292,7 @@ class IndeksKemampuanPemanfaatanKehati(QgsProcessingAlgorithm):
                             THEN 4
                         WHEN "PL" IN ('Hutan Lahan Kering Primer', 'Hutan Lahan Kering Sekunder', 'Hutan Mangrove Primer', 'Hutan Mangrove Sekunder', 'Savana/Padang Rumput', 'Tubuh Air')
                             THEN 5
-                        ELSE NULL
+                        ELSE 0
                     END
                 ''',
                 'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
@@ -386,7 +386,7 @@ class IndeksKemampuanPemanfaatanKehati(QgsProcessingAlgorithm):
             "qgis:fieldcalculator",
             {
                 'INPUT': habitat_we_count_joined,
-                'FIELD_NAME': 'ISP',
+                'FIELD_NAME': 'KLS_ISP',
                 'FIELD_TYPE': 1,  # Decimal number (real)
                 'NEW_FIELD': True,
                 'FORMULA': '''
@@ -403,6 +403,8 @@ class IndeksKemampuanPemanfaatanKehati(QgsProcessingAlgorithm):
             },
             context=context, feedback=feedback
         )["OUTPUT"]
+
+        feedback.pushInfo('✅ Perhitungan Indeks Spesies Pemanfaatan selesai.')
 
         # #2c. PERHITUNGAN RTE
         # rte = parameters[self.RTE]
@@ -474,7 +476,7 @@ class IndeksKemampuanPemanfaatanKehati(QgsProcessingAlgorithm):
         #2d. PERHITUNGAN INDEKS KONEKTIVITAS HUTAN
         # Ambil Feature PL = Hutan Lahan Kering Primer, Hutan Lahan Kering Sekunder, Hutan Mangrove Primer, Hutan Mangrove Sekunder, Hutan Rawa Primer, Hutan Rawa Sekunder, Hutan Tanaman
         pl = parameters[self.PL]
-        hutan = processing.run(
+        hutan_raw = processing.run(
             "native:extractbyexpression",
             {
                 'INPUT': pl,
@@ -494,20 +496,20 @@ class IndeksKemampuanPemanfaatanKehati(QgsProcessingAlgorithm):
         )["OUTPUT"]
 
         # Multipart to singlepart hutan
-        hutan = processing.run(
+        hutan_single = processing.run(
             "native:multiparttosingleparts",
             {
-                'INPUT': hutan,
+                'INPUT': hutan_raw,
                 'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
             },
             context=context, feedback=feedback
         )["OUTPUT"]
 
         # 2. Reproject dahulu ke EPSG:3395
-        hutan = processing.run(
+        hutan_reproject = processing.run(
             "native:reprojectlayer",
             {
-                'INPUT': hutan,
+                'INPUT': hutan_single,
                 'TARGET_CRS': 'EPSG:3395',
                 'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
             },
@@ -518,7 +520,7 @@ class IndeksKemampuanPemanfaatanKehati(QgsProcessingAlgorithm):
         hutan_buffer = processing.run(
             "native:buffer",
             {
-                'INPUT': hutan,
+                'INPUT': hutan_reproject,
                 'DISTANCE': 100,
                 'SEGMENTS': 5,
                 'END_CAP_STYLE': 0,
@@ -545,11 +547,23 @@ class IndeksKemampuanPemanfaatanKehati(QgsProcessingAlgorithm):
             context=context, feedback=feedback
         )["OUTPUT"]
 
+        # Dissolve hutan
+        hutan_dissolve = processing.run(
+            "native:dissolve",
+            {
+                'INPUT': hutan_reproject,
+                'FIELD': [],
+                'SEPARATE_DISJOINT': True,
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
+
         # 5. Buat kolom luas area pada hutan asli
         hutan = processing.run(
             "qgis:fieldcalculator",
             {
-                'INPUT': hutan,
+                'INPUT': hutan_dissolve,
                 'FIELD_NAME': 'LUAS_HUTAN',
                 'FIELD_TYPE': 0,  # Decimal number (real)
                 'FIELD_PRECISION': 2,
@@ -575,18 +589,6 @@ class IndeksKemampuanPemanfaatanKehati(QgsProcessingAlgorithm):
             context=context, feedback=feedback
         )["OUTPUT"]
 
-        # Dissolve hutan
-        hutan = processing.run(
-            "native:dissolve",
-            {
-                'INPUT': hutan,
-                'FIELD': [],
-                'SEPARATE_DISJOINT': True,
-                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-            },
-            context=context, feedback=feedback
-        )["OUTPUT"]
-
         # 5. Join by location antara hutan_buffer_id dengan hutan asli untuk mendapatkan luas hutan asli dalam setiap buffer
         hutan_buffer_join = processing.run(
             "qgis:joinattributesbylocation",
@@ -603,141 +605,256 @@ class IndeksKemampuanPemanfaatanKehati(QgsProcessingAlgorithm):
             context=context, feedback=feedback
         )["OUTPUT"]
 
-        # 6. Calculate EMS (area total is sum of LUAS_HUTAN per ID_BUF)
+        # 6. aggregate EMS (area total is sum of LUAS_HUTAN per ID_BUF)
         area_ems = processing.run(
-            "qgis:statisticsbycategories",
+            "native:aggregate",
             {
                 'INPUT': hutan_buffer_join,
-                'CATEGORIES_FIELD_NAME': 'ID_BUF',
-                'VALUES_FIELD_NAME': 'LUAS_HUTAN',
+                'GROUP_BY': 'ID_BUF',
+                'AGGREGATES': [
+                    {
+                        'aggregate': 'first_value',
+                        'delimiter': ',',
+                        'input': 'ID_BUF',
+                        'length': 0,
+                        'name': 'ID_BUF',
+                        'type': 2
+                    },
+                    {
+                        'aggregate': 'sum',
+                        'delimiter': ',',
+                        'input': 'LUAS_HUTAN',
+                        'length': 0,
+                        'name': 'SUM_AREA',
+                        'precision': 2,
+                        'type': 6
+                    },
+                    {
+                        'aggregate': 'sum',
+                        'delimiter': ',',
+                        'input': 'LUAS_SQ_HUTAN',
+                        'length': 0,
+                        'name': 'SUM_SQ_AREA',
+                        'precision': 2,
+                        'type': 6
+                    }
+                ],
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context,
+            feedback=feedback
+        )['OUTPUT']
+
+        # 7. Field calculate EMS and Coherency
+        ems_coherency = processing.run(
+            "qgis:fieldcalculator",
+            {
+                'INPUT': area_ems,
+                'FIELD_NAME': 'EMS',
+                'FIELD_TYPE': 0,  # Decimal number (real)
+                'FIELD_PRECISION': 2,
+                'NEW_FIELD': True,
+                'FORMULA': '("SUM_SQ_AREA" / "SUM_AREA")',
                 'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
             },
             context=context, feedback=feedback
         )["OUTPUT"]
 
-        # 7. Join back area_ems to hutan_buffer_id
-        hutan_buffer_ems = processing.run(
-            "qgis:joinattributestable",
+        ems_final = processing.run(
+            "qgis:fieldcalculator",
             {
-                    'INPUT': hutan_buffer_join,
-                    'FIELD': 'ID_BUF',
-                    'INPUT_2': area_ems,
-                    'FIELD_2': 'ID_BUF',
-                    'FIELDS_TO_COPY': ['sum'],
-                    'METHOD': 0,
-                    'DISCARD_NONMATCHING': False,
-                    'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-            },
-            context=context, feedback=feedback
-        )["OUTPUT"]
-
-        # 7. Rename field sum to total_area
-        hutan_buffer_ems = processing.run(
-            "qgis:renametablefield",
-            {
-                'INPUT': hutan_buffer_ems,
-                'FIELD': 'sum',
-                'NEW_NAME': 'total_area',
+                'INPUT': ems_coherency,
+                'FIELD_NAME': 'EMS_COH',
+                'FIELD_TYPE': 0,  # Decimal number (real)
+                'FIELD_PRECISION': 2,
+                'NEW_FIELD': True,
+                'FORMULA': '("EMS" / "SUM_AREA")*100',
                 'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
             },
             context=context, feedback=feedback
         )["OUTPUT"]
 
-        # 8. Calculate area square EMS (area square total is sum of LUAS_SQ_HUTAN per ID_BUF)
-        # area_square_ems = processing.run(
-        #     "qgis:statisticsbycategories",
-        #     {
-        #         'INPUT': hutan_buffer_join,
-        #         'CATEGORIES_FIELD_NAME': 'ID_BUF',
-        #         'VALUES_FIELD_NAME': 'LUAS_SQ_HUTAN',
-        #         'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-        #     },
-        #     context=context, feedback=feedback
-        # )["OUTPUT"]
-
-        # # 9. Join back area_square_ems to hutan_buffer_id
-        # hutan_with_full_area = processing.run(
-        #     "qgis:joinattributestable",
-        #     {
-        #             'INPUT': hutan_buffer_join,
-        #             'FIELD': 'ID_BUF',
-        #             'INPUT_2': area_square_ems,
-        #             'FIELD_2': 'ID_BUF',
-        #             'FIELDS_TO_COPY': ['sum'],
-        #             'METHOD': 0,
-        #             'DISCARD_NONMATCHING': False,
-        #             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-        #     },
-        #     context=context, feedback=feedback
-        # )["OUTPUT"]
-
-        # # 7. Rename field sum to square_total_area
-        # hutan_with_full_area = processing.run(
-            "qgis:renametablefield",
+        # 12. Classify Konektivitas Hutan
+        konektivitas_hutan = processing.run(
+            "qgis:fieldcalculator",
             {
-                'INPUT': hutan_with_full_area,
-                'FIELD': 'sum',
-                'NEW_NAME': 'square_total_area',
+                'INPUT': ems_final,
+                'FIELD_NAME': 'KLS_KONEK',
+                'FIELD_TYPE': 1,  # Text (string)
+                'FIELD_LENGTH': 20,
+                'NEW_FIELD': True,
+                'FORMULA': '''
+                    CASE
+                        WHEN "EMS_COH" <= 20 THEN 1
+                        WHEN "EMS_COH" > 20 AND "EMS_COH" <= 39 THEN 2
+                        WHEN "EMS_COH" > 39 AND "EMS_COH" <= 59 THEN 3
+                        WHEN "EMS_COH" > 59 AND "EMS_COH" <= 79 THEN 4
+                        WHEN "EMS_COH" > 79 THEN 5
+                        ELSE 0
+                    END
+                ''',
                 'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
             },
             context=context, feedback=feedback
         )["OUTPUT"]
 
-        # # 10. Calculate EMS value
-        # ems = processing.run(
-        #     "qgis:fieldcalculator",
-        #     {
-        #         'INPUT': hutan_with_full_area,
-        #         'FIELD_NAME': 'EMS',
-        #         'FIELD_TYPE': 0,  # Decimal number (real)
-        #         'FIELD_PRECISION': 2,
-        #         'NEW_FIELD': True,
-        #         'FORMULA': '"square_total_area" / "total_area"',
-        #         'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-        #     },
-        #     context=context, feedback=feedback
-        # )["OUTPUT"]
+        feedback.pushInfo('✅ Perhitungan Indeks Konektivitas Hutan selesai.')
 
-        # # 11. Calculate Koherensi 
-        # koherensi = processing.run(
-        #     "qgis:fieldcalculator",
-        #     {
-        #         'INPUT': ems,
-        #         'FIELD_NAME': 'EMS_COH',
-        #         'FIELD_TYPE': 0,  # Decimal number (real)
-        #         'FIELD_PRECISION': 2,
-        #         'NEW_FIELD': True,
-        #         'FORMULA': '(EMS / total_area)*100',
-        #         'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-        #     },
-        #     context=context, feedback=feedback
-        # )["OUTPUT"]
+        # Menghitung BI (PERBAIKI NANTI)
+        # Intersect IKG, ISP, dan konevektivitas hutan
+        intersect_bi = processing.run(
+            "qgis:union",
+            {
+                'INPUT': ikg,
+                'OVERLAY': isp,
+                'INPUT_FIELDS': ['KLS_KG'],
+                'OVERLAY_FIELDS': ['KLS_ISP'],
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
 
-        # # 12. Classify Konektivitas Hutan
-        # konektivitas_hutan = processing.run(
-        #     "qgis:fieldcalculator",
-        #     {
-        #         'INPUT': koherensi,
-        #         'FIELD_NAME': 'KLS_KONEK',
-        #         'FIELD_TYPE': 1,  # Text (string)
-        #         'FIELD_LENGTH': 20,
-        #         'NEW_FIELD': True,
-        #         'FORMULA': '''
-        #             CASE
-        #                 WHEN "EMS_COH" <= 20 THEN 1
-        #                 WHEN "EMS_COH" > 20 AND "EMS_COH" <= 39 THEN 2
-        #                 WHEN "EMS_COH" > 39 AND "EMS_COH" <= 59 THEN 3
-        #                 WHEN "EMS_COH" > 59 AND "EMS_COH" <= 79 THEN 4
-        #                 WHEN "EMS_COH" > 79 THEN 5
-        #                 ELSE 0
-        #             END
-        #         ''',
-        #         'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-        #     },
-        #     context=context, feedback=feedback
-        # )["OUTPUT"]
+        intersect_bi2 = processing.run(
+            "qgis:union",
+            {
+                'INPUT': intersect_bi,
+                'OVERLAY': konektivitas_hutan,
+                'INPUT_FIELDS': ['KLS_KG', 'KLS_ISP'],
+                'OVERLAY_FIELDS': ['KLS_KONEK'],
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
 
-        source = hutan_buffer_ems
+        # Fill all Null with 0
+        intersect_bi2 = processing.run(
+            "qgis:fieldcalculator",
+            {
+                'INPUT': intersect_bi2,
+                'FIELD_NAME': 'KLS_KG',
+                'FIELD_TYPE': 1,  # Whole number (integer)
+                'NEW_FIELD': False,
+                'FORMULA': '''
+                    CASE
+                        WHEN "KLS_KG" IS NULL THEN 0
+                        ELSE "KLS_KG"
+                    END
+                ''',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
+
+        intersect_bi2 = processing.run(
+            "qgis:fieldcalculator",
+            {
+                'INPUT': intersect_bi2,
+                'FIELD_NAME': 'KLS_ISP',
+                'FIELD_TYPE': 1,  # Whole number (integer)
+                'NEW_FIELD': False,
+                'FORMULA': '''
+                    CASE
+                        WHEN "KLS_ISP" IS NULL THEN 0
+                        ELSE "KLS_ISP"
+                    END
+                ''',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"] 
+
+        intersect_bi2 = processing.run(
+            "qgis:fieldcalculator",
+            {
+                'INPUT': intersect_bi2,
+                'FIELD_NAME': 'KLS_KONEK',
+                'FIELD_TYPE': 1,  # Whole number (integer)
+                'NEW_FIELD': False, 
+                'FORMULA': '''
+                    CASE
+                        WHEN "KLS_KONEK" IS NULL THEN 0
+                        ELSE "KLS_KONEK"
+                    END
+                ''',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
+
+        # Hitung BI
+        bi = processing.run(
+            "qgis:fieldcalculator",
+            {
+                'INPUT': intersect_bi2,
+                'FIELD_NAME': 'BI',
+                'FIELD_TYPE': 0,  # Decimal number (real)
+                'FIELD_PRECISION': 2,
+                'NEW_FIELD': True,
+                'FORMULA': '''
+                    CASE
+                        WHEN "KLS_KG" IS NOT NULL AND "KLS_ISP" IS NOT NULL AND "KLS_KONEK" IS NOT NULL
+                            THEN ( "KLS_KG" + "KLS_ISP" + "KLS_KONEK" ) / 3
+                        ELSE 0
+                    END 
+                ''',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
+
+        feedback.pushInfo('✅ Perhitungan BI selesai.')
+
+        # Hitung IKP Kehati (Tidak Perlu Dirubah)
+        # Gabungkan BCPI dan BI dengan union
+        ikp_kehati = processing.run(
+            "qgis:intersection",
+            {
+                'INPUT': grid_bcpi_klas,
+                'OVERLAY': bi,
+                'INPUT_FIELDS': ['BCPI'],
+                'OVERLAY_FIELDS': ['BI'],
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
+
+        # Set BI = 0 jika NULL
+        ikp_kehati = processing.run(
+            "qgis:fieldcalculator",
+            {
+                'INPUT': ikp_kehati,
+                'FIELD_NAME': 'BI',
+                'FIELD_TYPE': 0,  # Decimal number (real)
+                'FIELD_PRECISION': 2,
+                'NEW_FIELD': False,
+                'FORMULA': '''
+                    CASE
+                        WHEN "BI" IS NULL THEN 0
+                        ELSE "BI"
+                    END
+                ''',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
+
+        ikp_kehati = processing.run(
+            "qgis:fieldcalculator",
+            {
+                'INPUT': ikp_kehati,
+                'FIELD_NAME': 'IKP_KEHATI',
+                'FIELD_TYPE': 0,  # Decimal number (real)
+                'FIELD_PRECISION': 2,
+                'NEW_FIELD': True,
+                'FORMULA': '( "BCPI" + "BI" ) / 2',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
+
+        feedback.pushInfo('✅ Perhitungan IKP Kehati selesai.')
+
+        source = ikp_kehati
         (sink, dest_id) = self.parameterAsSink(parameters, self.OUTPUT,
                 context, source.fields(), source.wkbType(), source.sourceCrs())
 

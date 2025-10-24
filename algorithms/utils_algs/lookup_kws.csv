@@ -1,22 +1,22 @@
-fungsikws,kwshutan
-0,
-100000,Kawasan Suaka Alam/Kawasan Pelestarian Alam
-100100,Hutan Lindung
-100200,Hutan (Kawasan) Suaka Alam/Wisata
-100201,Hutan Suaka Alam/Wisata (Perairan)
-100210,Cagar Alam Darat
-100211,Cagar Alam (Perairan)
-100220,Suaka Margasatwa
-100221,Suaka Margasatwa (Perairan)
-100230,Taman Buru
-100240,Taman Nasional Darat
-100241,Taman Nasional (Perairan)
-100250,Taman Wisata Alam Darat
-100251,Taman Wisata Alam/Hutan Wisata (Perairan)
-100260,Taman Hutan Raya
-100300,Hutan Produksi
-100400,Hutan Produksi Terbatas
-100500,Hutan Produksi yang dapat Dikonversi
-100700,Areal Penggunaan Lain
-500100,Danau
-500300,Tubuh Air
+fungsikws;kwshutan
+0;
+100000;Kawasan Suaka Alam/Kawasan Pelestarian Alam
+100100;Hutan Lindung
+100200;Hutan (Kawasan) Suaka Alam/Wisata
+100201;Hutan Suaka Alam/Wisata (Perairan)
+100210;Cagar Alam Darat
+100211;Cagar Alam (Perairan)
+100220;Suaka Margasatwa
+100221;Suaka Margasatwa (Perairan)
+100230;Taman Buru
+100240;Taman Nasional Darat
+100241;Taman Nasional (Perairan)
+100250;Taman Wisata Alam Darat
+100251;Taman Wisata Alam/Hutan Wisata (Perairan)
+100260;Taman Hutan Raya
+100300;Hutan Produksi
+100400;Hutan Produksi Terbatas
+100500;Hutan Produksi yang dapat Dikonversi
+100700;Areal Penggunaan Lain
+500100;Danau
+500300;Tubuh Air
