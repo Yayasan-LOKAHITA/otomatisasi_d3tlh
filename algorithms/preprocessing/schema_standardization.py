@@ -37,11 +37,11 @@ from qgis.core import (
     QgsProcessingException, QgsProcessingAlgorithm
 )
 
-class StandarisasiSkemaData(QgsProcessingAlgorithm):
+class PreprocSchemaStandardizationAlgorithm(QgsProcessingAlgorithm):
     """
     Standarisasi kolom inti tanpa dropdown jenis data.
     User cukup pilih kolom sumber mana yang ingin dipetakan.
-    Kolom standar & tipe data dikunci: LC, kwshutan, KBA_250, KVA_250 (String).
+    Kolom standar & tipe data dikunci: PL, kwshutan, KBA_250, KVA_250 (String).
     """
 
     # ----- parameter keys -----
@@ -62,7 +62,7 @@ class StandarisasiSkemaData(QgsProcessingAlgorithm):
 
     # ----- boilerplate -----
     def tr(self, s): return QCoreApplication.translate("Processing", s)
-    def createInstance(self): return StandarisasiSkemaData()
+    def createInstance(self): return PreprocSchemaStandardizationAlgorithm()
     def name(self):
         return 'Standarisasi Skema Data'
 
@@ -73,7 +73,7 @@ class StandarisasiSkemaData(QgsProcessingAlgorithm):
         return self.tr(self.groupId())
 
     def groupId(self):
-        return '01. Pra Pengolahan'
+        return 'B. Preprocessing'
 
     def shortHelpString(self):
         return self.tr('''\

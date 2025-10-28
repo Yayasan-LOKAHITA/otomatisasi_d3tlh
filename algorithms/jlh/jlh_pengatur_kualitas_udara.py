@@ -12,7 +12,7 @@
         email                : fadillahazhardk@yayasanlokahita.org
  ***************************************************************************/
 
- /***************************************************************************
+/***************************************************************************
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
@@ -27,6 +27,7 @@ __date__ = '2025-08-15'
 __copyright__ = '(C) 2025 by Yayasan Lokahita'
 
 # This will get replaced with a git SHA1 when you do a git archive
+
 __revision__ = '$Format:%H$'
 
 import os
@@ -46,12 +47,12 @@ from qgis.core import (
 import processing
 
 
-class JLHPengaturanAir(QgsProcessingAlgorithm):
+class JLHAirQualityRegulationAlgorithm(QgsProcessingAlgorithm):
     """
-    02. Indeks Jasa Lingkungan Hidup (IJLH) – JLH Pengaturan Air
+    02. Indeks Jasa Lingkungan Hidup (IJLH) – JLH Pengatur Kualitas
     """
     # VARIABEL PARAMETER INPUT DAN OUTPUT.
-    JLH = 'PGA'
+    JLH = 'PKU'
     TAHUN = 'TAHUN'
     BENTUK_OUTPUT = 'BENTUK_OUTPUT'
     BENTUK_OUTPUT_OPTIONS = ['Grid', 'Poligon']
@@ -68,8 +69,8 @@ class JLHPengaturanAir(QgsProcessingAlgorithm):
 
     # BOBOT KONTRIBUSI TIAP VARIABEL
     # SUMBER: Dokumen D3TLH 2024
-    BOBOT_EK = 0.28
-    BOBOT_VE = 0.12
+    BOBOT_EK = 0.15
+    BOBOT_VE = 0.25
     BOBOT_LC = 0.60
 
     def initAlgorithm(self, config):
@@ -125,12 +126,12 @@ class JLHPengaturanAir(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFeatureSink(
                 self.OUTPUT,
-                self.tr('JLH Pengaturan Air')
+                self.tr('JLH Pengatur Kualitas Udara')
             )
         )
 
     def processAlgorithm(self, parameters, context, feedback):
-        # LAYER INPUT
+       # LAYER INPUT
         pl = parameters[self.PENUTUP_LAHAN]
         ekoregion = parameters[self.EKOREGION]
         grid = parameters[self.GRID]
@@ -142,6 +143,8 @@ class JLHPengaturanAir(QgsProcessingAlgorithm):
 
         # PARAMETER INPUT
         bentuk_output = self.BENTUK_OUTPUT_OPTIONS[self.parameterAsEnum(parameters, self.BENTUK_OUTPUT, context)]
+        feedback.pushInfo(f'Bentuk Output: {bentuk_output}')
+
         skor_jlh = self.SKOR_OPTIONS[self.parameterAsEnum(parameters, self.SKOR, context)]
         tahun = self.parameterAsString(parameters, self.TAHUN, context)
 
@@ -184,13 +187,13 @@ class JLHPengaturanAir(QgsProcessingAlgorithm):
 
         def pl_filename(island_name: str) -> str:
             base = {
-                'Jawa': 'skor_pl_pga_jawa.csv',
-                'Sumatera': 'skor_pl_pga_sumatera.csv',
-                'Kalimantan': 'skor_pl_pga_kalimantan.csv',
-                'Sulawesi': 'skor_pl_pga_sulawesi.csv',
-                'Papua': 'skor_pl_pga_papua.csv',
-                'Bali–Nusra': 'skor_pl_pga_balinusra.csv',
-                'Maluku': 'skor_pl_pga_maluku.csv',
+                'Jawa': 'skor_pl_pku.csv',
+                'Sumatera': 'skor_pl_pku.csv',
+                'Kalimantan': 'skor_pl_pku.csv',
+                'Sulawesi': 'skor_pl_pku.csv',
+                'Papua': 'skor_pl_pku.csv',
+                'Bali–Nusra': 'skor_pl_pku.csv',
+                'Maluku': 'skor_pl_pku.csv'
             }
             return base[island_name]
 
@@ -257,9 +260,8 @@ class JLHPengaturanAir(QgsProcessingAlgorithm):
 
             if skor_jlh == 'Kabupaten/Kota':
                 # —— Mode KABUPATEN/KOTA: hanya join satu pulau yang ada di data
-                pulau = selected_pulau[0]
-                csv_path = os.path.join(data_root_kabkota, pl_filename(pulau))
-                name = f'skor_pl_{pulau.lower()}'
+                csv_path = os.path.join(data_root_kabkota, f'skor_pl_{self.JLH.lower()}.csv')
+                name = f'skor_pl_kabupaten_kota'
                 pl_layer = load_csv_table(csv_path, name)
 
                 # join berdasarkan PL → copy S_PL_KABKOTA lalu normalisasi ke S_LC
@@ -279,12 +281,13 @@ class JLHPengaturanAir(QgsProcessingAlgorithm):
                 )["OUTPUT"]
 
                 return current
-            
-            # —— Mode NASIONAL: gunakan SATU file nasional (bukan per pulau)
-            csv_path = os.path.join(data_root, f'skor_pl_{self.JLH.lower()}.csv')   # <— di root jlh_pga
-            name = 'skor_pl_nasional'
-            pl_layer = load_csv_table(csv_path, name)
 
+            # —— Mode NASIONAL: join per-pulau → hasilkan kolom S_PL_<Pulau>, lalu pilih pakai kolom PULAU
+            csv_path = os.path.join(data_root, f'skor_pl_{self.JLH.lower()}.csv') #Skor PL tidak per Pulau
+            name = f'skor_pl_{self.JLH.lower()}'
+            pl_layer = load_csv_table(csv_path, name)
+                
+            # join berdasarkan PL → copy S_PL
             current = processing.run(
                 "qgis:joinattributestable",
                 {
@@ -295,31 +298,13 @@ class JLHPengaturanAir(QgsProcessingAlgorithm):
                     'FIELDS_TO_COPY': ['S_PL'],
                     'METHOD': 0,
                     'DISCARD_NONMATCHING': False,
-                    'PREFIX': '',                            # pastikan nama kolom tetap S_PL
                     'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
                 },
                 context=context, feedback=feedback
             )["OUTPUT"]
 
-            # Jaga-jaga: kalau QGIS tetap memberi nama selain S_PL (mis. S_PL_2), samakan ke S_PL
-            if not has_field(current, 'S_PL'):
-                # cari kandidat yang mirip S_PL
-                candidates = [f.name() for f in current.fields() if f.name().lower().startswith('s_pl')]
-                if candidates:
-                    current = processing.run(
-                        "qgis:renametablefield",
-                        {
-                            'INPUT': current,
-                            'FIELD': candidates[0],
-                            'NEW_NAME': 'S_PL',
-                            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-                        },
-                        context=context, feedback=feedback
-                    )["OUTPUT"]
-
             return current
 
-        # pakai fungsi
         src_pl = join_skor_pl(src_kva)
         feedback.pushInfo(f"✅ Selesai join skor PL ({skor_jlh})")
 
@@ -336,41 +321,13 @@ class JLHPengaturanAir(QgsProcessingAlgorithm):
                 'FORMULA': f'"S_EK"*{self.BOBOT_EK} + "S_VE"*{self.BOBOT_VE} + "S_PL"*{self.BOBOT_LC}',
                 'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
             },
-            context=context, feedback=feedback
+            context=context, feedback=feedback.pushInfo("✅ Perhitungan JLH Pengatur Kualitas Udara berhasil")
         )["OUTPUT"]
 
         # 6) Bentuk output
         if bentuk_output == 'Poligon':
-            out_src_temp = src_idx
-
-            if skor_jlh == 'Kabupaten/Kota':
-                # Kriteria khususL PL == Tubuh Air Alami, Tubuh Air Buatan, Sungai, Embung -> JLH = 5
-                out_src_kk_poli = {
-                    'INPUT': out_src_temp,
-                    'FIELD_NAME': f'JLH_{self.JLH}_KK',
-                    'FIELD_TYPE': 0,             # Float
-                    'FIELD_LENGTH': 20,
-                    'FIELD_PRECISION': 2,
-                    'NEW_FIELD': True,
-                    'FORMULA': f'CASE WHEN "PL" IN (\'Tubuh Air Alami\', \'Tubuh Air Buatan\', \'Sungai\') THEN 5 ELSE "JLH_{self.JLH}" END',
-                    'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-                }
-                out_src = processing.run("qgis:fieldcalculator", out_src_kk_poli)["OUTPUT"]
-            else:
-                # Kriteria khusus: PL == 'Tubuh Air' → JLH_PengAir_KK = 5, else = JLH_PengAir (hasil SAW)
-                out_src_kk_poli = {
-                    'INPUT': out_src_temp,
-                    'FIELD_NAME': f'JLH_{self.JLH}_KK',
-                    'FIELD_TYPE': 0,             # Float
-                    'FIELD_LENGTH': 20,
-                    'FIELD_PRECISION': 2,
-                    'NEW_FIELD': True,
-                    'FORMULA': f'CASE WHEN "PL" = \'Tubuh Air\' THEN 5 ELSE "JLH_{self.JLH}" END',
-                    'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-                }
-                out_src = processing.run("qgis:fieldcalculator", out_src_kk_poli)["OUTPUT"]
-        
-        else:
+            out_src = src_idx
+        elif bentuk_output == 'Grid':
             inter_grid = processing.run(
                 "qgis:intersection",
                 {
@@ -434,10 +391,10 @@ class JLHPengaturanAir(QgsProcessingAlgorithm):
                 "qgis:fieldcalculator",
                 {
                     'INPUT': inter_grid_with_area,
-                    'FIELD_NAME': 'JLH_PengAir_Proporsional',
+                    'FIELD_NAME': 'JLH_Udara_Proporsional',
                     'FIELD_TYPE': 0,
                     'FIELD_LENGTH': 20,
-                    'FIELD_PRECISION': 2,
+                    'FIELD_PRECISION': 3,
                     'NEW_FIELD': True,
                     'FORMULA': f'"JLH_{self.JLH}" * ("AREA_POLY_M2" / "AREA_GRID_M2")',
                     'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
@@ -449,7 +406,7 @@ class JLHPengaturanAir(QgsProcessingAlgorithm):
                 {
                     'INPUT': prop,
                     'CATEGORIES_FIELD_NAME': ['ID'],
-                    'VALUES_FIELD_NAME': 'JLH_PengAir_Proporsional',
+                    'VALUES_FIELD_NAME': 'JLH_Udara_Proporsional',
                     'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
                 },
                 context=context, feedback=feedback
@@ -479,52 +436,6 @@ class JLHPengaturanAir(QgsProcessingAlgorithm):
                 context=context, feedback=feedback
             )["OUTPUT"]
 
-            # Jalankan MCA untuk dapatkan LC dominan per GRID
-            grid_pl_mca = processing.run("d3tlh:mca_grid", {
-                'GRID': grid,
-                'LAYER2': pl,
-                'LAYER2_FIELD': 'PL',
-                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-            })["OUTPUT"]
-            
-            # Join PL_MCA ke JLH by ID GRID
-            join_pl_mca_jlh = {
-                'INPUT': out_src,
-                'FIELD': 'ID',
-                'INPUT_2': grid_pl_mca,
-                'FIELD_2': 'ID',
-                'JOIN_TYPE': 1,
-                'FIELDS_TO_COPY': ['PL'],
-                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-            }
-            source_join_pl_mca_jlh = processing.run("qgis:joinattributestable", join_pl_mca_jlh)["OUTPUT"]
-            
-            # Kriteria khusus: PL == 'Tubuh Air' → JLH_PengAir_KK = 5, else = JLH_PengAir (hasil SAW)
-            if skor_jlh == 'Kabupaten/Kota':
-                out_src_kk_grid = {
-                    'INPUT': source_join_pl_mca_jlh,
-                    'FIELD_NAME': f'JLH_{self.JLH}_KK',
-                    'FIELD_TYPE': 0,             # Float
-                    'FIELD_LENGTH': 20,
-                    'FIELD_PRECISION': 2,
-                    'NEW_FIELD': True,
-                    'FORMULA': f'CASE WHEN "PL" IN (\'Tubuh Air Alami\', \'Tubuh Air Buatan\', \'Sungai\') THEN 5 ELSE "JLH_{self.JLH}" END',
-                    'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-                }
-            else:
-                out_src_kk_grid = {
-                    'INPUT': source_join_pl_mca_jlh,
-                    'FIELD_NAME': f'JLH_{self.JLH}_KK',
-                    'FIELD_TYPE': 0,             # Float
-                    'FIELD_LENGTH': 20,
-                    'FIELD_PRECISION': 2,
-                    'NEW_FIELD': True,
-                    'FORMULA': f'CASE WHEN "PL" = \'Tubuh Air\' THEN 5 ELSE "JLH_{self.JLH}" END',
-                    'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-                }
-
-            out_src = processing.run("qgis:fieldcalculator", out_src_kk_grid)["OUTPUT"]
-
         # 8) Kolom kategori
         out_src = processing.run(
             "qgis:fieldcalculator",
@@ -546,56 +457,28 @@ class JLHPengaturanAir(QgsProcessingAlgorithm):
                 """,
                 'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
             },
-            context=context, feedback=feedback
-        )["OUTPUT"]
-
-        out_src = processing.run(
-            "qgis:fieldcalculator",
-            {
-                'INPUT': out_src,
-                'FIELD_NAME': f'Kategori_JLH_{self.JLH}_KK',
-                'FIELD_TYPE': 2,
-                'FIELD_LENGTH': 20,
-                'NEW_FIELD': True,
-                'FORMULA': f"""
-                CASE
-                    WHEN "JLH_{self.JLH}_KK" >= 1.0 AND "JLH_{self.JLH}_KK" <= 1.8 THEN 'Sangat Rendah'
-                    WHEN "JLH_{self.JLH}_KK" > 1.8 AND "JLH_{self.JLH}_KK" <= 2.6 THEN 'Rendah'
-                    WHEN "JLH_{self.JLH}_KK" > 2.6 AND "JLH_{self.JLH}_KK" <= 3.4 THEN 'Sedang'
-                    WHEN "JLH_{self.JLH}_KK" > 3.4 AND "JLH_{self.JLH}_KK" <= 4.2 THEN 'Tinggi'
-                    WHEN "JLH_{self.JLH}_KK" > 4.2 AND "JLH_{self.JLH}_KK" <= 5.0 THEN 'Sangat Tinggi'
-                    ELSE 'Tidak Diketahui'
-                END
-                """,
-                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-            },
-            context=context, feedback=feedback.pushInfo("✅ Pembuatan kolom kategori JLH Kehati Kriteria Khusus berhasil")
+            context=context, feedback=feedback.pushInfo("✅ Perhitungan Kategori Berhasil")
         )["OUTPUT"]
 
         # 9) Standarisasi Nama-Nama Kolom
         if bentuk_output == 'Poligon':
             final_field_mappings = [
-                {'name': 'PULAU', 'type': 10, 'expression': 'PULAU'},
-                {'name': 'KBA_250', 'type': 10, 'expression': 'KBA_250'},
-                {'name': 'KVA_250', 'type': 10, 'expression': 'KVA_250'},
-                {'name': f'PL{tahun[-2:]}', 'type': 10, 'expression': 'PL'},
-                {'name': f'KBA_{self.JLH}', 'type': 6, 'expression': 'S_EK'},
-                {'name': f'KVA_{self.JLH}', 'type': 6, 'expression': 'S_VE'},
-                {'name': f'PL{tahun[-2:]}_{self.JLH}', 'type': 6, 'expression': 'S_PL'},
-                {'name': f'{self.JLH}_{tahun[-2:]}', 'type': 6, 'precision' : 2, 'expression': f'round("JLH_{self.JLH}", 2)'},
-                {'name': f'K{self.JLH}_{tahun[-2:]}', 'type': 10, 'expression': f'Kategori_JLH_{self.JLH}'},
-                {'name': f'{self.JLH}_{tahun[-2:]}_KK', 'type': 6, 'precision' : 2, 'expression': f'round("JLH_{self.JLH}_KK", 2)'},
-                {'name': f'K{self.JLH}_{tahun[-2:]}_KK', 'type': 10, 'expression': f'Kategori_JLH_{self.JLH}_KK'}
-            ]
+            {'name': 'PULAU', 'type': 10, 'expression': 'PULAU'},
+            {'name': 'KBA_250', 'type': 10, 'expression': 'KBA_250'},
+            {'name': 'KVA_250', 'type': 10, 'expression': 'KVA_250'},
+            {'name': f'PL{tahun[-2:]}', 'type': 10, 'expression': 'PL'},
+            {'name': f'KBA_{self.JLH}', 'type': 6, 'expression': 'S_EK'},         
+            {'name': f'KVA_{self.JLH}', 'type': 6, 'expression': 'S_VE'},
+            {'name': f'PL{tahun[-2:]}_{self.JLH}', 'type': 6, 'expression': 'S_PL'},
+            {'name': f'{self.JLH}_{tahun[-2:]}', 'type': 6, 'precision' : 2, 'expression': f'JLH_{self.JLH}'},
+            {'name': f'K{self.JLH}_{tahun[-2:]}', 'type': 10, 'expression': f'Kategori_JLH_{self.JLH}'}
+        ]
         else :
             final_field_mappings = [
-                {'name': 'ID', 'type': 10, 'expression': 'ID'},
-                {'name': 'PULAU', 'type': 10, 'expression': 'PULAU'},
-                {'name': f'{self.JLH}_{tahun[-2:]}', 'type': 6, 'precision' : 2, 'expression': f'round("JLH_{self.JLH}", 2)'},
-                {'name': f'K{self.JLH}_{tahun[-2:]}', 'type': 10, 'expression': f'Kategori_JLH_{self.JLH}'},
-                {'name': f'{self.JLH}_{tahun[-2:]}_KK', 'type': 6, 'precision' : 2, 'expression': f'round("JLH_{self.JLH}_KK",2)'},
-                {'name': f'K{self.JLH}_{tahun[-2:]}_KK', 'type': 10, 'expression': f'Kategori_JLH_{self.JLH}_KK'}
-            ]
+            {'name': 'ID', 'type': 10, 'expression': 'ID'}, {'name': 'PULAU', 'type': 10, 'expression': 'PULAU'},
+            {'name': f'{self.JLH}_{tahun[-2:]}', 'type': 6, 'precision' : 2, 'expression': f'round("JLH_{self.JLH}",2)'},
+            {'name': f'K{self.JLH}_{tahun[-2:]}', 'type': 10, 'expression': f'Kategori_JLH_{self.JLH}'},
+        ]
         out_src = processing.run(
             "qgis:refactorfields",
             {
@@ -621,120 +504,71 @@ class JLHPengaturanAir(QgsProcessingAlgorithm):
 
         return {self.OUTPUT: dest_id}
 
+    def name(self):
+        """
+        Returns the algorithm name, used for identifying the algorithm. This
+        string should be fixed for the algorithm, and must not be localised.
+        The name should be unique within each provider. Names should contain
+        lowercase alphanumeric characters only and no spaces or other
+        formatting characters.
+        """
+        return 'JLH Pengatur Kualitas Udara'
+
     # Metadata
     def name(self):
-        return 'jlh_pengaturan_air'
+        return 'jlh_pengatur_kualitas_udara'
 
     def displayName(self):
-        return self.tr('JLH Pengaturan Air')
+        return self.tr('JLH Pengatur Kualitas Udara')
 
     def group(self):
         return self.tr(self.groupId())
 
     def groupId(self):
-        return '02. Indeks Jasa Lingkungan Hidup (IJLH)'
+        return 'C. Indeks Jasa Lingkungan Hidup (IJLH)'
 
     def tr(self, string):
         return QCoreApplication.translate('Processing', string)
-
-    def shortHelpString(self):
-        return self.tr('''
-        <b>Indeks Jasa Lingkungan Pengendalian Genangan Air (IJLH_PGA)</b><br>
-        <i>Flood Regulation Ecosystem Service Index (IJLH_PGA)</i>
-
-        <h3>🇮🇩 Deskripsi (Bahasa Indonesia)</h3>
-        Algoritma ini digunakan untuk menghitung nilai <b>Indeks Jasa Lingkungan Pengendalian Genangan Air (IJLH_PGA)</b> 
-        yang menggambarkan kemampuan ekosistem dalam mengatur aliran air permukaan, mengurangi limpasan, 
-        serta mencegah genangan atau banjir. Metode pengembangan algoritma ini disusun berdasarkan 
-        <b>Dokumen Petunjuk Teknis D3TLH 2024</b> dan telah disesuaikan untuk analisis spasial di Indonesia.
-
-        <h4>🎯 Tujuan:</h4>
-        Menilai kemampuan ekosistem dalam mengendalikan genangan air melalui analisis spasial terhadap 
-        penutup lahan dan karakteristik ekoregion yang mempengaruhi daya serap dan pengaturan air.
-
-        <h4>🗺️ Input yang Dibutuhkan:</h4>
-        <ul>
-            <li><b>1. Peta Tutupan Lahan</b> (data vektor dengan kolom <code>PL</code>)</li>
-            <li><b>2. Peta Ekoregion</b> (data vektor dengan kolom <code>KBA_250</code> dan <code>KVA_250</code>)</li>
-            <li><b>3. Data Vektor Grid Area Kajian</b> (opsional, digunakan jika bentuk output grid)</li>
-        </ul>
-
-        <h4>📤 Output:</h4>
-        <ul>
-            <li>Peta vektor hasil <b>Indeks IJLH Pengendalian Genangan Air (IJLH_PGA)</b></li>
-        </ul>      
-
-        <h4>⚙️ Metodologi:</h4>
-        Nilai indeks dihitung menggunakan pendekatan <b>skoring dan pembobotan</b> 
-        berdasarkan kombinasi antara jenis penutup lahan dan zona ekoregion. 
-        Hasil kombinasi menunjukkan tingkat kemampuan ekosistem dalam:
-        <ul>
-            <li>Menahan limpasan permukaan,</li>
-            <li>Mengatur aliran air,</li>
-            <li>Mengurangi potensi genangan dan banjir.</li>
-        </ul>
-
-        <h4>🧭 Contoh Penggunaan:</h4>
-        1. Pilih area kajian (nasional atau per pulau). Jika area kajian berskala pulau, pastikan data penutup lahan memiliki kolom <code>PULAU</code>.  
-        2. Pilih bentuk output (Poligon atau Grid). Jika menggunakan Grid, wajib menginput data Grid dari modul Utility.  
-        3. Tentukan tahun data penutup lahan.  
-        4. Input data Penutup Lahan (<code>PL</code>) dan Ekoregion (<code>KBA_250</code>, <code>KVA_250</code>).  
-        5. (Opsional) Input data Grid untuk analisis berbasis grid.
-
-        <h4>📚 Referensi:</h4>
-        - Dokumen Petunjuk Teknis D3TLH 2024  
-        - Dokumen Petunjuk Teknis D3TLH 2025  
-
-        <hr>
-
-        <h3>🌍 Description (English)</h3>
-        This algorithm calculates the <b>Flood Regulation Ecosystem Service Index (IJLH_PGA)</b>, 
-        representing the ecosystem's ability to regulate surface water flow, reduce runoff, 
-        and prevent flooding or waterlogging. The method follows the <b>D3TLH Technical Guideline 2024</b> 
-        and has been adjusted for spatial analysis in Indonesia.
-
-        <h4>🎯 Purpose:</h4>
-        To assess the ecosystem's capacity to control flood and surface water accumulation 
-        through spatial analysis of land cover and ecoregion characteristics.
-
-        <h4>🗺️ Required Inputs:</h4>
-        <ul>
-            <li><b>Land Cover Map</b> (vector data with <code>PL</code> field)</li>
-            <li><b>Ecoregion Map</b> (vector data with <code>KBA_250</code> and <code>KVA_250</code> fields)</li>
-            <li><b>Grid Area Layer</b> (optional, required if output type is Grid)</li>
-        </ul>
-
-        <h4>📤 Output:</h4>
-        <ul>
-            <li>Vector map of <b>Flood Regulation Ecosystem Service Index (IJLH_PGA)</b></li>
-        </ul>      
-
-        <h4>⚙️ Methodology:</h4>
-        The index is calculated using a <b>scoring and weighting approach</b> 
-        between land cover and ecoregion parameters. The combined classification 
-        reflects the ecosystem’s capacity to:
-        <ul>
-            <li>Reduce surface runoff,</li>
-            <li>Regulate water flow,</li>
-            <li>Lower the potential for flooding and waterlogging.</li>
-        </ul>
-
-        <h4>🧭 Example Workflow:</h4>
-        1. Select the study area (national or island scale). If island scale, ensure land cover data contains a <code>PULAU</code> column.  
-        2. Choose output type (Polygon or Grid). If using Grid, provide the Grid layer generated via the Utility module.  
-        3. Specify the land cover data year.  
-        4. Input the Land Cover (<code>PL</code>) and Ecoregion (<code>KBA_250</code>, <code>KVA_250</code>) datasets.  
-        5. Optionally input Grid data for grid-based analysis.
-
-        <h4>📚 References:</h4>
-        - D3TLH Technical Guideline 2024  
-        - D3TLH Technical Guideline 2025
-                       
-        <hr>
-                       
-        <b><i>Notes : Disarankan untuk tidak menyimpan output secara temporary.<i><b> 
-        ''')
     
-        
+    def shortHelpString(self):
+        self.tr('''
+        <b>Indeks Jasa Lingkungan Hidup Pengatur Kualitas Udara (JLH_PKU)</b><br><br>
+        Algoritma ini digunakan untuk menghitung nilai indeks jasa lingkungan hidup 
+        yang berhubungan dengan kemampuan ekosistem dalam memperbaiki dan menjaga kualitas udara. 
+        Metode ini disusun berdasarkan dokumen Petunjuk Teknis D3TLH 2024 yang telah disesuaikan.
+
+        <h4>Tujuan:</h4>
+        Menilai kontribusi ekosistem terhadap perbaikan kualitas udara 
+        melalui analisis spasial tutupan lahan dan ekoregion yang memengaruhi kemampuan penyaringan dan serapan polutan udara.
+
+        <h4>Input yang dibutuhkan:</h4>
+        <ul>
+            <li>Peta Tutupan Lahan (data vector dengan kolom PL)</li>
+            <li>Peta Ekoregion (data vector dengan kolom KBA_250 dan KVA_250)</li>
+            <li>Data Vector Grid Area Kajian (opsional)</li>
+        </ul>
+
+        <h4>Output:</h4>
+        <ul>
+            <li>Peta Vector Indeks JLH Pengatur Kualitas Udara (JLH_PKU)</li>
+        </ul>
+
+        <h4>Metodologi:</h4>
+        Nilai indeks dihitung menggunakan pembobotan berdasarkan tipe vegetasi 
+        dan zona ekoregion yang memiliki kemampuan berbeda dalam menyerap dan menetralisir polutan.
+
+        <h4>Contoh Penggunaan:</h4>
+        1. Pilih area kajian (nasional atau per pulau). Jika skala pulau maka data penutup lahan wajib memiliki kolom <b>PULAU</b>.<br>
+        2. Tentukan bentuk output (Poligon atau Grid). Jika Grid, wajib input data Grid.<br>
+        3. Input tahun data penutup lahan.<br>
+        4. Input data Penutup Lahan (kolom PL) dan Ekoregion (kolom KBA_250 dan KVA_250).<br>
+        5. Input data Grid (opsional).<br>
+
+        <h4>Referensi:</h4>
+        Dokumen Petunjuk Teknis D3TLH 2024<br>
+        Dokumen Petunjuk Teknis D3TLH 2025
+        ''')
+
+
     def createInstance(self):
-        return JLHPengaturanAir()
+        return JLHAirQualityRegulationAlgorithm()

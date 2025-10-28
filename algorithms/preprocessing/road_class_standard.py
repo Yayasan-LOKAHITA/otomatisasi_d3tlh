@@ -209,7 +209,7 @@ def _ask_mapping_on_main_thread(unique_values):
 
 
 # ---------------- Algorithm ----------------
-class StandarisasiKelasJalanInteractiveAlgorithm(QgsProcessingAlgorithm):
+class PreprocRoadClassStandardAlgorithm(QgsProcessingAlgorithm):
     P_ROADS     = 'P_ROADS'
     P_FIELD     = 'P_FIELD'
     P_SHOWUI    = 'P_SHOWUI'
@@ -217,11 +217,11 @@ class StandarisasiKelasJalanInteractiveAlgorithm(QgsProcessingAlgorithm):
     P_OUTPUT    = 'P_OUTPUT'
 
     def tr(self, s): return QCoreApplication.translate('Processing', s)
-    def name(self): return 'standarisasi_kelas_jalan_interaktif'
+    def name(self): return 'standarisasijalan'
     def displayName(self): return self.tr('Standarisasi Kelas Jalan')
-    def groupId(self): return '00. Utilities'
+    def groupId(self): return 'B. Preprocessing'
     def group(self): return self.tr(self.groupId())
-    def createInstance(self): return StandarisasiKelasJalanInteractiveAlgorithm()
+    def createInstance(self): return PreprocRoadClassStandardAlgorithm()
 
     def shortHelpString(self):
         return self.tr("""\

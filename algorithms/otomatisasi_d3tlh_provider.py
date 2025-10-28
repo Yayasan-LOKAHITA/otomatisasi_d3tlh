@@ -32,33 +32,38 @@ __revision__ = '$Format:%H$'
 
 from qgis.core import QgsProcessingProvider
 
-# Algoritma Pre-Processing
-from .pre_processing_algs.pengecekan_kualitas_data_algorithm import PengecekanKualitasData
-from .pre_processing_algs.pulau_algorithm import AddPulauFieldAlgorithm
-from .pre_processing_algs.standarisasi_skema_data_algorithm import StandarisasiSkemaData
-
-# Algoritma IJLH
-from .ijlh_algs.jlh_pengatur_kualitas_udara_algorithm import JLHPengaturKualitasUdara
-from .ijlh_algs.jlh_penyedia_air_algorithm import JLHPenyediaAir
-from .ijlh_algs.jlh_penyedia_pangan_algorithm import JLHPenyediaPangan
-from .ijlh_algs.jlh_penyerapan_dan_penyimpanan_karbon_algorithm import JLHPenyerapanDanPenyimpananKarbon
-from .ijlh_algs.jlh_pendukung_habibat_dan_kehati_algorithm import JLHPendukungKehati
-from .ijlh_algs.jlh_pengaturan_air_algorithm import JLHPengaturanAir
-
-from .ikp_algs.indeks_kemampuan_pemanfaatan_lahan_algorithm import IKPLahanAlgorithm
-
-from .pop_algs.distribusi_penduduk_algorithm import DistribusiPendudukSGSRI
-
-# Algoritma IKP
-from .ikp_algs.indeks_kemampuan_pemanfaatan_kehati_algorithm import IndeksKemampuanPemanfaatanKehati
-from .ikp_algs.indeks_kemampuan_pemanfaatan_udara_algorithm import IKPUdaraAlgorithm
-from .ikp_algs.indeks_kemampuan_pemanfaatan_air_algorithm import IndeksKemampuanPemanfaatanAir
 
 # Algoritma lainnya
-from .utils_algs.mca_polygon_algorithms import MCA_GRID_Poligon_Algoritm
-from .utils_algs.grid_algorithm import GridIndonesiaAlgorithm
-from .utils_algs.klasifikasi_jalan_algorithm import StandarisasiKelasJalanInteractiveAlgorithm
-from .utils_algs.klasifikasi_pl_kwshutan_algorithm import KlasifikasiPLatauKawasanHutan
+from .utils.mca_dominant_grid import UtilsMCADominantAlgorithm
+from .utils.grid_sgsri import UtilsGridSGSRIAlgorithm
+
+# Algoritma Pre-Processing
+from .preprocessing.validate_data_quality import PreprocDataValidationAlgorithm
+from .preprocessing.add_island_attribute import PreprocAddIslandAttributeAlgorithm
+from .preprocessing.schema_standardization import PreprocSchemaStandardizationAlgorithm
+from .preprocessing.road_class_standard import PreprocRoadClassStandardAlgorithm
+from .preprocessing.landcover_klhk import PreprocLandCoverKLHKAlgorithm
+
+# Algoritma IJLH
+from .jlh.jlh_pengatur_kualitas_udara import JLHAirQualityRegulationAlgorithm
+from .jlh.jlh_penyedia_air import JLHWaterSupplyAlgorithm
+from .jlh.jlh_penyedia_pangan import JLHFoodSupplyAlgorithm
+from .jlh.jlh_penyerapan_dan_penyimpanan_karbon import JLHCarbonStorageAlgorithm
+from .jlh.jlh_pendukung_habibat_dan_kehati import JLHHabitatKehatiAlgorithm
+from .jlh.jlh_pengaturan_air import JLHWaterRegulationAlgorithm
+
+# Model
+from .socio_ecologial.population_distribution import SocioEcoPopulationDistAlgorithm
+from .socio_ecologial.ecological_footprint import SocioEcoEcologicalFootprintAlgorithm
+
+# Algoritma IKP
+from .ikp.ikp_lahan import IKPLahanAlgorithm
+from .ikp.ikp_kehati import IKPKehatiAlgorithm
+from .ikp.ikp_udara import IKPUdaraAlgorithm
+from .ikp.ikp_air import IKPAirAlgorithm
+
+# Algoritma Integrasi
+from .integration.ikp_integration import IntegrationIKPAlgorithm
 
 class OtomatisasiD3TLHProvider(QgsProcessingProvider):
 
@@ -79,32 +84,37 @@ class OtomatisasiD3TLHProvider(QgsProcessingProvider):
         """
         Loads all algorithms belonging to this provider.
         """
+        # Algoritma lainnya
+        self.addAlgorithm(UtilsMCADominantAlgorithm())
+        self.addAlgorithm(UtilsGridSGSRIAlgorithm())
+        self.addAlgorithm(PreprocLandCoverKLHKAlgorithm())
+        self.addAlgorithm(PreprocRoadClassStandardAlgorithm())
+
         # Algoritma Pre-Processing
-        self.addAlgorithm(PengecekanKualitasData())
-        self.addAlgorithm(AddPulauFieldAlgorithm())
-        self.addAlgorithm(StandarisasiSkemaData())
+        self.addAlgorithm(PreprocAddIslandAttributeAlgorithm())
+        self.addAlgorithm(PreprocDataValidationAlgorithm())
+        self.addAlgorithm(PreprocSchemaStandardizationAlgorithm())
 
         # Algoritma IJLH
-        self.addAlgorithm(JLHPengaturKualitasUdara())
-        self.addAlgorithm(JLHPenyediaAir())
-        self.addAlgorithm(JLHPenyediaPangan())
-        self.addAlgorithm(JLHPenyerapanDanPenyimpananKarbon())
-        self.addAlgorithm(JLHPendukungKehati())
-        self.addAlgorithm(JLHPengaturanAir())
-        
+        self.addAlgorithm(JLHAirQualityRegulationAlgorithm())
+        self.addAlgorithm(JLHFoodSupplyAlgorithm())
+        self.addAlgorithm(JLHCarbonStorageAlgorithm())
+        self.addAlgorithm(JLHHabitatKehatiAlgorithm())
+        self.addAlgorithm(JLHWaterSupplyAlgorithm())
+        self.addAlgorithm(JLHWaterRegulationAlgorithm())
+
+        # Model-Model Pendukung
+        self.addAlgorithm(SocioEcoEcologicalFootprintAlgorithm())
+        self.addAlgorithm(SocioEcoPopulationDistAlgorithm())
+
         # Algoritma IKP
-        self.addAlgorithm(DistribusiPendudukSGSRI())
-        self.addAlgorithm(IndeksKemampuanPemanfaatanKehati())
-        self.addAlgorithm(IKPLahanAlgorithm())
+        self.addAlgorithm(IKPAirAlgorithm())
+        self.addAlgorithm(IKPKehatiAlgorithm())
         self.addAlgorithm(IKPUdaraAlgorithm())
-        self.addAlgorithm(IndeksKemampuanPemanfaatanAir())
+        self.addAlgorithm(IKPLahanAlgorithm())
 
-        # Algoritma lainnya
-        self.addAlgorithm(MCA_GRID_Poligon_Algoritm())
-        self.addAlgorithm(GridIndonesiaAlgorithm())
-        self.addAlgorithm(StandarisasiKelasJalanInteractiveAlgorithm())
-        self.addAlgorithm(KlasifikasiPLatauKawasanHutan())
-
+        # Algoritma Integrasi
+        self.addAlgorithm(IntegrationIKPAlgorithm())
 
     def id(self):
         """

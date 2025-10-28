@@ -41,7 +41,7 @@ from qgis.core import (
     QgsProcessingException, QgsProcessingAlgorithm
 )
 
-class KlasifikasiPLatauKawasanHutan(QgsProcessingAlgorithm):
+class PreprocLandCoverKLHKAlgorithm(QgsProcessingAlgorithm):
     """
     Klasifikasikan layer menjadi Penutup Lahan (PL) atau Kawasan Hutan (kwshutan)
     memakai lookup CSV yang DIBUNDEL (tanpa input CSV dari user).
@@ -70,11 +70,11 @@ class KlasifikasiPLatauKawasanHutan(QgsProcessingAlgorithm):
 
     # ----- boilerplate -----
     def tr(self, s): return QCoreApplication.translate("Processing", s)
-    def createInstance(self): return KlasifikasiPLatauKawasanHutan()
-    def name(self): return "klasifikasi_pl_atau_kawasan_hutan"
-    def displayName(self): return self.tr("Klasifikasi Penutup Lahan dan Kawasan Hutan KLHK RI")
+    def createInstance(self): return PreprocLandCoverKLHKAlgorithm()
+    def name(self): return "klasifikasituplah"
+    def displayName(self): return self.tr("Klasifikasi Penutupan Lahan & Kawasan Hutan (KLHK RI)")
     def group(self): return self.tr(self.groupId())
-    def groupId(self): return "00. Utilities"
+    def groupId(self): return "B. Preprocessing"
 
     def shortHelpString(self) -> str:
         return self.tr("""\

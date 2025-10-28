@@ -46,7 +46,7 @@ from qgis.core import (
 )
 import processing
 
-class JLHPenyediaAir(QgsProcessingAlgorithm):
+class JLHWaterSupplyAlgorithm(QgsProcessingAlgorithm):
     """
     02. Indeks Jasa Lingkungan Hidup (IJLH) – JLH Penyedia Air
     """
@@ -453,7 +453,7 @@ class JLHPenyediaAir(QgsProcessingAlgorithm):
 
             if skor_jlh == 'Kabupaten/Kota':
                 # Jalankan MCA untuk dapatkan LC dominan per GRID
-                grid_pl_mca = processing.run("d3tlh:mca_grid", {
+                grid_pl_mca = processing.run("d3tlh:mcagrid", {
                     'GRID': grid,
                     'LAYER2': pl,
                     'LAYER2_FIELD': 'PL',
@@ -599,7 +599,7 @@ class JLHPenyediaAir(QgsProcessingAlgorithm):
         return self.tr(self.groupId())
 
     def groupId(self):
-        return '02. Indeks Jasa Lingkungan Hidup (IJLH)'
+        return 'C. Indeks Jasa Lingkungan Hidup (IJLH)'
 
     def tr(self, string):
         return QCoreApplication.translate('Processing', string)
@@ -644,4 +644,4 @@ class JLHPenyediaAir(QgsProcessingAlgorithm):
         ''')
 
     def createInstance(self):
-        return JLHPenyediaAir()
+        return JLHWaterSupplyAlgorithm()

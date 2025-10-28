@@ -42,7 +42,7 @@ from qgis.core import (QgsProcessing,
 
 import processing, os
 
-class IndeksKemampuanPemanfaatanKehati(QgsProcessingAlgorithm):
+class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
     # Parameters BCPI
     GRID_PGA = 'GRID_PGA'
     GRID_PPK = 'GRID_PPK'
@@ -842,7 +842,7 @@ class IndeksKemampuanPemanfaatanKehati(QgsProcessingAlgorithm):
             "qgis:fieldcalculator",
             {
                 'INPUT': ikp_kehati,
-                'FIELD_NAME': 'IKP_KEHATI',
+                'FIELD_NAME': 'KONDISI',
                 'FIELD_TYPE': 0,  # Decimal number (real)
                 'FIELD_PRECISION': 2,
                 'NEW_FIELD': True,
@@ -852,9 +852,31 @@ class IndeksKemampuanPemanfaatanKehati(QgsProcessingAlgorithm):
             context=context, feedback=feedback
         )["OUTPUT"]
 
+        # Menghitung kelas ikp_kehati
+        kls_ikp_kehati = processing.run(
+            "native:fieldcalculator",
+            {
+                'INPUT': ikp_kehati,
+                'FIELD_NAME': "KLS_KONDI",
+                'FIELD_TYPE': 1,
+                'NEW_FIELD': True,
+                'FORMULA': '''
+                    CASE
+                        WHEN "KONDISI" <=1 THEN 1
+                        WHEN "KONDISI" > 1 AND "KONDISI" <=2 THEN 2
+                        WHEN "KONDISI" > 2 AND "KONDISI" <=3 THEN 3
+                        WHEN "KONDISI" > 3 AND "KONDISI" <=4 THEN 4
+                        WHEN "KONDISI" > 4 THEN 5
+                    END
+                ''',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
+
         feedback.pushInfo('✅ Perhitungan IKP Kehati selesai.')
 
-        source = ikp_kehati
+        source = isp
         (sink, dest_id) = self.parameterAsSink(parameters, self.OUTPUT,
                 context, source.fields(), source.wkbType(), source.sourceCrs())
 
@@ -890,14 +912,14 @@ class IndeksKemampuanPemanfaatanKehati(QgsProcessingAlgorithm):
         lowercase alphanumeric characters only and no spaces or other
         formatting characters.
         """
-        return 'IKP Kehati'
+        return 'ikpkehati'
 
     def displayName(self):
         """
         Returns the translated algorithm name, which should be used for any
         user-visible display of the algorithm name.
         """
-        return self.tr(self.name())
+        return self.tr('IKP Kehati')
 
     def group(self):
         """
@@ -914,7 +936,7 @@ class IndeksKemampuanPemanfaatanKehati(QgsProcessingAlgorithm):
         contain lowercase alphanumeric characters only and no spaces or other
         formatting characters.
         """
-        return '04. Indeks Kemampuan Pemanfaatan (IKP)'
+        return 'E. Indeks Kemampuan Pemanfaatan (IKP)'
 
     def tr(self, string):
         return QCoreApplication.translate('Processing', string)
@@ -927,4 +949,4 @@ Modul ini digunakan untuk menghitung indeks kemampuan pemanfaatan Air.
     ''')
 
     def createInstance(self):
-        return IndeksKemampuanPemanfaatanKehati()
+        return IKPKehatiAlgorithm()

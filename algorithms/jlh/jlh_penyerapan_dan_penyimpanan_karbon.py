@@ -46,7 +46,7 @@ from qgis.core import (
 )
 import processing
 
-class JLHPenyerapanDanPenyimpananKarbon(QgsProcessingAlgorithm):
+class JLHCarbonStorageAlgorithm(QgsProcessingAlgorithm):
     """
     02. Indeks Jasa Lingkungan Hidup (IJLH) – JLH Penyerapan dan Penyimpan Karbon
     """
@@ -515,7 +515,7 @@ class JLHPenyerapanDanPenyimpananKarbon(QgsProcessingAlgorithm):
         return self.tr(self.groupId())
 
     def groupId(self):
-        return '02. Indeks Jasa Lingkungan Hidup (IJLH)'
+        return 'C. Indeks Jasa Lingkungan Hidup (IJLH)'
 
     def tr(self, string):
         return QCoreApplication.translate('Processing', string)
@@ -611,4 +611,4 @@ class JLHPenyerapanDanPenyimpananKarbon(QgsProcessingAlgorithm):
         ''')
 
     def createInstance(self):
-        return JLHPenyerapanDanPenyimpananKarbon()
+        return JLHCarbonStorageAlgorithm()

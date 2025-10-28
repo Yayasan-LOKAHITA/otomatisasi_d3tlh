@@ -47,7 +47,7 @@ from qgis.core import (
 )
 import processing
 
-class JLHPendukungKehati(QgsProcessingAlgorithm):
+class JLHHabitatKehatiAlgorithm(QgsProcessingAlgorithm):
     """
     02. Indeks Jasa Lingkungan Hidup (IJLH) – JLH Pendukung Habitat dan Kehati
     """
@@ -393,7 +393,7 @@ class JLHPendukungKehati(QgsProcessingAlgorithm):
         elif bentuk_output == 'Grid':
             # LOAD LAYER MCA GRID PL Untuk Kriteria Khusus Bentuk Output Grid
             mca_pl = processing.run(
-                "d3tlh:mca_grid",
+                "d3tlh:mcagrid",
                 {
                     'GRID': grid,
                     'LAYER2': pl,
@@ -745,7 +745,7 @@ class JLHPendukungKehati(QgsProcessingAlgorithm):
         contain lowercase alphanumeric characters only and no spaces or other
         formatting characters.
         """
-        return '02. Indeks Jasa Lingkungan Hidup (IJLH)'
+        return 'C. Indeks Jasa Lingkungan Hidup (IJLH)'
 
     def tr(self, string):
         return QCoreApplication.translate('Processing', string)
@@ -834,4 +834,4 @@ class JLHPendukungKehati(QgsProcessingAlgorithm):
         ''')
 
     def createInstance(self):
-        return JLHPendukungKehati()
+        return JLHHabitatKehatiAlgorithm()

@@ -47,7 +47,7 @@ import processing
 import os
 
 
-class DistribusiPendudukSGSRI(QgsProcessingAlgorithm):
+class SocioEcoPopulationDistAlgorithm(QgsProcessingAlgorithm):
     # Parameter keys
     OUTPUT = 'OUTPUT'
 
@@ -75,13 +75,13 @@ class DistribusiPendudukSGSRI(QgsProcessingAlgorithm):
         return self.tr('Model Distribusi Penduduk')
 
     def groupId(self):
-        return '03. Kependudukan'
+        return 'D. Demographic and Ecological Model'
 
     def group(self):
         return self.tr(self.groupId())
 
     def createInstance(self):
-        return DistribusiPendudukSGSRI()
+        return SocioEcoPopulationDistAlgorithm()
 
     # ----------------------- UI/Parameters -----------------------
     def initAlgorithm(self, config):

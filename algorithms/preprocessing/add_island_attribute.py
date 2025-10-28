@@ -41,7 +41,7 @@ from qgis.core import (
 import processing
 
 
-class AddPulauFieldAlgorithm(QgsProcessingAlgorithm):
+class PreprocAddIslandAttributeAlgorithm(QgsProcessingAlgorithm):
     """
     01. Pra Pengolahan – Tambah Kolom PULAU (Hull Polygons + Nearest)
     - Reproject ke EPSG:4326
@@ -59,7 +59,7 @@ class AddPulauFieldAlgorithm(QgsProcessingAlgorithm):
         return QCoreApplication.translate('Processing', s)
 
     def createInstance(self):
-        return AddPulauFieldAlgorithm()
+        return PreprocAddIslandAttributeAlgorithm()
 
     def name(self) -> str:
         return 'add_pulau_field'
@@ -68,7 +68,7 @@ class AddPulauFieldAlgorithm(QgsProcessingAlgorithm):
         return self.tr('Penambahan Atribut Pulau')
 
     def groupId(self) -> str:
-        return '01. Pra Pengolahan'
+        return 'B. Preprocessing'
 
     def group(self) -> str:
         return self.tr(self.groupId())

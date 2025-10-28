@@ -48,7 +48,7 @@ ORI_LAT_MIN = -15.0  # LS (naik ke utara)
 ORI_LON_MIN = 90.0   # BT (naik ke timur)
 
 
-class GridIndonesiaAlgorithm(QgsProcessingAlgorithm):
+class UtilsGridSGSRIAlgorithm(QgsProcessingAlgorithm):
     P_EXTENT = "P_EXTENT"
     P_GRID_SIZE = "P_GRID_SIZE"
     P_CRS = "P_CRS"
@@ -66,24 +66,25 @@ class GridIndonesiaAlgorithm(QgsProcessingAlgorithm):
     ]
 
     def tr(self, s): return QCoreApplication.translate("Processing", s)
-    def name(self): return "grid_indonesia_generator"
-    def displayName(self): return self.tr("Sistem Grid Skala Ragam Indonesia (SGSRI)")
-    def groupId(self): return "00. Utilities"
+    def name(self): return "generategrid"
+    def displayName(self): return self.tr("Pembuatan Grid Skala Ragam Indonesia (SGSRI)")
+    def groupId(self): return "A. Utilities"
     def group(self): return self.tr(self.groupId())
-    def createInstance(self): return GridIndonesiaAlgorithm()
+    def createInstance(self): return UtilsGridSGSRIAlgorithm()
 
     def shortHelpString(self):
         return self.tr("""\
-Sistem Grid Skala Ragam Indonesia (Indonesian Multi-scale Grid System/IMGS) dirancang sebagai struktur grid berbasis sel persegi yang menyerupai format data raster. Setiap sel memiliki koordinat unik dan atribut yang memungkinkan representasi fenomena geografis secara kontinu dan terstruktur. IMGS mengadopsi Sistem Referensi Geospasial Indonesia (SRGI) 2013 sebagai acuan geodetik nasional, dengan titik asal pada 90° BT dan 15° LS agar selaras dengan sistem penomoran lembar peta Rupa Bumi Indonesia (RBI). 
+            Sistem Grid Skala Ragam Indonesia (Indonesian Multi-scale Grid System/IMGS) dirancang sebagai struktur grid berbasis sel persegi yang menyerupai format data raster. Setiap sel memiliki koordinat unik dan atribut yang memungkinkan representasi fenomena geografis secara kontinu dan terstruktur. IMGS mengadopsi Sistem Referensi Geospasial Indonesia (SRGI) 2013 sebagai acuan geodetik nasional, dengan titik asal pada 90° BT dan 15° LS agar selaras dengan sistem penomoran lembar peta Rupa Bumi Indonesia (RBI). 
 
-Pilihan ukuran GRID:
-• 1° × 1°30′ (≈111.0 × 166.5 km) 
-• 30′ × 30′ (≈55.50 × 55.50 km)  
-• 15′ × 15′ (≈27.75 × 27.75 km)  
-• 7′30″ × 7′30″ (≈13.875 × 13.875 km)  
-• 2′30″ × 2′30″ (≈4.625 × 4.625 km)  
-• 30″ × 30″ (≈0.900 × 0.900 km)  
-• 5″ × 5″ (≈0.150 × 0.150 km)""")
+            Pilihan ukuran GRID:
+            • 1° × 1°30′ (≈111.0 × 166.5 km) 
+            • 30′ × 30′ (≈55.50 × 55.50 km)  
+            • 15′ × 15′ (≈27.75 × 27.75 km)  
+            • 7′30″ × 7′30″ (≈13.875 × 13.875 km)  
+            • 2′30″ × 2′30″ (≈4.625 × 4.625 km)  
+            • 30″ × 30″ (≈0.900 × 0.900 km)  
+            • 5″ × 5″ (≈0.150 × 0.150 km)"""
+        )
 
     def initAlgorithm(self, config=None):
         self.addParameter(QgsProcessingParameterExtent(

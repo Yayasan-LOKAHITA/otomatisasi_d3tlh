@@ -35,12 +35,13 @@ from qgis.core import (QgsProcessing,
                        QgsFeatureSink,
                        QgsProcessingAlgorithm,
                        QgsProcessingParameterFeatureSource,
-                       QgsProcessingParameterFeatureSink)
+                       QgsProcessingParameterFeatureSink,
+                       QgsProcessingParameterVectorLayer)
 
 import processing
 import os
 
-class PengecekanKualitasData(QgsProcessingAlgorithm):
+class IntegrationIKPAlgorithm(QgsProcessingAlgorithm):
     """
     This is an example algorithm that takes a vector layer and
     creates a new identical one.
@@ -58,42 +59,53 @@ class PengecekanKualitasData(QgsProcessingAlgorithm):
     # used when calling the algorithm from another algorithm, or when
     # calling from the QGIS console.
 
-    PENUTUP_LAHAN_FIX = 'PENUTUP_LAHAN_FIX'
-    EKOREGION_FIX = 'EKOREGION_FIX'
-    PENUTUP_LAHAN = 'PENUTUP_LAHAN'
-    EKOREGION = 'EKOREGION'
-    KEE = 'KEE'
+    IKP_Air = 'IKP_Air'
+    IKP_Udara = 'IKP_Udara'
+    IKP_Lahan = 'IKP_Lahan'
+    IKP_Kehati = 'IKP_Kehati'
+    IKP_Integrasi = 'IKP_Integrasi'
+
+    BOBOT_IKP_Air = 0.49
+    BOBOT_IKP_Lahan = 0.29
+    BOBOT_Kehati = 0.14
+    BOBOT_Udara = 0.08
 
     def initAlgorithm(self, config):
         """
         Here we define the inputs and output of the algorithm, along
         with some other properties.
         """
-
         # We add the input vector features source. It can have any kind of
         # geometry.
         self.addParameter(
-            QgsProcessingParameterFeatureSource(
-                self.PENUTUP_LAHAN,
-                self.tr('Penutup Lahan'),
+            QgsProcessingParameterVectorLayer(
+                self.IKP_Udara,
+                self.tr('Data Indeks Kesesuaian Pemukiman Udara'),
                 [QgsProcessing.TypeVectorAnyGeometry],
             )
         )
 
         self.addParameter(
-            QgsProcessingParameterFeatureSource(
-                self.EKOREGION,
-                self.tr('Ekoregion'),
+            QgsProcessingParameterVectorLayer(
+                self.IKP_Air,
+                self.tr('Data Indeks Kesesuaian Pemukiman Air'),
                 [QgsProcessing.TypeVectorAnyGeometry],
             )
         )
 
         self.addParameter(
-            QgsProcessingParameterFeatureSource(
-                self.KEE,
-                self.tr('KEE'),
+            QgsProcessingParameterVectorLayer(
+                self.IKP_Lahan,
+                self.tr('Data Indeks Kesesuaian Pemukiman Lahan'),
                 [QgsProcessing.TypeVectorAnyGeometry],
-                optional=True
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.IKP_Kehati,
+                self.tr('Data Indeks Kesesuaian Pemukiman Kehati'),
+                [QgsProcessing.TypeVectorAnyGeometry],
             )
         )
 
@@ -102,62 +114,77 @@ class PengecekanKualitasData(QgsProcessingAlgorithm):
         # algorithm is run in QGIS).
         self.addParameter(
             QgsProcessingParameterFeatureSink(
-                self.PENUTUP_LAHAN_FIX,
-                self.tr('Penutup Lahan Fixed')
-            )
-        )
-
-        self.addParameter(
-            QgsProcessingParameterFeatureSink(
-                self.EKOREGION_FIX,
-                self.tr('Ekoregion Fixed')
+                self.IKP_Integrasi,
+                self.tr('Integrasi IKP')
             )
         )
 
     def processAlgorithm(self, parameters, context, feedback):
         # DATA INPUT
-        pl = parameters["PENUTUP_LAHAN"]
-        ekoregion = parameters["EKOREGION"]
-        if self.KEE != None:
-            kee = parameters["KEE"]
+        ikp_air = self.parameterAsVectorLayer(parameters, self.IKP_Air, context)
+        ikp_lahan = self.parameterAsVectorLayer(parameters, self.IKP_Lahan, context)
+        ikp_kehati = self.parameterAsVectorLayer(parameters, self.IKP_Kehati, context)
+        ikp_udara = self.parameterAsVectorLayer(parameters, self.IKP_Udara, context)
 
-        # Fix Geometry PL
-        fix_geom_pl_params = {
-            'INPUT': pl,          
-            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-        }
-        fix_geom_eko_params = {
-            'INPUT': ekoregion,          
-            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-        }
-        pl_fix = processing.run("qgis:fixgeometries", fix_geom_pl_params)["OUTPUT"]
-        ekoregion_fix = processing.run("qgis:fixgeometries", fix_geom_eko_params)["OUTPUT"]
+        # 1. Integrasi semua data menjadi satu
+        union_ikp = processing.run(
+            "native:multiunion", 
+            {
+                'INPUT': ikp_air,
+                'OVERLAYS':[ikp_air, ikp_lahan, ikp_kehati, ikp_udara],
+                'OVERLAY_FIELDS_PREFIX':'',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context,
+            feedback=feedback
+        )
 
-        # Here we define the output sink and its fields and
-        # geometry type. The output will be a vector layer.
+        # 2. Fill Null Value with Zero
+        integration_filled = union_ikp["OUTPUT"]
+        fields_to_fill = ['IKP_Air', 'IKP_Lahan', 'IKP_Kehati', 'IKP_Udara']
+
+        for field in fields_to_fill:
+            params = {
+                'INPUT': integration_filled,
+                'FIELD_NAME': field,
+                'FIELD_TYPE': 0,
+                'FIELD_LENGTH': 10,
+                'FIELD_PRECISION': 3,
+                'NEW_FIELD': False,  # update existing field
+                'FORMULA': f'coalesce("{field}", 0)',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            }
+
+            result = processing.run(
+                "qgis:fieldcalculator", 
+                params, 
+                context=context, 
+                feedback=feedback
+            )
+            
+            integration_filled = result['OUTPUT']  # use updated layer for the next loop
+        
+        # 3. Calculate IKP
+        # calc_integration = processing.run(
+        #     "native:fieldcalculator",
+        #     {
+        #         'INPUT':,
+
+        #     },
+        #     context=context,
+        #     feedback=feedback
+        # )
+
+        final_layer = integration_filled
         (sink, dest_id) = self.parameterAsSink(
             parameters,
             self.PENUTUP_LAHAN_FIX,
             context,
-            pl_fix.fields(),
-            pl_fix.wkbType(),
-            pl_fix.sourceCrs()
+            final_layer.fields(),
+            final_layer.wkbType(),
+            final_layer.sourceCrs()
         )
-
-        (sink2, dest_id2) = self.parameterAsSink(
-            parameters,
-            self.EKOREGION_FIX,
-            context,
-            ekoregion_fix.fields(),
-            ekoregion_fix.wkbType(),
-            ekoregion_fix.sourceCrs()
-        )
-        
-        # Compute the number of steps to display within the progress bar and
-        # get features from source
-        total = 100.0 / pl_fix.featureCount() if pl_fix.featureCount() else 0
-        features = pl_fix.getFeatures()
-
+        features = final_layer.getFeatures()
         for current, feature in enumerate(features):
             # Stop the algorithm if cancel button has been clicked
             if feedback.isCanceled():
@@ -166,17 +193,7 @@ class PengecekanKualitasData(QgsProcessingAlgorithm):
             # Add a feature in the sink
             sink.addFeature(feature, QgsFeatureSink.FastInsert)
 
-            # Update the progress bar
-            feedback.setProgress(int(current * total))
-        
-        # Write features from ekoregion_fix
-        for feature in ekoregion_fix.getFeatures():
-            if feedback.isCanceled():
-                break
-            sink2.addFeature(feature, QgsFeatureSink.FastInsert)
-
-        return {self.PENUTUP_LAHAN_FIX: dest_id, 
-                self.EKOREGION_FIX: dest_id2}
+        return {self.IKP_Integrasi: dest_id}
 
     def name(self):
         """
@@ -186,14 +203,14 @@ class PengecekanKualitasData(QgsProcessingAlgorithm):
         lowercase alphanumeric characters only and no spaces or other
         formatting characters.
         """
-        return 'Pengecekan Kualitas Data'
+        return 'integration'
 
     def displayName(self):
         """
         Returns the translated algorithm name, which should be used for any
         user-visible display of the algorithm name.
         """
-        return self.tr(self.name())
+        return self.tr('Integrasi IKP')
 
     def group(self):
         """
@@ -210,10 +227,10 @@ class PengecekanKualitasData(QgsProcessingAlgorithm):
         contain lowercase alphanumeric characters only and no spaces or other
         formatting characters.
         """
-        return '01. Pra Pengolahan'
+        return 'F. Integration'
 
     def tr(self, string):
         return QCoreApplication.translate('Processing', string)
 
     def createInstance(self):
-        return PengecekanKualitasData()
+        return IntegrationIKPAlgorithm()

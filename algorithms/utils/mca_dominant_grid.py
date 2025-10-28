@@ -43,7 +43,7 @@ from qgis.core import (
 import processing
 
 
-class MCA_GRID_Poligon_Algoritm(QgsProcessingAlgorithm):
+class UtilsMCADominantAlgorithm(QgsProcessingAlgorithm):
     # Parameter keys
     GRID = 'GRID'
     LAYER2 = 'LAYER2'
@@ -285,19 +285,19 @@ class MCA_GRID_Poligon_Algoritm(QgsProcessingAlgorithm):
 
     # ---- Boilerplate ----
     def name(self):
-        return 'mca_grid'
+        return 'mcagrid'
 
     def displayName(self):
-        return self.tr('Maximum Combined Area (MCA) / Atribut Dominan Per Grid')
+        return self.tr('Atribut Dominan Per Grid / Maximum Combined Area (MCA)')
 
     def group(self):
         return self.tr(self.groupId())
 
     def groupId(self):
-        return '00. Utilities'
+        return 'A. Utilities'
 
     def tr(self, s):
         return QCoreApplication.translate('Processing', s)
 
     def createInstance(self):
-        return MCA_GRID_Poligon_Algoritm()
+        return UtilsMCADominantAlgorithm()

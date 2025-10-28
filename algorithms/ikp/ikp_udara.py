@@ -392,13 +392,13 @@ class IKPUdaraAlgorithm(QgsProcessingAlgorithm):
 
     # Metadata
     def name(self):
-        return 'ikp_udara'
+        return 'ikpudara'
     
     def displayName(self):
         return self.tr('IKP Udara')
     
     def groupId(self):
-        return '04. Indeks Kemampuan Pemanfaatan (IKP)'
+        return 'E. Indeks Kemampuan Pemanfaatan (IKP)'
     
     def group(self):
         return self.tr(self.groupId())

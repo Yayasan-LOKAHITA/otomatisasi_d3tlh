@@ -52,7 +52,7 @@ from qgis.core import (
 )
 import processing
 
-class IndeksKemampuanPemanfaatanAir(QgsProcessingAlgorithm):
+class IKPAirAlgorithm(QgsProcessingAlgorithm):
     
     # VARIABEL PARAMETER INPUT DAN OUTPUT.
     YEAR = 'YEAR'
@@ -897,7 +897,7 @@ class IndeksKemampuanPemanfaatanAir(QgsProcessingAlgorithm):
         return {self.OUTPUT: dest_id}
 
     def name(self):
-        return 'ikp_air'
+        return 'ikpair'
 
     def displayName(self):
         return self.tr('IKP Air')
@@ -910,7 +910,7 @@ class IndeksKemampuanPemanfaatanAir(QgsProcessingAlgorithm):
         return self.tr(self.groupId())
 
     def groupId(self):
-        return '04. Indeks Kemampuan Pemanfaatan (IKP)'
+        return 'E. Indeks Kemampuan Pemanfaatan (IKP)'
 
     def tr(self, string):
         return QCoreApplication.translate('Processing', string)
@@ -955,5 +955,4 @@ class IndeksKemampuanPemanfaatanAir(QgsProcessingAlgorithm):
         """
 
     def createInstance(self):
-        return IndeksKemampuanPemanfaatanAir()
-    
+        return IKPAirAlgorithm()
