@@ -37,6 +37,7 @@ from qgis.core import (QgsProcessing,
                        QgsProcessingParameterFeatureSink,
                        QgsProcessingParameterVectorLayer,
                        QgsProcessingParameterString,
+                       QgsCoordinateReferenceSystem
                        )
 
 import processing, os
@@ -89,7 +90,7 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterVectorLayer(
                 self.GRID_PPK,
-                self.tr('GRID JLH Karbon [Dengan Kolom "PKK_XX", XX adalah dua digit terakhir tahun.]'),
+                self.tr('GRID JLH Karbon [Dengan Kolom "PPK_XX", XX adalah dua digit terakhir tahun.]'),
                 [QgsProcessing.TypeVectorAnyGeometry]
             )
         )
@@ -259,6 +260,27 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
             context=context, feedback=feedback
         )["OUTPUT"]
 
+        grid_bcpi_klas = processing.run(
+            "native:reprojectlayer", 
+            {
+                'INPUT':grid_bcpi_klas,
+                'TARGET_CRS':QgsCoordinateReferenceSystem('EPSG:3395'),
+                'CONVERT_CURVED_GEOMETRIES':False,
+                'OPERATION':'+proj=pipeline +step +proj=unitconvert +xy_in=deg +xy_out=rad +step +proj=merc +lon_0=0 +k=1 +x_0=0 +y_0=0 +ellps=WGS84',
+                'OUTPUT':'TEMPORARY_OUTPUT'
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
+
+        grid_bcpi_klas = processing.run(
+            "native:fixgeometries", 
+            {
+                'INPUT': grid_bcpi_klas,
+                'METHOD':1,
+                'OUTPUT':'TEMPORARY_OUTPUT'
+            }
+        )["OUTPUT"]
+
         feedback.pushInfo('✅ Perhitungan BCPI selesai.')
 
         # HITUNG BI
@@ -319,12 +341,54 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
                 'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
             },
             context=context, feedback=feedback
-        )["OUTPUT"]    
+        )["OUTPUT"] 
+
+        ikg = processing.run(
+            "native:reprojectlayer", 
+            {
+                'INPUT':ikg,
+                'TARGET_CRS':QgsCoordinateReferenceSystem('EPSG:3395'),
+                'CONVERT_CURVED_GEOMETRIES':False,
+                'OPERATION':'+proj=pipeline +step +proj=unitconvert +xy_in=deg +xy_out=rad +step +proj=merc +lon_0=0 +k=1 +x_0=0 +y_0=0 +ellps=WGS84',
+                'OUTPUT':'TEMPORARY_OUTPUT'
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
+
+        ikg = processing.run(
+            "native:fixgeometries", 
+            {
+                'INPUT': ikg,
+                'METHOD':1,
+                'OUTPUT':'TEMPORARY_OUTPUT'
+            }
+        )["OUTPUT"]
 
         feedback.pushInfo('✅ Perhitungan Indeks Sebaran Karst dan Gambut selesai.')
 
         # 2b. Perhitungan Indikator Keragaman Habitat (Indikator Keragaman Tipe Habitat)
         habitat = self.parameterAsVectorLayer(parameters, self.HABITAT, context)
+
+        habitat = processing.run(
+            "native:reprojectlayer", 
+            {
+                'INPUT':habitat,
+                'TARGET_CRS':QgsCoordinateReferenceSystem('EPSG:3395'),
+                'CONVERT_CURVED_GEOMETRIES':False,
+                'OPERATION':'+proj=pipeline +step +proj=unitconvert +xy_in=deg +xy_out=rad +step +proj=merc +lon_0=0 +k=1 +x_0=0 +y_0=0 +ellps=WGS84',
+                'OUTPUT':'TEMPORARY_OUTPUT'
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
+
+        habitat = processing.run(
+            "native:fixgeometries", 
+            {
+                'INPUT': habitat,
+                'METHOD':1,
+                'OUTPUT':'TEMPORARY_OUTPUT'
+            }
+        )["OUTPUT"]
 
         # ==== NOT USED BECAUSE CHANGE IN METHOD ===
         # Load data KK
@@ -433,7 +497,27 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
 
         #2c. PERHITUNGAN RTE
         rte = self.parameterAsVectorLayer(parameters, self.RTE, context)
-
+        rte = processing.run(
+            "native:reprojectlayer", 
+            {
+                'INPUT':rte,
+                'TARGET_CRS':QgsCoordinateReferenceSystem('EPSG:3395'),
+                'CONVERT_CURVED_GEOMETRIES':False,
+                'OPERATION':'+proj=pipeline +step +proj=unitconvert +xy_in=deg +xy_out=rad +step +proj=merc +lon_0=0 +k=1 +x_0=0 +y_0=0 +ellps=WGS84',
+                'OUTPUT':'TEMPORARY_OUTPUT'
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
+        
+        rte = processing.run(
+            "native:fixgeometries", 
+            {
+                'INPUT': rte,
+                'METHOD':1,
+                'OUTPUT':'TEMPORARY_OUTPUT'
+            }
+        )["OUTPUT"]
+        
         # ==== NOT USED BECAUSE CHANGE IN METHOD ===
         # Intersect RTE dengan WE
         # rte_we = processing.run(
@@ -724,46 +808,155 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
             context=context, feedback=feedback
         )["OUTPUT"]
 
+        konektivitas_hutan = processing.run(
+            "native:reprojectlayer", 
+            {
+                'INPUT':konektivitas_hutan,
+                'TARGET_CRS':QgsCoordinateReferenceSystem('EPSG:3395'),
+                'CONVERT_CURVED_GEOMETRIES':False,
+                'OPERATION':'+proj=pipeline +step +proj=unitconvert +xy_in=deg +xy_out=rad +step +proj=merc +lon_0=0 +k=1 +x_0=0 +y_0=0 +ellps=WGS84',
+                'OUTPUT':'TEMPORARY_OUTPUT'
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
+
+        konektivitas_hutan = processing.run(
+            "native:fixgeometries", 
+            {
+                'INPUT': konektivitas_hutan,
+                'METHOD':1,
+                'OUTPUT':'TEMPORARY_OUTPUT'
+            }
+        )["OUTPUT"]
+
         feedback.pushInfo('✅ Perhitungan Indeks Konektivitas Hutan selesai.')
 
         # Menghitung BI
         # Intersect IKG, habitat, rte, dan konevektivitas hutan
-        intersect_bi = processing.run(
+        grid = self.parameterAsVectorLayer(parameters, self.GRID, context)
+        union_bi_grid = processing.run(
             "qgis:union",
             {
                 'INPUT': ikg,
-                'OVERLAY': habitat,
+                'OVERLAY': grid,
+                'INPUT_FIELDS': ['KLS_KG'],
+                'OVERLAY_FIELDS': [],
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
+
+        union_bi_grid = processing.run(
+            "native:deleteduplicategeometries", 
+            {
+             'INPUT':union_bi_grid,
+             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
+
+        union_habitat_grid = processing.run(
+            "qgis:union",
+            {
+                'INPUT': habitat,
+                'OVERLAY': grid,
+                'INPUT_FIELDS': ['KLS_HAB'],
+                'OVERLAY_FIELDS': [],
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
+
+        union_habitat_grid = processing.run(
+            "native:deleteduplicategeometries", 
+            {
+             'INPUT':union_habitat_grid,
+             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
+
+        intersect_bi = processing.run(
+            "qgis:intersection",
+            {
+                'INPUT': union_bi_grid,
+                'OVERLAY': union_habitat_grid,
                 'INPUT_FIELDS': ['KLS_KG'],
                 'OVERLAY_FIELDS': ['KLS_HAB'],
-                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT,
+                'GRID_SIZE':0.1
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
+
+        union_konhutan_grid = processing.run(
+            "qgis:union",
+            {
+                'INPUT': konektivitas_hutan,
+                'OVERLAY': grid,
+                'INPUT_FIELDS': ['KLS_HAB'],
+                'OVERLAY_FIELDS': [],
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
+
+        union_konhutan_grid = processing.run(
+            "native:deleteduplicategeometries", 
+            {
+             'INPUT':union_habitat_grid,
+             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
             },
             context=context, feedback=feedback
         )["OUTPUT"]
 
         intersect_bi2 = processing.run(
-            "qgis:union",
+            "qgis:intersection",
             {
                 'INPUT': intersect_bi,
-                'OVERLAY': konektivitas_hutan,
+                'OVERLAY': union_konhutan_grid,
                 'INPUT_FIELDS': ['KLS_KG', 'KLS_HAB'],
                 'OVERLAY_FIELDS': ['KLS_KONEK'],
-                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT,
+                'GRID_SIZE':0.1
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
+
+        union_rte_grid = processing.run(
+            "qgis:union",
+            {
+                'INPUT': rte,
+                'OVERLAY': grid,
+                'INPUT_FIELDS': ['KLS_RTE'],
+                'OVERLAY_FIELDS': [],
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
+
+        union_rte_grid = union_konhutan_grid = processing.run(
+            "native:deleteduplicategeometries", 
+            {
+             'INPUT':union_rte_grid,
+             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
             },
             context=context, feedback=feedback
         )["OUTPUT"]
 
         intersect_bi3 = processing.run(
-            "qgis:union",
+            "qgis:intersection",
             {
                 'INPUT': intersect_bi2,
-                'OVERLAY': rte,
+                'OVERLAY': union_rte_grid,
                 'INPUT_FIELDS': ['KLS_KG', 'KLS_HAB', 'KLS_KONEK'],
                 'OVERLAY_FIELDS': ['KLS_RTE'],
-                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT,
+                'GRID_SIZE':0.1
             },
             context=context, feedback=feedback
         )["OUTPUT"]
-
+        
         # Fill all Null with 0
         intersect_bi3 = processing.run(
             "qgis:fieldcalculator",
@@ -904,7 +1097,8 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
                 'OVERLAY': bi,
                 'INPUT_FIELDS': [f'PPK_{year}', f'PGN_{year}', f'PGA_{year}_KK', f'PHK_{year}_KK','BCPI', 'KLS_BCPI'],
                 'OVERLAY_FIELDS': [],
-                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT,
+                'GRID_SIZE':0.1
             },
             context=context, feedback=feedback
         )["OUTPUT"]
@@ -945,7 +1139,7 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
             context=context, feedback=feedback
         )["OUTPUT"]
 
-        grid = self.parameterAsVectorLayer(parameters, self.GRID, context)
+        
         grid_ikp_kehati = processing.run(
                 "d3tlh:mcagrid",
                 {

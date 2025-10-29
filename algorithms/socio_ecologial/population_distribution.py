@@ -79,6 +79,34 @@ class SocioEcoPopulationDistAlgorithm(QgsProcessingAlgorithm):
 
     def group(self):
         return self.tr(self.groupId())
+    
+    def shortHelpString(self):
+        return self.tr('''\
+        🇮🇩 ID Modul ini digunakan untuk memodelkan distribusi penduduk berdasarkan skor dan bobot parameter penutup lahan dan jaringan jalan dengan keluaran dalam format grid.
+
+        Langkah umum:
+        • Menyamakan CRS seluruh input (fix geometries & spatial index).
+        • Standarisasi kolom/field pada Batas Administrasi → WADM** (PR/KK/KC/KD) dan POPM**YY (mis. 2024 → YY=24).
+        • Memasukkan kolom/field pada batas administrasi (WADM**) ke GRID dengan pendekatan MCA, lalu join POPM**YY.
+        • PL: Lakukan intersect antara grid dan penutup lahan, lalu lakukan perhitungan bobot (WPLYY).
+        • Jalan: Lakukan intersect antara grid dan jaringan jalan, lalu lakukan perhitungan bobot (WJLNYY).
+        • Hitung WGRIDYY = WPLYY + WJLNYY, WADMYY = Σ(WGRIDYY) per WADM**, dan POPGRIDYY = floor( (WGRIDYY / WADMYY) * POPM**YY ).
+        • Standarisasi kolom keluaran.
+        • Luaran berupa Model Distribusi Penduduk (GRID dengan 8 kolom: ID, WADM**, POPM**YY, WPLYY, WJLNYY, WGRIDYY, WADMYY, POPGRIDYY).
+
+        ──────────────
+                    
+        🌍 EN This module models population distribution based on scores and weights from land cover and road network parameters, producing an output in grid format.
+
+        General Steps:
+        • Harmonize the CRS for all inputs (fix geometries & build spatial indexes).
+        • Standardize fields in the Administrative Boundaries layer → WADM** (PR/KK/KC/KD) and POPM**YY (e.g., 2024 → YY=24).
+        • Write the administrative field (WADM***) into the GRID using the MCA approach, then join POPM**YY.
+        • Land Cover (PL): Intersect the grid with land cover, then compute the weight (WPLYY).
+        • Roads: Intersect the grid with the road network, then compute the weight (WJLNYY).
+        • Compute WGRIDYY = WPLYY + WJLNYY, WADMYY = Σ(WGRIDYY) per WADM**, and POPGRIDYY = floor( (WGRIDYY / WADMYY) * POPM**YY ).
+        • Standardize the output fields.
+        • Output: Population Distribution Model (GRID with 8 fields: ID, WADM**, POPM**YY, WPLYY, WJLNYY, WGRIDYY, WADMYY, POPGRIDYY).''')
 
     def createInstance(self):
         return SocioEcoPopulationDistAlgorithm()
