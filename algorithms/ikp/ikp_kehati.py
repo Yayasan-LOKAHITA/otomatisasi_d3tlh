@@ -38,7 +38,8 @@ from qgis.core import (QgsProcessing,
                        QgsProcessingParameterFeatureSink,
                        QgsProcessingParameterVectorLayer,
                        QgsVectorLayer,
-                       QgsProcessingParameterRasterLayer)
+                       QgsProcessingParameterRasterLayer,
+                       QgsProcessingParameterDefinition)
 
 import processing, os
 
@@ -53,6 +54,7 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
     PL = 'PL'
     GRID_PL = 'GRID_PL'
     HABITAT = 'HABITAT'
+    RTE = 'RTE'
     WILAYAH_EKOREGION = 'WILAYAH_EKOREGION'
 
     # Output
@@ -108,15 +110,19 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
                 [QgsProcessing.TypeVectorAnyGeometry]
             )
         )
+        
 
-        self.addParameter(
-            QgsProcessingParameterVectorLayer(
+        params = QgsProcessingParameterVectorLayer(
                 self.GRID_PL,
                 self.tr('Data Grid Penutup Lahan'),
-                [QgsProcessing.TypeVectorAnyGeometry]
-            )
+                optional=True,
         )
+        params.setFlags(params.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         
+        self.addParameter(
+            params
+        )
+                
         self.addParameter(
             QgsProcessingParameterVectorLayer(
                 self.WILAYAH_EKOREGION,
@@ -126,9 +132,17 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
         )
 
         self.addParameter(
-            QgsProcessingParameterRasterLayer(
+            QgsProcessingParameterVectorLayer(
                 self.HABITAT,
                 self.tr('Data Tipe Habitat IUCN'),
+                [QgsProcessing.TypeVectorAnyGeometry]
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.RTE,
+                self.tr('Data RTE IUCN'),
                 [QgsProcessing.TypeVectorAnyGeometry]
             )
         )
@@ -302,114 +316,119 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
 
         feedback.pushInfo('✅ Perhitungan Indeks Sebaran Karst dan Gambut selesai.')
 
-        # 2b. Perhitungan ISP (Indikator Keragaman Tipe Habitat)
+        # 2b. Perhitungan Indikator Keragaman Habitat (Indikator Keragaman Tipe Habitat)
+        habitat = self.parameterAsVectorLayer(parameters, self.HABITAT, context)
+
+        # ==== NOT USED BECAUSE CHANGE IN METHOD ===
         # Load data KK
-        plugin_root = os.path.dirname(__file__)
-        data_root = os.path.join(plugin_root, "data", f"jlh_phk")
-        data_root_kk = os.path.join(data_root, "KK")
-        kk_path = os.path.join(data_root_kk, "KK.gpkg")
-        kk = QgsVectorLayer(kk_path, "KK", "ogr")
-        habitat = parameters[self.HABITAT]
-        wilayah_ekoregion = parameters[self.WILAYAH_EKOREGION]
+        # plugin_root = os.path.dirname(__file__)
+        # data_root = os.path.join(plugin_root, "data", f"jlh_phk")
+        # data_root_kk = os.path.join(data_root, "KK")
+        # kk_path = os.path.join(data_root_kk, "KK.gpkg")
+        # kk = QgsVectorLayer(kk_path, "KK", "ogr")
+        # habitat = parameters[self.HABITAT]
+        # wilayah_ekoregion = parameters[self.WILAYAH_EKOREGION]
         
         # Here we use Zonal stat method because intersection takes a lot of time.
         #1. Gridding habitat raster from IUCN in 30" vector Grid using Zonal Stat
-        habitat = processing.run(
-            "qgis:zonalstatisticsfb",
-            {
-                'INPUT': pl,
-                'INPUT_RASTER': habitat,
-                'RASTER_BAND': 1,
-                'COLUMN_PREFIX': 'habitat_',
-                'STATISTICS': [9], # majority
-                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-            },
-            context=context, feedback=feedback
-        )["OUTPUT"]
+        # habitat = processing.run(
+        #     "qgis:zonalstatisticsfb",
+        #     {
+        #         'INPUT': pl,
+        #         'INPUT_RASTER': habitat,
+        #         'RASTER_BAND': 1,
+        #         'COLUMN_PREFIX': 'habitat_',
+        #         'STATISTICS': [9], # majority
+        #         'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+        #     },
+        #     context=context, feedback=feedback
+        # )["OUTPUT"]
 
-        #3. Delete (extractbyattribute) habitat buatan (Habitat dengan PL Majority tertentu)
-        habitat_natural = processing.run(
-            "native:extractbyexpression",
-            {
-                'INPUT': habitat,
-                'EXPRESSION': '''
-                "PL" NOT IN ('Bandara/Pelabuhan', 'Permukiman', 'Pertambangan', 'Tanah Terbuka', 'Permukiman Transmigrasi')
-                ''',
-                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-            },
-            context=context, feedback=feedback
-        )["OUTPUT"]
+        # #3. Delete (extractbyattribute) habitat buatan (Habitat dengan PL Majority tertentu)
+        # habitat_natural = processing.run(
+        #     "native:extractbyexpression",
+        #     {
+        #         'INPUT': habitat,
+        #         'EXPRESSION': '''
+        #         "PL" NOT IN ('Bandara/Pelabuhan', 'Permukiman', 'Pertambangan', 'Tanah Terbuka', 'Permukiman Transmigrasi')
+        #         ''',
+        #         'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+        #     },
+        #     context=context, feedback=feedback
+        # )["OUTPUT"]
 
-        #4. Intersect Vektor Habitat Natural dengan WE
-        habitat_we = processing.run(
-            "qgis:intersection",
-            {
-                'INPUT': habitat_natural,
-                'OVERLAY': wilayah_ekoregion,
-                'INPUT_FIELDS': ['habitat_majority'],
-                'OVERLAY_FIELDS': ['NAMA_WE'],
-                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-            },
-            context=context, feedback=feedback
-        )["OUTPUT"]
+        # #4. Intersect Vektor Habitat Natural dengan WE
+        # habitat_we = processing.run(
+        #     "qgis:intersection",
+        #     {
+        #         'INPUT': habitat_natural,
+        #         'OVERLAY': wilayah_ekoregion,
+        #         'INPUT_FIELDS': ['habitat_majority'],
+        #         'OVERLAY_FIELDS': ['NAMA_WE'],
+        #         'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+        #     },
+        #     context=context, feedback=feedback
+        # )["OUTPUT"]
 
-        #4. Calculate for every WE (Wilayah Ekoregion) How Many unique habitat there
-        habitat_we_count = processing.run(
-            "qgis:statisticsbycategories",
-            {
-                'INPUT': habitat_we,
-                'CATEGORIES_FIELD_NAME': 'NAMA_WE',
-                'VALUES_FIELD_NAME': 'habitat_majority',
-                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-            },
-            context=context, feedback=feedback
-        )["OUTPUT"]
+        # #4. Calculate for every WE (Wilayah Ekoregion) How Many unique habitat there
+        # habitat_we_count = processing.run(
+        #     "qgis:statisticsbycategories",
+        #     {
+        #         'INPUT': habitat_we,
+        #         'CATEGORIES_FIELD_NAME': 'NAMA_WE',
+        #         'VALUES_FIELD_NAME': 'habitat_majority',
+        #         'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+        #     },
+        #     context=context, feedback=feedback
+        # )["OUTPUT"]
 
-        #5. Join back count result to habitat_we_count
-        habitat_we_count_joined = processing.run(
-            "qgis:joinattributestable",
-            {
-                    'INPUT': wilayah_ekoregion,
-                    'FIELD': 'NAMA_WE',
-                    'INPUT_2': habitat_we_count,
-                    'FIELD_2': 'NAMA_WE',
-                    'FIELDS_TO_COPY': ['unique'],
-                    'METHOD': 0,
-                    'DISCARD_NONMATCHING': False,
-                    'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-            },
-            context=context, feedback=feedback
-        )["OUTPUT"]
+        # #5. Join back count result to habitat_we_count
+        # habitat_we_count_joined = processing.run(
+        #     "qgis:joinattributestable",
+        #     {
+        #             'INPUT': wilayah_ekoregion,
+        #             'FIELD': 'NAMA_WE',
+        #             'INPUT_2': habitat_we_count,
+        #             'FIELD_2': 'NAMA_WE',
+        #             'FIELDS_TO_COPY': ['unique'],
+        #             'METHOD': 0,
+        #             'DISCARD_NONMATCHING': False,
+        #             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+        #     },
+        #     context=context, feedback=feedback
+        # )["OUTPUT"]
 
-        #5. Calculate ISP based on how many species on every WE
-        isp = processing.run(
-            "qgis:fieldcalculator",
-            {
-                'INPUT': habitat_we_count_joined,
-                'FIELD_NAME': 'KLS_ISP',
-                'FIELD_TYPE': 1,  # Decimal number (real)
-                'NEW_FIELD': True,
-                'FORMULA': '''
-                    CASE
-                        WHEN "unique" <= 8 THEN 1
-                        WHEN "unique" <= 12 THEN 2
-                        WHEN "unique" <= 15 THEN 3
-                        WHEN "unique" <= 19 THEN 4
-                        WHEN "unique" >= 20 THEN 5
-                        ELSE 0
-                    END
-                ''',
-                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-            },
-            context=context, feedback=feedback
-        )["OUTPUT"]
+        # #5. Calculate ISP based on how many species on every WE
+        # isp = processing.run(
+        #     "qgis:fieldcalculator",
+        #     {
+        #         'INPUT': habitat_we_count_joined,
+        #         'FIELD_NAME': 'KLS_ISP',
+        #         'FIELD_TYPE': 1,  # Decimal number (real)
+        #         'NEW_FIELD': True,
+        #         'FORMULA': '''
+        #             CASE
+        #                 WHEN "unique" <= 8 THEN 1
+        #                 WHEN "unique" <= 12 THEN 2
+        #                 WHEN "unique" <= 15 THEN 3
+        #                 WHEN "unique" <= 19 THEN 4
+        #                 WHEN "unique" >= 20 THEN 5
+        #                 ELSE 0
+        #             END
+        #         ''',
+        #         'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+        #     },
+        #     context=context, feedback=feedback
+        # )["OUTPUT"]
+         # ==== NOT USED BECAUSE CHANGE IN METHOD ===
 
         feedback.pushInfo('✅ Perhitungan Indeks Spesies Pemanfaatan selesai.')
 
-        # #2c. PERHITUNGAN RTE
-        # rte = parameters[self.RTE]
+        #2c. PERHITUNGAN RTE
+        rte = self.parameterAsVectorLayer(parameters, self.RTE, context)
 
-        # # Intersect RTE dengan WE
+        # ==== NOT USED BECAUSE CHANGE IN METHOD ===
+        # Intersect RTE dengan WE
         # rte_we = processing.run(
         #     "qgis:intersection",
         #     {
@@ -472,6 +491,7 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
         #     },
         #     context=context, feedback=feedback
         # )["OUTPUT"]
+         # ==== NOT USED BECAUSE CHANGE IN METHOD ===
 
         #2d. PERHITUNGAN INDEKS KONEKTIVITAS HUTAN
         # Ambil Feature PL = Hutan Lahan Kering Primer, Hutan Lahan Kering Sekunder, Hutan Mangrove Primer, Hutan Mangrove Sekunder, Hutan Rawa Primer, Hutan Rawa Sekunder, Hutan Tanaman
@@ -700,15 +720,15 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
 
         feedback.pushInfo('✅ Perhitungan Indeks Konektivitas Hutan selesai.')
 
-        # Menghitung BI (PERBAIKI NANTI)
-        # Intersect IKG, ISP, dan konevektivitas hutan
+        # Menghitung BI
+        # Intersect IKG, habitat, rte, dan konevektivitas hutan
         intersect_bi = processing.run(
             "qgis:union",
             {
                 'INPUT': ikg,
-                'OVERLAY': isp,
+                'OVERLAY': habitat,
                 'INPUT_FIELDS': ['KLS_KG'],
-                'OVERLAY_FIELDS': ['KLS_ISP'],
+                'OVERLAY_FIELDS': ['KLS_HAB'],
                 'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
             },
             context=context, feedback=feedback
@@ -719,18 +739,30 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
             {
                 'INPUT': intersect_bi,
                 'OVERLAY': konektivitas_hutan,
-                'INPUT_FIELDS': ['KLS_KG', 'KLS_ISP'],
+                'INPUT_FIELDS': ['KLS_KG', 'KLS_HAB'],
                 'OVERLAY_FIELDS': ['KLS_KONEK'],
                 'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
             },
             context=context, feedback=feedback
         )["OUTPUT"]
 
-        # Fill all Null with 0
-        intersect_bi2 = processing.run(
-            "qgis:fieldcalculator",
+        intersect_bi3 = processing.run(
+            "qgis:union",
             {
                 'INPUT': intersect_bi2,
+                'OVERLAY': rte,
+                'INPUT_FIELDS': ['KLS_KG', 'KLS_HAB', 'KLS_KONEK'],
+                'OVERLAY_FIELDS': ['KLS_RTE'],
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
+
+        # Fill all Null with 0
+        intersect_bi3 = processing.run(
+            "qgis:fieldcalculator",
+            {
+                'INPUT': intersect_bi3,
                 'FIELD_NAME': 'KLS_KG',
                 'FIELD_TYPE': 1,  # Whole number (integer)
                 'NEW_FIELD': False,
@@ -745,17 +777,17 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
             context=context, feedback=feedback
         )["OUTPUT"]
 
-        intersect_bi2 = processing.run(
+        intersect_bi3 = processing.run(
             "qgis:fieldcalculator",
             {
-                'INPUT': intersect_bi2,
-                'FIELD_NAME': 'KLS_ISP',
+                'INPUT': intersect_bi3,
+                'FIELD_NAME': 'KLS_HAB',
                 'FIELD_TYPE': 1,  # Whole number (integer)
                 'NEW_FIELD': False,
                 'FORMULA': '''
                     CASE
-                        WHEN "KLS_ISP" IS NULL THEN 0
-                        ELSE "KLS_ISP"
+                        WHEN "KLS_HAB" IS NULL THEN 0
+                        ELSE "KLS_HAB"
                     END
                 ''',
                 'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
@@ -763,11 +795,29 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
             context=context, feedback=feedback
         )["OUTPUT"] 
 
-        intersect_bi2 = processing.run(
+        intersect_bi3 = processing.run(
             "qgis:fieldcalculator",
             {
-                'INPUT': intersect_bi2,
+                'INPUT': intersect_bi3,
                 'FIELD_NAME': 'KLS_KONEK',
+                'FIELD_TYPE': 1,  # Whole number (integer)
+                'NEW_FIELD': False, 
+                'FORMULA': '''
+                    CASE
+                        WHEN "KLS_KONEK" IS NULL THEN 0
+                        ELSE "KLS_KONEK"
+                    END
+                ''',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
+
+        intersect_bi3 = processing.run(
+            "qgis:fieldcalculator",
+            {
+                'INPUT': intersect_bi3,
+                'FIELD_NAME': 'KLS_RTE',
                 'FIELD_TYPE': 1,  # Whole number (integer)
                 'NEW_FIELD': False, 
                 'FORMULA': '''
@@ -792,8 +842,8 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
                 'NEW_FIELD': True,
                 'FORMULA': '''
                     CASE
-                        WHEN "KLS_KG" IS NOT NULL AND "KLS_ISP" IS NOT NULL AND "KLS_KONEK" IS NOT NULL
-                            THEN ( "KLS_KG" + "KLS_ISP" + "KLS_KONEK" ) / 3
+                        WHEN "KLS_KG" IS NOT NULL AND "KLS_HAB" IS NOT NULL AND "KLS_KONEK" IS NOT NULL
+                            THEN ( "KLS_KG" + "KLS_RTE" + "KLS_HAB" + "KLS_KONEK" ) / 4
                         ELSE 0
                     END 
                 ''',
@@ -876,7 +926,7 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
 
         feedback.pushInfo('✅ Perhitungan IKP Kehati selesai.')
 
-        source = isp
+        source = kls_ikp_kehati
         (sink, dest_id) = self.parameterAsSink(parameters, self.OUTPUT,
                 context, source.fields(), source.wkbType(), source.sourceCrs())
 
