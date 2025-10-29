@@ -34,12 +34,10 @@ from qgis.PyQt.QtCore import QCoreApplication
 from qgis.core import (QgsProcessing,
                        QgsFeatureSink,
                        QgsProcessingAlgorithm,
-                       QgsProcessingParameterFeatureSource,
                        QgsProcessingParameterFeatureSink,
                        QgsProcessingParameterVectorLayer,
-                       QgsVectorLayer,
-                       QgsProcessingParameterRasterLayer,
-                       QgsProcessingParameterDefinition)
+                       QgsProcessingParameterString,
+                       )
 
 import processing, os
 
@@ -51,8 +49,9 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
     GRID_PHK = 'GRID_PHK'
     # Parameters BI
     EKOREGION = 'EKOREGION'
+    TAHUN = 'TAHUN'
     PL = 'PL'
-    GRID_PL = 'GRID_PL'
+    GRID = 'GRID'
     HABITAT = 'HABITAT'
     RTE = 'RTE'
     WILAYAH_EKOREGION = 'WILAYAH_EKOREGION'
@@ -65,24 +64,16 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
         # geometry.
         self.addParameter(
             QgsProcessingParameterVectorLayer(
+                self.GRID,
+                self.tr('Data Grid'),
+                optional=True,
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
                 self.GRID_PGA,
-                self.tr('GRID JLH Pengaturan Air'),
-                [QgsProcessing.TypeVectorAnyGeometry]
-            )
-        )
-
-        self.addParameter(
-            QgsProcessingParameterVectorLayer(
-                self.GRID_PPK,
-                self.tr('GRID JLH Karbon'),
-                [QgsProcessing.TypeVectorAnyGeometry]
-            )
-        )
-
-        self.addParameter(
-            QgsProcessingParameterVectorLayer(
-                self.GRID_PGN,
-                self.tr('GRID JLH Penyedia Pangan'),
+                self.tr('GRID JLH Pengaturan Air [Dengan Kolom "PGA_XX_KK", XX adalah dua digit terakhir tahun.]'),
                 [QgsProcessing.TypeVectorAnyGeometry]
             )
         )
@@ -90,7 +81,39 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterVectorLayer(
                 self.GRID_PHK,
-                self.tr('GRID JLH Kehati'),
+                self.tr('GRID JLH Kehati [Dengan Kolom "PHK_XX_KK", XX adalah dua digit terakhir tahun.]'),
+                [QgsProcessing.TypeVectorAnyGeometry]
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.GRID_PPK,
+                self.tr('GRID JLH Karbon [Dengan Kolom "PKK_XX", XX adalah dua digit terakhir tahun.]'),
+                [QgsProcessing.TypeVectorAnyGeometry]
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.GRID_PGN,
+                self.tr('GRID JLH Penyedia Pangan [Dengan Kolom "PGN_XX", XX adalah dua digit terakhir tahun.]'),
+                [QgsProcessing.TypeVectorAnyGeometry]
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterString(
+                self.TAHUN,
+                self.tr('Tahun Penutup Lahan'),
+                defaultValue=2024
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.PL,
+                self.tr('Data Penutup Lahan [Dengan Kolom "PL"]'),
                 [QgsProcessing.TypeVectorAnyGeometry]
             )
         )
@@ -98,35 +121,15 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterVectorLayer(
                 self.EKOREGION,
-                self.tr('Data Unit Ekoregion (Dengan kolom KBA_250 dan KVA_250)'),
+                self.tr('Data Unit Ekoregion [Dengan kolom "KBA_250" dan "KVA_250"]'),
                 [QgsProcessing.TypeVectorAnyGeometry]
             )
-        )
-
-        self.addParameter(
-            QgsProcessingParameterVectorLayer(
-                self.PL,
-                self.tr('Data Penutup Lahan'),
-                [QgsProcessing.TypeVectorAnyGeometry]
-            )
-        )
-        
-
-        params = QgsProcessingParameterVectorLayer(
-                self.GRID_PL,
-                self.tr('Data Grid Penutup Lahan'),
-                optional=True,
-        )
-        params.setFlags(params.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
-        
-        self.addParameter(
-            params
         )
                 
         self.addParameter(
             QgsProcessingParameterVectorLayer(
                 self.WILAYAH_EKOREGION,
-                self.tr('Wilayah Ekoregion'),
+                self.tr('Wilayah Ekoregion [Dengan nama kolom "NAMA_WE"]'),
                 [QgsProcessing.TypeVectorAnyGeometry]
             )
         )
@@ -134,7 +137,7 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterVectorLayer(
                 self.HABITAT,
-                self.tr('Data Tipe Habitat IUCN'),
+                self.tr('Data Tipe Habitat IUCN [Dengan nama kolom "KLS_HAB_KK"]'),
                 [QgsProcessing.TypeVectorAnyGeometry]
             )
         )
@@ -142,7 +145,7 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterVectorLayer(
                 self.RTE,
-                self.tr('Data RTE IUCN'),
+                self.tr('Data RTE IUCN [Dengan nama kolom "KLS_RTE"]'),
                 [QgsProcessing.TypeVectorAnyGeometry]
             )
         )
@@ -150,11 +153,15 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFeatureSink(
                 self.OUTPUT,
-                self.tr('IKP Kehati')
+                self.tr('IKP Kehati [kolom "KLS_KONDI"]')
             )
         )
 
     def processAlgorithm(self, parameters, context, feedback):
+        # Tahun Penutup Lahan
+        year = self.parameterAsString(parameters, self.TAHUN, context)
+        year = year[-2:]
+
         # Parameters BCPI
         grid_pga = parameters[self.GRID_PGA]
         grid_ppk = parameters[self.GRID_PPK]
@@ -162,11 +169,11 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
         grid_phk = parameters[self.GRID_PHK]
 
         # Parameters BI
-        pl = parameters[self.GRID_PL]
+        pl = parameters[self.PL]
         ekoregion = parameters[self.EKOREGION]
 
         # Perhitungan BCPI
-        # Join KPPK_24, KPGN_24, KPHK_24 ke GRID_PGA
+        # Join KPPK_XX, KPGN_XX, KPHK_XX ke GRID_PGA
         grid_bcpi1 = processing.run(
             "qgis:joinattributestable",
             {
@@ -174,7 +181,7 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
                     'FIELD': 'ID',
                     'INPUT_2': grid_ppk,
                     'FIELD_2': 'ID',
-                    'FIELDS_TO_COPY': ['PPK_24'],
+                    'FIELDS_TO_COPY': [f'PPK_{year}'],
                     'METHOD': 0,
                     'DISCARD_NONMATCHING': False,
                     'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
@@ -189,7 +196,7 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
                     'FIELD': 'ID',
                     'INPUT_2': grid_pgn,
                     'FIELD_2': 'ID',
-                    'FIELDS_TO_COPY': ['PGN_24'],
+                    'FIELDS_TO_COPY': [f'PGN_{year}'],
                     'METHOD': 0,
                     'DISCARD_NONMATCHING': False,
                     'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
@@ -204,7 +211,7 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
                     'FIELD': 'ID',
                     'INPUT_2': grid_phk,
                     'FIELD_2': 'ID',
-                    'FIELDS_TO_COPY': ['PHK_24_KK'],
+                    'FIELDS_TO_COPY': [f'PHK_{year}_KK'],
                     'METHOD': 0,
                     'DISCARD_NONMATCHING': False,
                     'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
@@ -222,7 +229,7 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
                 'FIELD_LENGTH': 10,
                 'FIELD_PRECISION': 2,
                 'NEW_FIELD': True,
-                'FORMULA': '( "PGA_24_KK" + "PPK_24" + "PGN_24" + "PHK_24_KK" ) / 4',
+                'FORMULA': f'( "PGA_{year}_KK" + "PPK_{year}" + "PGN_{year}" + "PHK_{year}_KK" ) / 4',
                 'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
             },
             context=context, feedback=feedback
@@ -495,7 +502,6 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
 
         #2d. PERHITUNGAN INDEKS KONEKTIVITAS HUTAN
         # Ambil Feature PL = Hutan Lahan Kering Primer, Hutan Lahan Kering Sekunder, Hutan Mangrove Primer, Hutan Mangrove Sekunder, Hutan Rawa Primer, Hutan Rawa Sekunder, Hutan Tanaman
-        pl = parameters[self.PL]
         hutan_raw = processing.run(
             "native:extractbyexpression",
             {
@@ -781,13 +787,13 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
             "qgis:fieldcalculator",
             {
                 'INPUT': intersect_bi3,
-                'FIELD_NAME': 'KLS_HAB',
+                'FIELD_NAME': 'KLS_HAB_KK',
                 'FIELD_TYPE': 1,  # Whole number (integer)
                 'NEW_FIELD': False,
                 'FORMULA': '''
                     CASE
-                        WHEN "KLS_HAB" IS NULL THEN 0
-                        ELSE "KLS_HAB"
+                        WHEN "KLS_HAB_KK" IS NULL THEN 0
+                        ELSE "KLS_HAB_KK"
                     END
                 ''',
                 'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
@@ -822,8 +828,8 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
                 'NEW_FIELD': False, 
                 'FORMULA': '''
                     CASE
-                        WHEN "KLS_KONEK" IS NULL THEN 0
-                        ELSE "KLS_KONEK"
+                        WHEN "KLS_RTE" IS NULL THEN 0
+                        ELSE "KLS_RTE"
                     END
                 ''',
                 'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
@@ -835,21 +841,56 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
         bi = processing.run(
             "qgis:fieldcalculator",
             {
-                'INPUT': intersect_bi2,
+                'INPUT': intersect_bi3,
                 'FIELD_NAME': 'BI',
                 'FIELD_TYPE': 0,  # Decimal number (real)
                 'FIELD_PRECISION': 2,
                 'NEW_FIELD': True,
                 'FORMULA': '''
-                    CASE
-                        WHEN "KLS_KG" IS NOT NULL AND "KLS_HAB" IS NOT NULL AND "KLS_KONEK" IS NOT NULL
-                            THEN ( "KLS_KG" + "KLS_RTE" + "KLS_HAB" + "KLS_KONEK" ) / 4
-                        ELSE 0
-                    END 
+                    ( "KLS_KG" + "KLS_RTE" + "KLS_HAB_KK" + "KLS_KONEK" ) / 4
                 ''',
                 'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
             },
             context=context, feedback=feedback
+        )["OUTPUT"]
+
+        # Menghitung kelas bi
+        bi = processing.run(
+            "native:fieldcalculator",
+            {
+                'INPUT': bi,
+                'FIELD_NAME': "KLS_BI",
+                'FIELD_TYPE': 1,
+                'NEW_FIELD': True,
+                'FORMULA': '''
+                    CASE
+                        WHEN "BI" <=1 THEN 1
+                        WHEN "BI" > 1 AND "BI" <=2 THEN 2
+                        WHEN "BI" > 2 AND "BI" <=3 THEN 3
+                        WHEN "BI" > 3 AND "BI" <=4 THEN 4
+                        WHEN "BI" > 4 THEN 5
+                    END
+                ''',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
+
+        bi = processing.run(
+            "qgis:refactorfields",
+            {
+                'INPUT': bi,  # your input layer (can be a QgsVectorLayer or file path)
+                'FIELDS_MAPPING': [
+                    {'name': 'PROVINSI', 'type': 10, 'expression': '"Provinsi"'},
+                    {'name': 'KLS_KG', 'type': 6, 'expression': '"KLS_KG"'},
+                    {'name': 'KLS_RTE', 'type': 6, 'expression': '"KLS_RTE"'},
+                    {'name': 'KLS_HAB_KK', 'type': 6, 'expression': '"KLS_HAB_KK"'},
+                    {'name': 'KLS_KONEK', 'type': 6, 'expression': '"KLS_KONEK"'},
+                    {'name': 'BI', 'type': 6, 'expression': '"BI"'},
+                    {'name': 'KLS_BI', 'type': 6, 'expression': '"KLS_BI"'}
+                ],
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            }
         )["OUTPUT"]
 
         feedback.pushInfo('✅ Perhitungan BI selesai.')
@@ -861,28 +902,8 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
             {
                 'INPUT': grid_bcpi_klas,
                 'OVERLAY': bi,
-                'INPUT_FIELDS': ['BCPI'],
-                'OVERLAY_FIELDS': ['BI'],
-                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-            },
-            context=context, feedback=feedback
-        )["OUTPUT"]
-
-        # Set BI = 0 jika NULL
-        ikp_kehati = processing.run(
-            "qgis:fieldcalculator",
-            {
-                'INPUT': ikp_kehati,
-                'FIELD_NAME': 'BI',
-                'FIELD_TYPE': 0,  # Decimal number (real)
-                'FIELD_PRECISION': 2,
-                'NEW_FIELD': False,
-                'FORMULA': '''
-                    CASE
-                        WHEN "BI" IS NULL THEN 0
-                        ELSE "BI"
-                    END
-                ''',
+                'INPUT_FIELDS': [f'PPK_{year}', f'PGN_{year}', f'PGA_{year}_KK', f'PHK_{year}_KK','BCPI', 'KLS_BCPI'],
+                'OVERLAY_FIELDS': [],
                 'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
             },
             context=context, feedback=feedback
@@ -892,7 +913,7 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
             "qgis:fieldcalculator",
             {
                 'INPUT': ikp_kehati,
-                'FIELD_NAME': 'KONDISI',
+                'FIELD_NAME': 'IKP',
                 'FIELD_TYPE': 0,  # Decimal number (real)
                 'FIELD_PRECISION': 2,
                 'NEW_FIELD': True,
@@ -907,16 +928,16 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
             "native:fieldcalculator",
             {
                 'INPUT': ikp_kehati,
-                'FIELD_NAME': "KLS_KONDI",
+                'FIELD_NAME': f"SKOR_IKP{year}",
                 'FIELD_TYPE': 1,
                 'NEW_FIELD': True,
                 'FORMULA': '''
                     CASE
-                        WHEN "KONDISI" <=1 THEN 1
-                        WHEN "KONDISI" > 1 AND "KONDISI" <=2 THEN 2
-                        WHEN "KONDISI" > 2 AND "KONDISI" <=3 THEN 3
-                        WHEN "KONDISI" > 3 AND "KONDISI" <=4 THEN 4
-                        WHEN "KONDISI" > 4 THEN 5
+                        WHEN "IKP" <=1 THEN 1
+                        WHEN "IKP" > 1 AND "IKP" <=2 THEN 2
+                        WHEN "IKP" > 2 AND "IKP" <=3 THEN 3
+                        WHEN "IKP" > 3 AND "IKP" <=4 THEN 4
+                        WHEN "IKP" > 4 THEN 5
                     END
                 ''',
                 'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
@@ -924,9 +945,29 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
             context=context, feedback=feedback
         )["OUTPUT"]
 
+        grid = self.parameterAsVectorLayer(parameters, self.GRID, context)
+        grid_ikp_kehati = processing.run(
+                "d3tlh:mcagrid",
+                {
+                    'GRID': grid,
+                    'LAYER2': kls_ikp_kehati,
+                    'LAYER2_FIELD' : f"SKOR_IKP{year}",
+                    'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+                },
+                context=context, feedback=feedback
+        )["OUTPUT"]
+
+        grid_ikp_kehati = processing.run(
+            "native:deleteduplicategeometries", 
+            {
+             'INPUT':grid_ikp_kehati,
+             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            }
+        )["OUTPUT"]
+
         feedback.pushInfo('✅ Perhitungan IKP Kehati selesai.')
 
-        source = kls_ikp_kehati
+        source = grid_ikp_kehati
         (sink, dest_id) = self.parameterAsSink(parameters, self.OUTPUT,
                 context, source.fields(), source.wkbType(), source.sourceCrs())
 
