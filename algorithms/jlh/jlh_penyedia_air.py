@@ -258,7 +258,7 @@ class JLHWaterSupplyAlgorithm(QgsProcessingAlgorithm):
             if skor_jlh == 'Kabupaten/Kota':
                 # —— Mode KABUPATEN/KOTA: hanya join satu pulau yang ada di data
                 csv_path = os.path.join(data_root_kabkota, f'skor_pl_{self.JLH}.csv')
-                name = f'skor_pl_kabupaten_kota'
+                name = f'skor_pl_pya_kabupaten_kota'
                 pl_layer = load_csv_table(csv_path, name)
 
                 # join berdasarkan PL → copy S_PL_KABKOTA lalu normalisasi ke S_LC
