@@ -56,10 +56,10 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
     GRID = 'GRID'
     HABITAT = 'HABITAT'
     RTE = 'RTE'
-    WILAYAH_EKOREGION = 'WILAYAH_EKOREGION'
 
     # Output
     OUTPUT = 'OUTPUT'
+    OUTPUT_GRID = 'OUTPUT_GRID'
 
     def initAlgorithm(self, config):
         # We add the input vector features source. It can have any kind of
@@ -67,8 +67,7 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterVectorLayer(
                 self.GRID,
-                self.tr('Data Grid'),
-                optional=True,
+                self.tr('Data Grid [Dengan Kolom "WADMKK"]'),
             )
         )
 
@@ -127,14 +126,6 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
                 [QgsProcessing.TypeVectorAnyGeometry]
             )
         )
-                
-        self.addParameter(
-            QgsProcessingParameterVectorLayer(
-                self.WILAYAH_EKOREGION,
-                self.tr('Wilayah Ekoregion [Dengan nama kolom "NAMA_WE"]'),
-                [QgsProcessing.TypeVectorAnyGeometry]
-            )
-        )
 
         self.addParameter(
             QgsProcessingParameterVectorLayer(
@@ -155,7 +146,14 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFeatureSink(
                 self.OUTPUT,
-                self.tr('IKP Kehati [kolom "KLS_KONDI"]')
+                self.tr('IKP Kehati [kolom "IKPKHT"]')
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterFeatureSink(
+                self.OUTPUT_GRID,
+                self.tr('IKP Kehati Grid')
             )
         )
 
@@ -1154,24 +1152,24 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
         )["OUTPUT"]
         
         # Gridding IKP
-        # grid_ikp_kehati = processing.run(
-        #         "d3tlh:mcagrid",
-        #         {
-        #             'GRID': grid,
-        #             'LAYER2': kls_ikp_kehati,
-        #             'LAYER2_FIELD' : f"SKOR_IKP{year}",
-        #             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-        #         },
-        #         context=context, feedback=feedback
-        # )["OUTPUT"]
+        grid_ikp_kehati = processing.run(
+                "d3tlh:mcagrid",
+                {
+                    'GRID': grid,
+                    'LAYER2': kls_ikp_kehati,
+                    'LAYER2_FIELD' : f"IKPKHT",
+                    'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+                },
+                context=context, feedback=feedback
+        )["OUTPUT"]
 
-        # grid_ikp_kehati = processing.run(
-        #     "native:deleteduplicategeometries", 
-        #     {
-        #      'INPUT':grid_ikp_kehati,
-        #      'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-        #     }
-        # )["OUTPUT"]
+        grid_ikp_kehati = processing.run(
+            "native:deleteduplicategeometries", 
+            {
+             'INPUT':grid_ikp_kehati,
+             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            }
+        )["OUTPUT"]
 
         feedback.pushInfo('✅ Perhitungan IKP Kehati selesai.')
 
@@ -1194,7 +1192,29 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
             # Update the progress bar
             feedback.setProgress(int(current * total))
 
-        return {self.OUTPUT: dest_id}
+        # Output Grid Version
+        source_grid = grid_ikp_kehati
+        (sink2, dest_id2) = self.parameterAsSink(parameters, self.OUTPUT_GRID,
+                context, source_grid.fields(), source_grid.wkbType(), source_grid.sourceCrs())
+
+        total = 100.0 / source_grid.featureCount() if source_grid.featureCount() else 0
+        features = source_grid.getFeatures()
+
+        for current, feature in enumerate(features):
+            # Stop the algorithm if cancel button has been clicked
+            if feedback.isCanceled():
+                break
+
+            # Add a feature in the sink
+            sink2.addFeature(feature, QgsFeatureSink.FastInsert)
+
+            # Update the progress bar
+            feedback.setProgress(int(current * total))
+            
+        return {
+            self.OUTPUT: dest_id,
+            self.OUTPUT_GRID: dest_id2
+        }
 
     def name(self):
         """
