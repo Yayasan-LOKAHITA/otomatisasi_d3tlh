@@ -79,10 +79,10 @@ class SocioEcoPopulationDistAlgorithm(QgsProcessingAlgorithm):
 
     def group(self):
         return self.tr(self.groupId())
-    
+
     def shortHelpString(self):
         return self.tr('''\
-        🇮🇩 ID Modul ini digunakan untuk memodelkan distribusi penduduk berdasarkan skor dan bobot parameter penutup lahan dan jaringan jalan dengan keluaran dalam format grid.
+🇮🇩 ID Modul ini digunakan untuk memodelkan distribusi penduduk berdasarkan skor dan bobot parameter penutup lahan dan jaringan jalan dengan keluaran dalam format grid.
 
         Langkah umum:
         • Menyamakan CRS seluruh input (fix geometries & spatial index).
@@ -113,87 +113,69 @@ class SocioEcoPopulationDistAlgorithm(QgsProcessingAlgorithm):
 
     # ----------------------- UI/Parameters -----------------------
     def initAlgorithm(self, config):
-        # Tahun
         self.addParameter(
             QgsProcessingParameterNumber(
-                self.YEAR,
-                self.tr('Tahun (mis. 2024)'),
+                self.YEAR, self.tr('Tahun (mis. 2024)'),
                 type=QgsProcessingParameterNumber.Integer,
-                defaultValue=2024,
-                minValue=1900, maxValue=2100
+                defaultValue=2024, minValue=1900, maxValue=2100
             )
         )
 
-        # Level admin
         self.addParameter(
             QgsProcessingParameterEnum(
-                self.ADMIN_LEVEL,
-                self.tr('Tingkat Batas Administrasi'),
-                options=self.ADMIN_LEVEL_LIST,
-                defaultValue=1  # Kabupaten/Kota
+                self.ADMIN_LEVEL, self.tr('Tingkat Batas Administrasi'),
+                options=self.ADMIN_LEVEL_LIST, defaultValue=1
             )
         )
 
-        # Layers
         self.addParameter(
             QgsProcessingParameterVectorLayer(
-                self.GRID,
-                self.tr('GRID (SGSRI) [Wajib ada kolom ID]'),
+                self.GRID, self.tr('GRID (SGSRI) [Wajib ada kolom ID]'),
                 [QgsProcessing.TypeVectorAnyGeometry]
             )
         )
         self.addParameter(
             QgsProcessingParameterVectorLayer(
-                self.PENUTUP_LAHAN,
-                self.tr('Penutup Lahan [Wajib ada kolom PL dan PULAU]'),
+                self.PENUTUP_LAHAN, self.tr('Penutup Lahan [Wajib ada kolom PL dan PULAU]'),
                 [QgsProcessing.TypeVectorAnyGeometry]
             )
         )
         self.addParameter(
             QgsProcessingParameterVectorLayer(
-                self.JARINGAN_JALAN,
-                self.tr('Jaringan Jalan [Wajib ada kolom KJLN]'),
+                self.JARINGAN_JALAN, self.tr('Jaringan Jalan [Wajib ada kolom KJLN]'),
                 [QgsProcessing.TypeVectorAnyGeometry]
             )
         )
         self.addParameter(
             QgsProcessingParameterVectorLayer(
-                self.BATAS_ADMIN,
-                self.tr('Batas Administrasi'),
+                self.BATAS_ADMIN, self.tr('Batas Administrasi'),
                 [QgsProcessing.TypeVectorAnyGeometry]
             )
         )
 
-        # Field pickers (nama admin & jumlah penduduk dari layer input Batas Admin)
         self.addParameter(
             QgsProcessingParameterField(
-                self.ADMIN_NAME_FIELD,
-                self.tr('Kolom Nama Wilayah pada Batas Administrasi'),
+                self.ADMIN_NAME_FIELD, self.tr('Kolom Nama Wilayah pada Batas Administrasi'),
                 parentLayerParameterName=self.BATAS_ADMIN
             )
         )
         self.addParameter(
             QgsProcessingParameterField(
-                self.ADMIN_POP_FIELD,
-                self.tr('Kolom Jumlah Penduduk pada Batas Administrasi'),
+                self.ADMIN_POP_FIELD, self.tr('Kolom Jumlah Penduduk pada Batas Administrasi'),
                 parentLayerParameterName=self.BATAS_ADMIN
             )
         )
 
-        # Output
         self.addParameter(
             QgsProcessingParameterFeatureSink(
-                self.OUTPUT,
-                self.tr('GRID Distribusi Penduduk')
+                self.OUTPUT, self.tr('GRID Distribusi Penduduk')
             )
         )
 
     # ----------------------- Helpers -----------------------
     def _fix(self, layer):
-        # versi aman untuk QGIS 3.40 (tanpa METHOD)
         return processing.run("native:fixgeometries", {
-            'INPUT': layer,
-            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            'INPUT': layer, 'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         })['OUTPUT']
 
     def _spindex(self, layer):
@@ -204,9 +186,7 @@ class SocioEcoPopulationDistAlgorithm(QgsProcessingAlgorithm):
         if not existing:
             return vlayer
         return processing.run("qgis:deletecolumn", {
-            'INPUT': vlayer,
-            'COLUMN': existing,
-            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            'INPUT': vlayer, 'COLUMN': existing, 'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         })['OUTPUT']
 
     def _rename_field(self, layer, old_name, new_name):
@@ -215,9 +195,7 @@ class SocioEcoPopulationDistAlgorithm(QgsProcessingAlgorithm):
         if old_name not in [f.name() for f in layer.fields()]:
             return layer
         return processing.run("qgis:renametablefield", {
-            'INPUT': layer,
-            'FIELD': old_name,
-            'NEW_NAME': new_name,
+            'INPUT': layer, 'FIELD': old_name, 'NEW_NAME': new_name,
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         })['OUTPUT']
 
@@ -229,8 +207,7 @@ class SocioEcoPopulationDistAlgorithm(QgsProcessingAlgorithm):
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         })['OUTPUT']
         out2 = processing.run("qgis:renametablefield", {
-            'INPUT': out,
-            'FIELD': 'sum',
+            'INPUT': out, 'FIELD': 'sum',
             'NEW_NAME': f'sum_{val_field}',
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         })['OUTPUT']
@@ -244,11 +221,7 @@ class SocioEcoPopulationDistAlgorithm(QgsProcessingAlgorithm):
         return crs.isValid() and not crs.isGeographic()
 
     def _pick_target_crs(self, layers_in_priority):
-        """
-        Pilih CRS target proyeksi.
-        Prioritas: GRID -> PL -> Jalan -> Batas Admin.
-        Kalau semuanya geografis, pakai EPSG:3857.
-        """
+        # Prioritas: GRID -> PL -> Jalan -> Batas Admin; jika semua geografis → EPSG:3857
         for lyr in layers_in_priority:
             try:
                 crs = lyr.sourceCrs()
@@ -266,8 +239,7 @@ class SocioEcoPopulationDistAlgorithm(QgsProcessingAlgorithm):
             return layer
         feedback.pushInfo(f'Reproject "{label}" {src.authid()} → {target_crs.authid()} …')
         return processing.run("native:reprojectlayer", {
-            'INPUT': layer,
-            'TARGET_CRS': target_crs,
+            'INPUT': layer, 'TARGET_CRS': target_crs,
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         })['OUTPUT']
 
@@ -287,26 +259,21 @@ class SocioEcoPopulationDistAlgorithm(QgsProcessingAlgorithm):
         admin_name_field = self.parameterAsString(parameters, self.ADMIN_NAME_FIELD, context)
         admin_pop_field  = self.parameterAsString(parameters, self.ADMIN_POP_FIELD, context)
 
-        # ---------- NEW: Harmonisasi CRS ----------
+        # ---------- Harmonisasi CRS ----------
         target_crs = self._pick_target_crs([grid, pl, jl, adm])
         feedback.pushInfo(f'CRS target proyeksi: {target_crs.authid()}')
-
         grid = self._reproject_to(grid, target_crs, 'GRID', feedback)
         pl   = self._reproject_to(pl,   target_crs, 'Penutup Lahan', feedback)
         jl   = self._reproject_to(jl,   target_crs, 'Jaringan Jalan', feedback)
         adm  = self._reproject_to(adm,  target_crs, 'Batas Administrasi', feedback)
-        # ------------------------------------------
 
+        # Fix + spatial index
         feedback.pushInfo('Fix Geometries …')
-        grid = self._fix(grid)
-        pl   = self._fix(pl)
-        jl   = self._fix(jl)
-        adm  = self._fix(adm)
-
+        grid = self._fix(grid); pl = self._fix(pl); jl = self._fix(jl); adm = self._fix(adm)
         feedback.pushInfo('Buat Spatial Index …')
         self._spindex(grid); self._spindex(pl); self._spindex(jl); self._spindex(adm)
 
-        # Kode WADM** dan POPM**YY (Langkah 4–5)
+        # Kode field sesuai level
         if admin_level == 'Provinsi':
             adm_code = 'PR'
         elif admin_level == 'Kabupaten/Kota':
@@ -319,35 +286,49 @@ class SocioEcoPopulationDistAlgorithm(QgsProcessingAlgorithm):
         WADM = f'WADM{adm_code}'
         POPM = f'POPM{adm_code}{yy}'
 
-        feedback.pushInfo('Langkah 4–5: Rename field WADM** & POPM**YY …')
-        adm = self._del_cols_if_exist(adm, [WADM, POPM])
-        adm = self._rename_field(adm, admin_name_field, WADM)
-        adm = self._rename_field(adm, admin_pop_field,  POPM)
+        # Standarisasi kolom admin (tanpa rename jika sudah standar)
+        feedback.pushInfo('Langkah 4–5: Standarisasi kolom WADM** & POPM**YY (skip jika sudah standar) …')
+        adm_fields = [f.name() for f in adm.fields()]
+
+        # WADM**
+        if WADM in adm_fields:
+            feedback.pushInfo(f'• Kolom {WADM} sudah ada → skip rename.')
+        else:
+            if admin_name_field not in adm_fields:
+                raise Exception(self.tr(f'Kolom nama wilayah "{admin_name_field}" tidak ditemukan pada Batas Administrasi.'))
+            if admin_name_field != WADM:
+                adm = self._rename_field(adm, admin_name_field, WADM)
+                feedback.pushInfo(f'• Rename {admin_name_field} → {WADM}')
 
         adm_fields = [f.name() for f in adm.fields()]
-        if WADM not in adm_fields or POPM not in adm_fields:
-            raise Exception(self.tr(f'Gagal menemukan kolom {WADM} dan/atau {POPM} pada layer Batas Administrasi setelah rename.'))
 
-        # ========= (6–8) MCA → PADATKAN per ID → JOIN BACK KE GRID ASLI =========
+        # POPM**YY
+        if POPM in adm_fields:
+            feedback.pushInfo(f'• Kolom {POPM} sudah ada → skip rename.')
+        else:
+            if admin_pop_field not in adm_fields:
+                raise Exception(self.tr(f'Kolom jumlah penduduk "{admin_pop_field}" tidak ditemukan pada Batas Administrasi.'))
+            if admin_pop_field != POPM:
+                adm = self._rename_field(adm, admin_pop_field, POPM)
+                feedback.pushInfo(f'• Rename {admin_pop_field} → {POPM}')
+
+        # Validasi akhir
+        adm_fields = [f.name() for f in adm.fields()]
+        if WADM not in adm_fields or POPM not in adm_fields:
+            raise Exception(self.tr(f'Gagal memastikan kolom standar: butuh {WADM} dan {POPM}.'))
+
+        # ========= (6–8) MCA → unik per ID → JOIN BACK =========
         feedback.pushInfo('Langkah 6: MCA (ambil WADM** per sel) …')
         grid_mca = processing.run("d3tlh:mcagrid", {
-            'GRID': grid,
-            'LAYER2': adm,
-            'LAYER2_FIELD': WADM,
+            'GRID': grid, 'LAYER2': adm, 'LAYER2_FIELD': WADM,
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         })['OUTPUT']
 
         grid_mca_unique = processing.run("native:dissolve", {
-            'INPUT': grid_mca,
-            'FIELD': ['ID'],
-            'SEPARATE_DISJOINT': False,
+            'INPUT': grid_mca, 'FIELD': ['ID'], 'SEPARATE_DISJOINT': False,
             'STATISTICS': [{
-                'aggregate': 'concatenate_unique',
-                'delimiter': ',',
-                'input': WADM,
-                'length': 100,
-                'name': WADM,
-                'precision': 0
+                'aggregate': 'concatenate_unique', 'delimiter': ',',
+                'input': WADM, 'length': 100, 'name': WADM, 'precision': 0
             }],
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         })['OUTPUT']
@@ -356,24 +337,18 @@ class SocioEcoPopulationDistAlgorithm(QgsProcessingAlgorithm):
 
         grid_utama = self._del_cols_if_exist(grid, [WADM, POPM])
         grid_utama = processing.run("native:joinattributestable", {
-            'INPUT': grid_utama,
-            'FIELD': 'ID',
-            'INPUT_2': grid_mca_unique,
-            'FIELD_2': 'ID',
+            'INPUT': grid_utama, 'FIELD': 'ID',
+            'INPUT_2': grid_mca_unique, 'FIELD_2': 'ID',
             'FIELDS_TO_COPY': [WADM],
-            'METHOD': 0,
-            'DISCARD_NONMATCHING': False,
+            'METHOD': 0, 'DISCARD_NONMATCHING': False,
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         })['OUTPUT']
 
         grid_utama = processing.run("native:joinattributestable", {
-            'INPUT': grid_utama,
-            'FIELD': WADM,
-            'INPUT_2': adm,
-            'FIELD_2': WADM,
+            'INPUT': grid_utama, 'FIELD': WADM,
+            'INPUT_2': adm, 'FIELD_2': WADM,
             'FIELDS_TO_COPY': [POPM],
-            'METHOD': 0,
-            'DISCARD_NONMATCHING': False,
+            'METHOD': 0, 'DISCARD_NONMATCHING': False,
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         })['OUTPUT']
 
@@ -382,8 +357,7 @@ class SocioEcoPopulationDistAlgorithm(QgsProcessingAlgorithm):
         # ===================== BOBOT PL (9–16) =====================
         feedback.pushInfo('Langkah 9: Overlay GRID × PL …')
         inter_pl = processing.run("native:intersection", {
-            'INPUT': grid_utama,
-            'OVERLAY': pl,
+            'INPUT': grid_utama, 'OVERLAY': pl,
             'INPUT_FIELDS': ['ID', WADM, POPM],
             'OVERLAY_FIELDS': ['PL', 'PULAU'],
             'OVERLAY_FIELDS_PREFIX': '',
@@ -392,51 +366,71 @@ class SocioEcoPopulationDistAlgorithm(QgsProcessingAlgorithm):
 
         feedback.pushInfo('Langkah 10: Hitung L_HA …')
         inter_pl_area = processing.run("qgis:fieldcalculator", {
-            'INPUT': inter_pl,
-            'FIELD_NAME': 'L_HA',
-            'FIELD_TYPE': 0,  # Double
-            'FIELD_LENGTH': 20,
-            'FIELD_PRECISION': 7,
-            'NEW_FIELD': True,
-            'FORMULA': '$area / 10000',
+            'INPUT': inter_pl, 'FIELD_NAME': 'L_HA',
+            'FIELD_TYPE': 0, 'FIELD_LENGTH': 20, 'FIELD_PRECISION': 7,
+            'NEW_FIELD': True, 'FORMULA': 'coalesce($area,0) / 10000',
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         })['OUTPUT']
 
+        # CSV paths
         plugin_root = os.path.dirname(__file__)
         data_root = os.path.join(plugin_root, "..", "..", "data", "pop")
         csv_pl_nonpapua = os.path.join(data_root, "bobot_pl_penduduk.csv")
         csv_pl_papua    = os.path.join(data_root, "bobot_pl_penduduk_papua.csv")
         csv_jln         = os.path.join(data_root, "bobot_jln_penduduk.csv")
 
+        for p, nm in [(csv_pl_nonpapua,'bobot_pl_penduduk.csv'),
+                      (csv_pl_papua,   'bobot_pl_penduduk_papua.csv'),
+                      (csv_jln,        'bobot_jln_penduduk.csv')]:
+            if not os.path.exists(p):
+                raise Exception(self.tr(f'File CSV bobot tidak ditemukan: {nm} di {p}'))
+
         skor_pl_nonpapua = self._load_csv(csv_pl_nonpapua)
         skor_pl_papua    = self._load_csv(csv_pl_papua)
 
-        def join_wpl(source, csv_layer):
-            return processing.run("native:joinattributestable", {
-                'INPUT': source,
-                'FIELD': 'PL',
-                'INPUT_2': csv_layer,
-                'FIELD_2': 'PL',
-                'FIELDS_TO_COPY': ['WPL'],
-                'METHOD': 0,
-                'DISCARD_NONMATCHING': False,
-                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-            })['OUTPUT']
+        # Kunci join PL: normalisasi
+        inter_pl_area = processing.run("qgis:fieldcalculator", {
+            'INPUT': inter_pl_area, 'FIELD_NAME': 'PL_KEY',
+            'FIELD_TYPE': 2, 'FIELD_LENGTH': 100, 'NEW_FIELD': True,
+            'FORMULA': 'lower(trim(to_string("PL")))',
+            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+        })['OUTPUT']
+        skor_pl_nonpapua = processing.run("qgis:fieldcalculator", {
+            'INPUT': skor_pl_nonpapua, 'FIELD_NAME': 'PL_KEY',
+            'FIELD_TYPE': 2, 'FIELD_LENGTH': 100, 'NEW_FIELD': True,
+            'FORMULA': 'lower(trim("PL"))',
+            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+        })['OUTPUT']
+        skor_pl_papua = processing.run("qgis:fieldcalculator", {
+            'INPUT': skor_pl_papua, 'FIELD_NAME': 'PL_KEY',
+            'FIELD_TYPE': 2, 'FIELD_LENGTH': 100, 'NEW_FIELD': True,
+            'FORMULA': 'lower(trim("PL"))',
+            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+        })['OUTPUT']
 
         feedback.pushInfo('Langkah 12: Join bobot PL (Papua vs non-Papua) …')
         inter_pl_papua = processing.run("qgis:extractbyexpression", {
             'INPUT': inter_pl_area,
-            'EXPRESSION': "\"PULAU\" = 'Papua'",
+            'EXPRESSION': 'lower(trim("PULAU")) = \'papua\'',
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         })['OUTPUT']
         inter_pl_nonpapua = processing.run("qgis:extractbyexpression", {
             'INPUT': inter_pl_area,
-            'EXPRESSION': "\"PULAU\" <> 'Papua'",
+            'EXPRESSION': 'lower(trim("PULAU")) <> \'papua\'',
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         })['OUTPUT']
 
-        gp_nonpapua = join_wpl(inter_pl_nonpapua, skor_pl_nonpapua)
-        gp_papua    = join_wpl(inter_pl_papua,    skor_pl_papua)
+        def join_wpl_by_key(source_layer, csv_layer):
+            return processing.run("native:joinattributestable", {
+                'INPUT': source_layer, 'FIELD': 'PL_KEY',
+                'INPUT_2': csv_layer, 'FIELD_2': 'PL_KEY',
+                'FIELDS_TO_COPY': ['WPL'],
+                'METHOD': 0, 'DISCARD_NONMATCHING': False,
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            })['OUTPUT']
+
+        gp_nonpapua = join_wpl_by_key(inter_pl_nonpapua, skor_pl_nonpapua)
+        gp_papua    = join_wpl_by_key(inter_pl_papua,    skor_pl_papua)
 
         grid_pl_wpl = processing.run("native:mergevectorlayers", {
             'LAYERS': [gp_nonpapua, gp_papua],
@@ -448,94 +442,79 @@ class SocioEcoPopulationDistAlgorithm(QgsProcessingAlgorithm):
         sum_LHA = self._stats_sum_by(grid_pl_wpl, 'ID', 'L_HA')
         sum_LHA = self._rename_field(sum_LHA, 'sum_L_HA', 'LGRIDHA')
         grid_pl_wpl = processing.run("native:joinattributestable", {
-            'INPUT': grid_pl_wpl,
-            'FIELD': 'ID',
-            'INPUT_2': sum_LHA,
-            'FIELD_2': 'ID',
+            'INPUT': grid_pl_wpl, 'FIELD': 'ID',
+            'INPUT_2': sum_LHA, 'FIELD_2': 'ID',
             'FIELDS_TO_COPY': ['LGRIDHA'],
-            'METHOD': 0,
-            'DISCARD_NONMATCHING': False,
+            'METHOD': 0, 'DISCARD_NONMATCHING': False,
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         })['OUTPUT']
 
         grid_pl_wpl = processing.run("qgis:fieldcalculator", {
-            'INPUT': grid_pl_wpl,
-            'FIELD_NAME': 'WPL1',
-            'FIELD_TYPE': 0,
-            'FIELD_LENGTH': 20,
-            'FIELD_PRECISION': 7,
+            'INPUT': grid_pl_wpl, 'FIELD_NAME': 'WPL1',
+            'FIELD_TYPE': 0, 'FIELD_LENGTH': 20, 'FIELD_PRECISION': 7,
             'NEW_FIELD': True,
-            'FORMULA': 'CASE WHEN "LGRIDHA" > 0 THEN ("L_HA"/"LGRIDHA")*"WPL" ELSE 0 END',
+            'FORMULA': 'CASE WHEN coalesce("LGRIDHA",0) > 0 '
+                       'THEN (coalesce("L_HA",0)/"LGRIDHA") * coalesce("WPL",0) '
+                       'ELSE 0 END',
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         })['OUTPUT']
 
         sum_WPL1 = self._stats_sum_by(grid_pl_wpl, 'ID', 'WPL1')
         WPLYY = f'WPL{yy}'
         grid_utama = processing.run("native:joinattributestable", {
-            'INPUT': grid_utama,
-            'FIELD': 'ID',
-            'INPUT_2': sum_WPL1,
-            'FIELD_2': 'ID',
+            'INPUT': grid_utama, 'FIELD': 'ID',
+            'INPUT_2': sum_WPL1, 'FIELD_2': 'ID',
             'FIELDS_TO_COPY': ['sum_WPL1'],
-            'METHOD': 0,
-            'DISCARD_NONMATCHING': False,
+            'METHOD': 0, 'DISCARD_NONMATCHING': False,
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         })['OUTPUT']
         grid_utama = self._rename_field(grid_utama, 'sum_WPL1', WPLYY)
+        grid_utama = processing.run("qgis:fieldcalculator", {
+            'INPUT': grid_utama, 'FIELD_NAME': WPLYY,
+            'FIELD_TYPE': 0, 'FIELD_LENGTH': 20, 'FIELD_PRECISION': 7,
+            'NEW_FIELD': False, 'FORMULA': f'coalesce("{WPLYY}",0)',
+            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+        })['OUTPUT']
 
         # ===================== BOBOT JALAN (17–23) =====================
         feedback.pushInfo('Langkah 17: Overlay JALAN (garis) × GRID (poligon) …')
         grid_jl = processing.run("native:intersection", {
-            'INPUT': jl,                 # jalan sebagai INPUT (hasil > garis)
-            'OVERLAY': grid_utama,       # grid sebagai OVERLAY (bawa ID)
-            'INPUT_FIELDS': ['KJLN'],
-            'OVERLAY_FIELDS': ['ID'],
+            'INPUT': jl, 'OVERLAY': grid_utama,
+            'INPUT_FIELDS': ['KJLN'], 'OVERLAY_FIELDS': ['ID'],
             'OVERLAY_FIELDS_PREFIX': '',
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         })['OUTPUT']
 
         feedback.pushInfo('Langkah 18: Hitung panjang segmen dalam meter (P_M) …')
         grid_jl = processing.run("qgis:fieldcalculator", {
-            'INPUT': grid_jl,
-            'FIELD_NAME': 'P_M',
-            'FIELD_TYPE': 0,  # Double
-            'FIELD_LENGTH': 20,
-            'FIELD_PRECISION': 3,
-            'NEW_FIELD': True,
-            'FORMULA': '$length',
+            'INPUT': grid_jl, 'FIELD_NAME': 'P_M',
+            'FIELD_TYPE': 0, 'FIELD_LENGTH': 20, 'FIELD_PRECISION': 3,
+            'NEW_FIELD': True, 'FORMULA': '$length',
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         })['OUTPUT']
 
+        # CSV bobot jalan + normalisasi kunci (lower+trim+spasi ganda→satu spasi)
         skor_jln = self._load_csv(csv_jln)
         skor_jln = processing.run("qgis:fieldcalculator", {
-            'INPUT': skor_jln,
-            'FIELD_NAME': 'KJLN_KEY',
-            'FIELD_TYPE': 2,
-            'FIELD_LENGTH': 80,
-            'NEW_FIELD': True,
-            'FORMULA': 'lower(trim("KJLN"))',
+            'INPUT': skor_jln, 'FIELD_NAME': 'KJLN_KEY',
+            'FIELD_TYPE': 2, 'FIELD_LENGTH': 80, 'NEW_FIELD': True,
+            'FORMULA': "regexp_replace(lower(trim(\"KJLN\")), '\\\\s+', ' ')",
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         })['OUTPUT']
 
         grid_jl = processing.run("qgis:fieldcalculator", {
-            'INPUT': grid_jl,
-            'FIELD_NAME': 'KJLN_KEY',
-            'FIELD_TYPE': 2,
-            'FIELD_LENGTH': 80,
-            'NEW_FIELD': True,
-            'FORMULA': 'lower(trim(to_string("KJLN")))',
+            'INPUT': grid_jl, 'FIELD_NAME': 'KJLN_KEY',
+            'FIELD_TYPE': 2, 'FIELD_LENGTH': 80, 'NEW_FIELD': True,
+            'FORMULA': "regexp_replace(lower(trim(to_string(\"KJLN\"))), '\\\\s+', ' ')",
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         })['OUTPUT']
 
         feedback.pushInfo('Langkah 19: Join bobot WJLN dari CSV …')
         grid_jl_wjln = processing.run("native:joinattributestable", {
-            'INPUT': grid_jl,
-            'FIELD': 'KJLN_KEY',
-            'INPUT_2': skor_jln,
-            'FIELD_2': 'KJLN_KEY',
+            'INPUT': grid_jl, 'FIELD': 'KJLN_KEY',
+            'INPUT_2': skor_jln, 'FIELD_2': 'KJLN_KEY',
             'FIELDS_TO_COPY': ['WJLN'],
-            'METHOD': 0,
-            'DISCARD_NONMATCHING': False,
+            'METHOD': 0, 'DISCARD_NONMATCHING': False,
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         })['OUTPUT']
 
@@ -543,33 +522,24 @@ class SocioEcoPopulationDistAlgorithm(QgsProcessingAlgorithm):
         sum_PM = self._stats_sum_by(grid_jl_wjln, 'ID', 'P_M')
         sum_PM = self._rename_field(sum_PM, 'sum_P_M', 'PGRIDM')
         grid_jl_wjln = processing.run("native:joinattributestable", {
-            'INPUT': grid_jl_wjln,
-            'FIELD': 'ID',
-            'INPUT_2': sum_PM,
-            'FIELD_2': 'ID',
+            'INPUT': grid_jl_wjln, 'FIELD': 'ID',
+            'INPUT_2': sum_PM, 'FIELD_2': 'ID',
             'FIELDS_TO_COPY': ['PGRIDM'],
-            'METHOD': 0,
-            'DISCARD_NONMATCHING': False,
+            'METHOD': 0, 'DISCARD_NONMATCHING': False,
+            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+        })['OUTPUT']
+
+        # Bobot jalan: koma→titik, lalu to_real
+        grid_jl_wjln = processing.run("qgis:fieldcalculator", {
+            'INPUT': grid_jl_wjln, 'FIELD_NAME': 'WJLN_REAL',
+            'FIELD_TYPE': 0, 'FIELD_LENGTH': 20, 'FIELD_PRECISION': 7,
+            'NEW_FIELD': True, 'FORMULA': "coalesce(to_real(replace(\"WJLN\", ',', '.')),0)",
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         })['OUTPUT']
 
         grid_jl_wjln = processing.run("qgis:fieldcalculator", {
-            'INPUT': grid_jl_wjln,
-            'FIELD_NAME': 'WJLN_REAL',
-            'FIELD_TYPE': 0,  # Double
-            'FIELD_LENGTH': 20,
-            'FIELD_PRECISION': 7,
-            'NEW_FIELD': True,
-            'FORMULA': 'coalesce(to_real("WJLN"),0)',
-            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-        })['OUTPUT']
-
-        grid_jl_wjln = processing.run("qgis:fieldcalculator", {
-            'INPUT': grid_jl_wjln,
-            'FIELD_NAME': 'WJLN1',
-            'FIELD_TYPE': 0,
-            'FIELD_LENGTH': 20,
-            'FIELD_PRECISION': 7,
+            'INPUT': grid_jl_wjln, 'FIELD_NAME': 'WJLN1',
+            'FIELD_TYPE': 0, 'FIELD_LENGTH': 20, 'FIELD_PRECISION': 7,
             'NEW_FIELD': True,
             'FORMULA': 'CASE WHEN "PGRIDM" > 0 THEN ("P_M"/"PGRIDM")*"WJLN_REAL" ELSE 0 END',
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
@@ -580,25 +550,17 @@ class SocioEcoPopulationDistAlgorithm(QgsProcessingAlgorithm):
 
         WJLNYY = f'WJLN{yy}'
         grid_utama = processing.run("native:joinattributestable", {
-            'INPUT': grid_utama,
-            'FIELD': 'ID',
-            'INPUT_2': sum_WJLN1,
-            'FIELD_2': 'ID',
+            'INPUT': grid_utama, 'FIELD': 'ID',
+            'INPUT_2': sum_WJLN1, 'FIELD_2': 'ID',
             'FIELDS_TO_COPY': ['sum_WJLN1'],
-            'METHOD': 0,
-            'DISCARD_NONMATCHING': False,
+            'METHOD': 0, 'DISCARD_NONMATCHING': False,
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         })['OUTPUT']
         grid_utama = self._rename_field(grid_utama, 'sum_WJLN1', WJLNYY)
-
         grid_utama = processing.run("qgis:fieldcalculator", {
-            'INPUT': grid_utama,
-            'FIELD_NAME': WJLNYY,
-            'FIELD_TYPE': 0,
-            'FIELD_LENGTH': 20,
-            'FIELD_PRECISION': 7,
-            'NEW_FIELD': False,
-            'FORMULA': f'coalesce("{WJLNYY}",0)',
+            'INPUT': grid_utama, 'FIELD_NAME': WJLNYY,
+            'FIELD_TYPE': 0, 'FIELD_LENGTH': 20, 'FIELD_PRECISION': 7,
+            'NEW_FIELD': False, 'FORMULA': f'coalesce("{WJLNYY}",0)',
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         })['OUTPUT']
 
@@ -606,13 +568,9 @@ class SocioEcoPopulationDistAlgorithm(QgsProcessingAlgorithm):
         feedback.pushInfo('Langkah 24–26: Hitung WGRID, WADM, POPGRID …')
         WGRIDYY = f'WGRID{yy}'
         grid_utama = processing.run("qgis:fieldcalculator", {
-            'INPUT': grid_utama,
-            'FIELD_NAME': WGRIDYY,
-            'FIELD_TYPE': 0,  # Double
-            'FIELD_LENGTH': 20,
-            'FIELD_PRECISION': 7,
-            'NEW_FIELD': True,
-            'FORMULA': f'coalesce("{WPLYY}",0) + coalesce("{WJLNYY}",0)',
+            'INPUT': grid_utama, 'FIELD_NAME': WGRIDYY,
+            'FIELD_TYPE': 0, 'FIELD_LENGTH': 20, 'FIELD_PRECISION': 7,
+            'NEW_FIELD': True, 'FORMULA': f'coalesce("{WPLYY}",0) + coalesce("{WJLNYY}",0)',
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         })['OUTPUT']
 
@@ -621,45 +579,36 @@ class SocioEcoPopulationDistAlgorithm(QgsProcessingAlgorithm):
         sum_WGRID = self._rename_field(sum_WGRID, f'sum_{WGRIDYY}', WADMYY)
 
         grid_utama = processing.run("native:joinattributestable", {
-            'INPUT': grid_utama,
-            'FIELD': WADM,
-            'INPUT_2': sum_WGRID,
-            'FIELD_2': WADM,
+            'INPUT': grid_utama, 'FIELD': WADM,
+            'INPUT_2': sum_WGRID, 'FIELD_2': WADM,
             'FIELDS_TO_COPY': [WADMYY],
-            'METHOD': 0,
-            'DISCARD_NONMATCHING': False,
+            'METHOD': 0, 'DISCARD_NONMATCHING': False,
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         })['OUTPUT']
 
         POPGRIDYY = f'POPGRID{yy}'
         grid_utama = processing.run("qgis:fieldcalculator", {
-            'INPUT': grid_utama,
-            'FIELD_NAME': POPGRIDYY,
-            'FIELD_TYPE': 1,  # Integer
-            'FIELD_LENGTH': 10,
-            'NEW_FIELD': True,
-            'FORMULA': f'floor( CASE WHEN coalesce("{WADMYY}",0) > 0 THEN ( "{WGRIDYY}" / "{WADMYY}" ) * coalesce("{POPM}",0) ELSE 0 END )',
+            'INPUT': grid_utama, 'FIELD_NAME': POPGRIDYY,
+            'FIELD_TYPE': 1, 'FIELD_LENGTH': 10, 'NEW_FIELD': True,
+            'FORMULA': f'floor( CASE WHEN coalesce("{WADMYY}",0) > 0 '
+                       f'THEN ( "{WGRIDYY}" / "{WADMYY}" ) * coalesce("{POPM}",0) '
+                       f'ELSE 0 END )',
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         })['OUTPUT']
 
-        # Rapikan kolom: keep hanya 8 kolom final
+        # Rapikan kolom
         keep_cols = ['ID', WADM, POPM, WPLYY, WJLNYY, WGRIDYY, WADMYY, POPGRIDYY]
         drop_cols = [f.name() for f in grid_utama.fields() if f.name() not in keep_cols]
         final_layer = processing.run("qgis:deletecolumn", {
-            'INPUT': grid_utama,
-            'COLUMN': drop_cols,
+            'INPUT': grid_utama, 'COLUMN': drop_cols,
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         })['OUTPUT']
 
         feedback.pushInfo(f'Jumlah fitur final: {final_layer.featureCount()} (harus sama dengan GRID awal: {grid.featureCount()})')
 
         (sink, dest_id) = self.parameterAsSink(
-            parameters,
-            self.OUTPUT,
-            context,
-            final_layer.fields(),
-            final_layer.wkbType(),
-            final_layer.sourceCrs()
+            parameters, self.OUTPUT, context,
+            final_layer.fields(), final_layer.wkbType(), final_layer.sourceCrs()
         )
 
         total = 100.0 / final_layer.featureCount() if final_layer.featureCount() else 0

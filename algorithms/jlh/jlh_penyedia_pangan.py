@@ -436,7 +436,7 @@ class JLHFoodSupplyAlgorithm(QgsProcessingAlgorithm):
                             'length': 0,
                             'name': 'ID',
                             'precision': 0,
-                            'type': 2
+                            'type': 10
                         },
                         {
                             'aggregate': 'first_value',

@@ -474,7 +474,7 @@ Note: SJEPGN and SJEBUILT are obtained from the Ecological Footprint Model modul
             context=context, feedback=feedback
         )['OUTPUT']
 
-        # Join POPGRIDYY: pakai ID string agar aman
+        # Join POPGRIDYY dan WADMKK: pakai ID string agar aman
         grid_key = processing.run(
             'native:fieldcalculator',
             {'INPUT': joined1, 'FIELD_NAME': 'ID_KEY',
@@ -501,16 +501,21 @@ Note: SJEPGN and SJEBUILT are obtained from the Ecological Footprint Model modul
             'native:joinattributestable',
             {'INPUT': grid_key, 'FIELD': 'ID_KEY',
              'INPUT_2': pop_key, 'FIELD_2': 'ID_KEY',
-             'FIELDS_TO_COPY': [fld_pop], 'METHOD': 1,
+             'FIELDS_TO_COPY': [fld_pop, 'WADMKK'],   # ← TAMBAH WADMKK DI SINI
+             'METHOD': 1,
              'DISCARD_NONMATCHING': False, 'PREFIX': '', 'OUTPUT': 'TEMPORARY_OUTPUT'},
             context=context, feedback=feedback
         )['OUTPUT']
 
         # Bangun basis kolom IKP (tanpa REMARK)
+        # Bangun basis kolom IKP (setelah joined2)
         base = processing.run(
             'native:retainfields',
-            {'INPUT': joined2, 'FIELDS': ['ID', 'KET_HA', fld_pop],
-             'OUTPUT': 'TEMPORARY_OUTPUT'},
+            {
+                'INPUT': joined2,
+                'FIELDS': ['ID', 'WADMKK', 'KET_HA', fld_pop],  # ← tambahkan WADMKK di sini
+                'OUTPUT': 'TEMPORARY_OUTPUT'
+            },
             context=context, feedback=feedback
         )['OUTPUT']
 
@@ -648,6 +653,7 @@ Note: SJEPGN and SJEBUILT are obtained from the Ecological Footprint Model modul
         mapping = [
             # name           type  len   prec  expr
             {'name': 'ID',         'type': 10, 'length': 32,  'precision': 0, 'expression': 'to_string("ID")'},
+            {'name': 'WADMKK',  'type': 10, 'length': 255,  'precision': 0, 'expression': 'to_string("WADMKK")'},
             {'name': 'KET_HA',     'type': 6,  'length': 20,  'precision': 6, 'expression': 'to_real("KET_HA")'},
             {'name': f'{fld_pop}', 'type': 2,  'length': 10,  'precision': 0, 'expression': f'to_int("{fld_pop}")'},
             {'name': 'SJEPGN',     'type': 6,  'length': 20,  'precision': 6, 'expression': 'to_real("SJEPGN")'},
