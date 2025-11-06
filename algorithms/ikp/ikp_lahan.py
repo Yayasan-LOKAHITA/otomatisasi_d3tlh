@@ -27,6 +27,7 @@ __date__ = '2025-08-15'
 __copyright__ = '(C) 2025 by Yayasan Lokahita'
 
 # This will get replaced with a git SHA1 when you do a git archive
+
 __revision__ = '$Format:%H$'
 
 from qgis.PyQt.QtCore import QCoreApplication
@@ -580,7 +581,7 @@ Note: SJEPGN and SJEBUILT are obtained from the Ecological Footprint Model modul
             context=context, feedback=feedback
         )['OUTPUT']
 
-        # KIKPLHN klasifikasi
+        # KIKPLHN (teks)
         expr_kik = (
             "CASE WHEN \"IKPLHN\" = 0 THEN 'Tidak Dihitung' "
             "WHEN (\"IKPLHN\" > 0 AND \"IKPLHN\" <= 0.05) THEN 'Sangat Rendah' "
@@ -590,7 +591,7 @@ Note: SJEPGN and SJEBUILT are obtained from the Ecological Footprint Model modul
             "WHEN (\"IKPLHN\" > 2) THEN 'Sangat Tinggi' "
             "ELSE 'Tidak Dihitung' END"
         )
-        final_ikp = processing.run(
+        step_kik = processing.run(
             'native:fieldcalculator',
             {'INPUT': step_ikp, 'FIELD_NAME': 'KIKPLHN',
              'FIELD_TYPE': 2, 'FIELD_LENGTH': 255, 'FIELD_PRECISION': 0,
@@ -599,13 +600,71 @@ Note: SJEPGN and SJEBUILT are obtained from the Ecological Footprint Model modul
             context=context, feedback=feedback
         )['OUTPUT']
 
-        # Susun kolom untuk OUTPUT_IKP (tanpa REMARK)
-        final_ikp_sel = processing.run(
-            'native:retainfields',
-            {'INPUT': final_ikp,
-             'FIELDS': ['ID', 'KET_HA', fld_pop, 'SJEPGN', 'SJEBUILT',
-                        'SJELHN', 'KEB_HA', 'AB_POP', 'IKPLHN', 'KIKPLHN'],
+        # SIKPLHN (teks, 1..5 atau 'Tidak Dihitung')
+        expr_sik = (
+            "CASE WHEN \"IKPLHN\" = 0 THEN 'Tidak Dihitung' "
+            "WHEN (\"IKPLHN\" > 0 AND \"IKPLHN\" <= 0.05) THEN '1' "
+            "WHEN (\"IKPLHN\" > 0.05 AND \"IKPLHN\" <= 1.0) THEN '2' "
+            "WHEN (\"IKPLHN\" > 1.0 AND \"IKPLHN\" <= 1.5) THEN '3' "
+            "WHEN (\"IKPLHN\" > 1.5 AND \"IKPLHN\" <= 2) THEN '4' "
+            "WHEN (\"IKPLHN\" > 2) THEN '5' "
+            "ELSE 'Tidak Dihitung' END"
+        )
+        step_sik = processing.run(
+            'native:fieldcalculator',
+            {'INPUT': step_kik, 'FIELD_NAME': 'SIKPLHN',
+             'FIELD_TYPE': 2, 'FIELD_LENGTH': 32, 'FIELD_PRECISION': 0,
+             'NEW_FIELD': True, 'FORMULA': expr_sik,
              'OUTPUT': 'TEMPORARY_OUTPUT'},
+            context=context, feedback=feedback
+        )['OUTPUT']
+
+        # D_POP (integer) = AB_POP - POPGRIDYY
+        step_dpop = processing.run(
+            'native:fieldcalculator',
+            {'INPUT': step_sik, 'FIELD_NAME': 'D_POP',
+             'FIELD_TYPE': 1, 'FIELD_LENGTH': 10, 'FIELD_PRECISION': 0,
+             'NEW_FIELD': True,
+             'FORMULA': f'to_int( coalesce(\"AB_POP\",0) - coalesce(\"{fld_pop}\",0) )',
+             'OUTPUT': 'TEMPORARY_OUTPUT'},
+            context=context, feedback=feedback
+        )['OUTPUT']
+
+        # STATUSPGN (teks) dari D_POP
+        expr_status = (
+            "CASE WHEN coalesce(\"D_POP\",0) < 0 THEN 'Terlampaui' "
+            "ELSE 'Belum Terlampaui' END"
+        )
+        step_status = processing.run(
+            'native:fieldcalculator',
+            {'INPUT': step_dpop, 'FIELD_NAME': 'STATUSPGN',
+             'FIELD_TYPE': 2, 'FIELD_LENGTH': 64, 'FIELD_PRECISION': 0,
+             'NEW_FIELD': True, 'FORMULA': expr_status,
+             'OUTPUT': 'TEMPORARY_OUTPUT'},
+            context=context, feedback=feedback
+        )['OUTPUT']
+
+        # ── Urutan & tipe kolom final (pakai QVariant codes: String=10, Int=2, Real=6) ──
+        mapping = [
+            # name           type  len   prec  expr
+            {'name': 'ID',         'type': 10, 'length': 32,  'precision': 0, 'expression': 'to_string("ID")'},
+            {'name': 'KET_HA',     'type': 6,  'length': 20,  'precision': 6, 'expression': 'to_real("KET_HA")'},
+            {'name': f'{fld_pop}', 'type': 2,  'length': 10,  'precision': 0, 'expression': f'to_int("{fld_pop}")'},
+            {'name': 'SJEPGN',     'type': 6,  'length': 20,  'precision': 6, 'expression': 'to_real("SJEPGN")'},
+            {'name': 'SJEBUILT',   'type': 6,  'length': 20,  'precision': 6, 'expression': 'to_real("SJEBUILT")'},
+            {'name': 'SJELHN',     'type': 6,  'length': 20,  'precision': 6, 'expression': 'to_real("SJELHN")'},
+            {'name': 'KEB_HA',     'type': 6,  'length': 20,  'precision': 6, 'expression': 'to_real("KEB_HA")'},
+            {'name': 'AB_POP',     'type': 2,  'length': 10,  'precision': 0, 'expression': 'to_int("AB_POP")'},
+            {'name': 'D_POP',      'type': 2,  'length': 10,  'precision': 0, 'expression': 'to_int("D_POP")'},
+            {'name': 'STATUSPGN',  'type': 10, 'length': 255,  'precision': 0, 'expression': 'to_string("STATUSPGN")'},
+            {'name': 'IKPLHN',     'type': 6,  'length': 20,  'precision': 6, 'expression': 'to_real("IKPLHN")'},
+            {'name': 'SIKPLHN',    'type': 10, 'length': 255,   'precision': 0, 'expression': 'to_string("SIKPLHN")'},
+            {'name': 'KIKPLHN',    'type': 10, 'length': 255,  'precision': 0, 'expression': 'to_string("KIKPLHN")'},
+        ]
+
+        final_ikp_sel = processing.run(
+            'qgis:refactorfields',
+            {'INPUT': step_status, 'FIELDS_MAPPING': mapping, 'OUTPUT': 'TEMPORARY_OUTPUT'},
             context=context, feedback=feedback
         )['OUTPUT']
 
