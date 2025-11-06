@@ -1254,11 +1254,32 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
         return QCoreApplication.translate('Processing', string)
     
     def shortHelpString(self):
-        return self.tr('''
-Menghitung IKP Air per GRID.
-Modul ini digunakan untuk menghitung indeks kemampuan pemanfaatan Air.
+        return self.tr("""
+            🇮🇩 **ID**  
+            Modul ini menghitung **Indeks Kapasitas Pendukung (IKP) Kehati** per grid SGSRI dan menghasilkan dua output:  
+            (1) **IKP Kehati dalam Poligon**, dan (2) **IKP Kehati dalam GRID**.  
 
-    ''')
+            **Langkah umum:**  
+            1️⃣ Siapkan data: **IJLH PKU**, **IJLH PGA**, **IJLH PPK**, **IJLH PYA**, **Penutup Lahan (PL)**, **Ekoregion**, **RTE**, **Habitat**, dan **Grid Populasi**.  
+            2️⃣ Tentukan tahun dan standar: Pilih tahun analisis (mis. 2024).  
+            3️⃣ Masukkan data-data tersebut sesuai kolom-kolom input yang tersedia, lalu jalankan proses (Run).  
+
+            📝 *Catatan:*  
+            Hasil analisis ini menggambarkan kapasitas ruang dalam mendukung keanekaragaman hayati berdasarkan kombinasi berbagai komponen lingkungan dan penggunaan lahan.
+
+            ────────────────────  
+            🌍 **EN**  
+            This module calculates the **Biodiversity Support Capacity Index (IKP Kehati)** per SGSRI grid and produces two outputs:  
+            (1) **IKP Kehati in Polygon**, and (2) **IKP Kehati in GRID**.  
+
+            **General steps:**  
+            1️⃣ Prepare input layers: **IJLH PKU**, **IJLH PGA**, **IJLH PPK**, **IJLH PYA**, **Land Cover (PL)**, **Ecoregion**, **RTE**, **Habitat**, and **Population Grid**.  
+            2️⃣ Set the analysis year (e.g., 2024).  
+            3️⃣ Fill all required inputs according to the provided fields, then click **Run** to execute the process.  
+
+            📝 *Note:*  
+            The analysis result represents the spatial capacity to support biodiversity based on multiple environmental and land-use components.
+            """)
 
     def createInstance(self):
         return IKPKehatiAlgorithm()
