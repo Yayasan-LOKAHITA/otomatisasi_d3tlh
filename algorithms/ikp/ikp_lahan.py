@@ -73,33 +73,81 @@ class IKPLahanAlgorithm(QgsProcessingAlgorithm):
         return self.tr(self.groupId())
 
     def shortHelpString(self):
-        return self.tr('''\
-🇮🇩 ID Modul ini menghitung IKP Lahan per grid SGSRI dan mengeluarkan dua output:
-(1) IKP Lahan dan (2) Ketersediaan Lahan
+        return self.tr('''
+            <b>Indeks Kemampuan Pemanfaatan Lahan (IKP Lahan)</b><br>
+            <i>Land Utilization Capability Index</i>
+                       
+            <h3>Deskripsi (Bahasa Indonesia)</h3>
+            Algoritma ini digunakan untuk menghitung nilai <b>Indeks Kemampuan Pemanfaatan (IKP) Lahan</b>.  
+            IKP Lahan adalah:  
+            "kemampuan lahan untuk dimanfaatkan dan mendukung kebutuhan dasar hidup manusia berupa pangan dan tempat tinggal secara alami"
 
-Langkah umum:
-1) Siapkan data: GRID SGSRI, JLH Penyedia Pangan, Penutup Lahan, Kawasan Hutan, dan GRID Distribusi Penduduk.
-2) Tentukan tahun dan standar: Pilih tahun analisis (mis. 2024) serta nilai jejak ekologis pangan (SJEPGN) dan built-up land (SJEBUILT) untuk menghitung jejak ekologis untuk IKP Lahan (SJELHN = SJEPGN + SJEBUILT).
-3) Tentukan “Ketersediaan Lahan” berdasarkan kombinasi kategori IJLH penyedia pangan (KPGN), jenis penutup lahan (PL), dan kelas kawasan hutan (kwshutan) yang diizinkan.
-4) Hitung luas ketersediaan lahan dan gabung hasil summarize ke dalam GRID.
-5) Tambahkan data jumlah penduduk (POPGRIDYY) ke dalam GRID.
-6) Hitung KEB_HA (aturan khusus POP=0), AB_POP=KET_HA/SJELHN, IKPLHN=KET_HA/KEB_HA, dan klasifikasi KIKPLHN.
+            <h4>🗺️ Input yang Dibutuhkan:</h4>
+            <ul>
+                <li><b>1. Grid SGSRI</b> (data vektor berisi unit analisis spasial)</li>
+                <li><b>2. IJLH Penyedia Pangan</b> (data vektor layanan ekosistem penyedia pangan)</li>
+                <li><b>3. Penutup Lahan (PL)</b> (data vektor klasifikasi penutup lahan)</li>
+                <li><b>4. Kawasan Hutan</b> (data vektor pembagian fungsi kawasan hutan)</li>
+                <li><b>5. Grid Distribusi Penduduk</b> (data vektor jumlah penduduk per grid)</li>
+                <li><b>6. Nilai jejak ekologis pangan (SJEPGN)</b></li>
+                <li><b>7. Nilai jejak ekologis built-up land (SJEBUILT)</b></li>
+            </ul>
 
-Catatan: SJEPGN dan SJEBUILT didapat dari hasil pengolahan pada modul "Model Jejak Ekologis"
-──────────────
-            
-🌍 EN This module computes the Land Utilization Capability Index (IKP Lahan) per SGSRI grid and produces two outputs:
-(1) IKP Lahan, and (2) Land Availability.
+            <h4>🗂️ Data Input dan Data Sampel Dapat diunduh di Sini:</h4>
+            <a href="bit.ly/data-plugin-d3tlh">[Klik untuk Akses Data]</a>
 
-General steps:
-1) Prepare data: SGSRI GRID, Food Provision ES layer, Land Cover (PL), Forest Area (kwshutan), and Population GRID.
-2) Set year and standards: Choose the analysis year (e.g., 2024) and provide ecological footprint values for food (SJEPGN) and built-up land (SJEBUILT). These are combined as SJELHN = SJEPGN + SJEBUILT for the IKP calculation.
-3) Define “Land Availability” based on allowed combinations of food provision ES category (KPGN), land cover class (PL), and forest area class (kwshutan).
-4) Measure land availability area (hectares) and summarize/join the results to the GRID.
-5) Add population per grid (POPGRIDYY) to the GRID.
-6) Compute KEB_HA (with special rule when POP=0), AB_POP = KET_HA / SJELHN, IKPLHN = KET_HA / KEB_HA, and classify KIKPLHN.
+            <h4>📤 Output:</h4>
+            <ul>
+                <li><b>1. IKP Lahan per Grid</b></li>
+                <li><b>2. Ketersediaan Lahan</b></li>
+            </ul>
 
-Note: SJEPGN and SJEBUILT are obtained from the Ecological Footprint Model module.''')
+            <h4>🧭 Contoh Penggunaan:</h4>
+            1. Siapkan data input: GRID SGSRI, IJLH Penyedia Pangan, Penutup Lahan, Kawasan Hutan, dan GRID Distribusi Penduduk.<br>
+            2. Tentukan tahun analisis (misalnya 2024) dan masukkan nilai jejak ekologis pangan (SJEPGN) serta jejak ekologis lahan terbangun (SJEBUILT).<br>
+            3. Jalankan algoritma untuk menghitung nilai IKP Lahan dan menghasilkan peta ketersediaan lahan.<br>
+            4. Gunakan hasil IKP Lahan untuk analisis kapasitas ekologis wilayah, perencanaan penggunaan lahan, atau integrasi dalam IKP Kehati.
+
+            <h4>📚 Referensi:</h4>
+            - Dokumen Petunjuk Teknis D3TLH 2024<br>
+            - Dokumen Petunjuk Teknis D3TLH 2025
+
+            <hr>
+
+            <h3>🇬🇧 Description (English)</h3>
+            This algorithm is used to calculate the <b>Land Utilization Capability Index (IKP Lahan)</b>.  
+            The Land IKP is defined as:  
+            “an indicator that describes the capacity of an area to provide, sustain, and balance land utilization for human needs and ecological functions, by considering ecological capacity, land cover, and population pressure.”
+
+            <h4>🗺️ Required Inputs:</h4>
+            <ul>
+                <li><b>1. SGSRI Grid</b> (vector data containing spatial analysis units)</li>
+                <li><b>2. IJLH Food Provision</b> (vector data of ecosystem service for food supply)</li>
+                <li><b>3. Land Cover (PL)</b> (vector data of land cover classification)</li>
+                <li><b>4. Forest Area</b> (vector data of forest function zoning)</li>
+                <li><b>5. Population Distribution Grid</b> (vector data of population count per grid)</li>
+            </ul>
+
+            <h4>🗂️ Input and Sample Data Download:</h4>
+            <a href="bit.ly/data-plugin-d3tlh">[Click to Access Data]</a>
+
+            <h4>📤 Output:</h4>
+            <ul>
+                <li><b>1. Land IKP per Grid</b></li>
+                <li><b>2. Land Availability Map</b></li>
+            </ul>
+
+            <h4>🧭 Example of Use:</h4>
+            1. Prepare the input data: SGSRI Grid, IJLH Food Provision, Land Cover, Forest Area, and Population Distribution Grid.<br>
+            2. Specify the analysis year (e.g., 2024) and input the ecological footprint values for food (SJEPGN) and built-up land (SJEBUILT).<br>
+            3. Run the algorithm to calculate the Land IKP values and generate the Land Availability Map.<br>
+            4. Use the Land IKP outputs for ecological capacity analysis, land-use planning, or integration within the Biodiversity IKP.
+
+            <h4>📚 References:</h4>
+            - D3TLH Technical Guidelines 2024<br>
+            - D3TLH Technical Guidelines 2025
+    
+        ''')
 
     def createInstance(self):
         return IKPLahanAlgorithm()
@@ -108,42 +156,42 @@ Note: SJEPGN and SJEBUILT are obtained from the Ecological Footprint Model modul
         self.addParameter(
             QgsProcessingParameterFeatureSource(
                 self.P_GRID_SGSRI,
-                self.tr('GRID SGSRI (ID)'),
+                self.tr('Data Grid [Dengan Kolom "ID" dan "WADMKK"]'),
                 [QgsProcessing.TypeVectorAnyGeometry]
             )
         )
         self.addParameter(
             QgsProcessingParameterFeatureSource(
                 self.P_JLH_KPGN,
-                self.tr('JLH Penyedia Pangan (PULAU, KPGN_YY)'),
+                self.tr('Grid JLH Penyedia Pangan [Dengan kolom "PULAU" dan "PGN_YY, YY adalah dua digit terakhir tahun."]'),
                 [QgsProcessing.TypeVectorAnyGeometry]
             )
         )
         self.addParameter(
             QgsProcessingParameterFeatureSource(
                 self.P_PL,
-                self.tr('Penutup Lahan (PL)'),
+                self.tr('Data Penutup Lahan [Dengan Kolom "PL"]'),
                 [QgsProcessing.TypeVectorAnyGeometry]
             )
         )
         self.addParameter(
             QgsProcessingParameterFeatureSource(
                 self.P_KWSHUTAN,
-                self.tr('Kawasan Hutan (kwshutan)'),
+                self.tr('Kawasan Hutan [Dengan kolom "kwshutan"]'),
                 [QgsProcessing.TypeVectorAnyGeometry]
             )
         )
         self.addParameter(
             QgsProcessingParameterFeatureSource(
                 self.P_GRID_POP,
-                self.tr('GRID Distribusi Penduduk (ID, POPGRID_YY)'),
+                self.tr('Grid Distribusi Penduduk [Dengan kolom "ID" dan "POPGRID_YY"]'),
                 [QgsProcessing.TypeVectorAnyGeometry]
             )
         )
         self.addParameter(
             QgsProcessingParameterNumber(
                 self.P_YEAR,
-                self.tr('Tahun (Contoh: 2024)'),
+                self.tr('Tahun Analisis [Contoh: 2024]'),
                 type=QgsProcessingParameterNumber.Integer,
                 defaultValue=2024
             )
@@ -167,13 +215,13 @@ Note: SJEPGN and SJEBUILT are obtained from the Ecological Footprint Model modul
         self.addParameter(
             QgsProcessingParameterFeatureSink(
                 self.OUTPUT_KETER,
-                self.tr('Ketersediaan Lahan')
+                self.tr('Ketersediaan Lahan dalam hektar [kolom "KET_HA"]')
             )
         )
         self.addParameter(
             QgsProcessingParameterFeatureSink(
                 self.OUTPUT_IKP,
-                self.tr('IKP Lahan')
+                self.tr('IKP Lahan Grid [kolom "IKPLHN"]')
             )
         )
 
