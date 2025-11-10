@@ -64,8 +64,6 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
     OUTPUT_GRID = "OUTPUT_GRID"
 
     def initAlgorithm(self, config):
-        # We add the input vector features source. It can have any kind of
-        # geometry.
         self.addParameter(
             QgsProcessingParameterVectorLayer(
                 self.GRID,
@@ -82,7 +80,7 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
                 [QgsProcessing.TypeVectorAnyGeometry],
             )
         )
-        
+
         self.addParameter(
             QgsProcessingParameterVectorLayer(
                 self.GRID_PHK,
@@ -1414,7 +1412,7 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
             </ul>
                        
             <h4>🗂️ Data Input dan Data Sampel Dapat diunduh di Sini :</h4>
-            <a href="bit.ly/data-plugin-d3tlh">[Klik untuk Akses Data]</a>
+            🔗 <a href="https://bit.ly/data-plugin-d3tlh" target="_blank">[Klik untuk Akses Data]</a>
 
             <h4>📤 Output:</h4>
             <ul>
@@ -1453,7 +1451,7 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
             </ul>
 
             <h4>🗂️ Input and Sample Data Download:</h4>
-            <a href="bit.ly/data-plugin-d3tlh">[Click to Access Data]</a>
+            🔗 <a href="https://bit.ly/data-plugin-d3tlh" target="_blank">[Click to Access Data]</a>
 
             <h4>📤 Output:</h4>
             <ul>

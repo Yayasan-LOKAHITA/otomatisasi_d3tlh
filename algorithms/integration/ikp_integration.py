@@ -22,66 +22,48 @@
  ***************************************************************************/
 """
 
-__author__ = 'Yayasan Lokahita'
-__date__ = '2025-08-15'
-__copyright__ = '(C) 2025 by Yayasan Lokahita'
+__author__ = "Yayasan Lokahita"
+__date__ = "2025-08-15"
+__copyright__ = "(C) 2025 by Yayasan Lokahita"
 
 # This will get replaced with a git SHA1 when you do a git archive
 
-__revision__ = '$Format:%H$'
+__revision__ = "$Format:%H$"
 
 from qgis.PyQt.QtCore import QCoreApplication
-from qgis.core import (QgsProcessing,
-                       QgsFeatureSink,
-                       QgsProcessingAlgorithm,
-                       QgsProcessingParameterFeatureSource,
-                       QgsProcessingParameterFeatureSink,
-                       QgsProcessingParameterVectorLayer)
+from qgis.core import (
+    QgsProcessing,
+    QgsFeatureSink,
+    QgsProcessingAlgorithm,
+    QgsProcessingParameterFeatureSource,
+    QgsProcessingParameterFeatureSink,
+    QgsProcessingParameterVectorLayer,
+)
 
 import processing
 import os
 
+
 class IntegrationIKPAlgorithm(QgsProcessingAlgorithm):
-    """
-    This is an example algorithm that takes a vector layer and
-    creates a new identical one.
+    # Parameter Integrasi
+    IKP_Air = "IKP_Air"
+    IKP_Udara = "IKP_Udara"
+    IKP_Lahan = "IKP_Lahan"
+    IKP_Kehati = "IKP_Kehati"
+    IKP_Laut = "IKP_Laut"
+    IKP_Integrasi = "IKP_Integrasi"
 
-    It is meant to be used as an example of how to create your own
-    algorithms and explain methods and variables used to do it. An
-    algorithm like this will be available in all elements, and there
-    is not need for additional work.
-
-    All Processing algorithms should extend the QgsProcessingAlgorithm
-    class.
-    """
-
-    # Constants used to refer to parameters and outputs. They will be
-    # used when calling the algorithm from another algorithm, or when
-    # calling from the QGIS console.
-
-    IKP_Air = 'IKP_Air'
-    IKP_Udara = 'IKP_Udara'
-    IKP_Lahan = 'IKP_Lahan'
-    IKP_Kehati = 'IKP_Kehati'
-    IKP_Laut = 'IKP_Lauts'
-    IKP_Integrasi = 'IKP_Integrasi'
-
+    # BOBOT TIAP IKP UNTUK INTEGRASI
     BOBOT_IKP_Air = 0.49
     BOBOT_IKP_Lahan = 0.29
     BOBOT_Kehati = 0.14
     BOBOT_Udara = 0.08
 
     def initAlgorithm(self, config):
-        """
-        Here we define the inputs and output of the algorithm, along
-        with some other properties.
-        """
-        # We add the input vector features source. It can have any kind of
-        # geometry.
         self.addParameter(
             QgsProcessingParameterVectorLayer(
-                self.IKP_Udara,
-                self.tr('Data Indeks Kesesuaian Pemukiman Udara'),
+                self.IKP_Lahan,
+                self.tr('Grid IKP Lahan [dengan kolom "IKPLHN"]'),
                 [QgsProcessing.TypeVectorAnyGeometry],
             )
         )
@@ -89,15 +71,15 @@ class IntegrationIKPAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterVectorLayer(
                 self.IKP_Air,
-                self.tr('Data Indeks Kesesuaian Pemukiman Air'),
+                self.tr('Grid IKP Air [dengan kolom "IKPAIR"]'),
                 [QgsProcessing.TypeVectorAnyGeometry],
             )
         )
 
         self.addParameter(
             QgsProcessingParameterVectorLayer(
-                self.IKP_Lahan,
-                self.tr('Data Indeks Kesesuaian Pemukiman Lahan'),
+                self.IKP_Udara,
+                self.tr('Grid IKP Udara [dengan kolom "IKPUDR"]'),
                 [QgsProcessing.TypeVectorAnyGeometry],
             )
         )
@@ -105,7 +87,7 @@ class IntegrationIKPAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterVectorLayer(
                 self.IKP_Kehati,
-                self.tr('Data Indeks Kesesuaian Pemukiman Kehati'),
+                self.tr('Grid IKP Kehati [dengan kolom "IKPKHT"]'),
                 [QgsProcessing.TypeVectorAnyGeometry],
             )
         )
@@ -113,18 +95,17 @@ class IntegrationIKPAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterVectorLayer(
                 self.IKP_Laut,
-                self.tr('Data Indeks Kesesuaian Pemukiman Laut'),
-                optional=True
+                self.tr('Grid IKP Laut [dengan kolom "IKPLUT"]'),
+                optional=True,
             )
         )
 
-        # We add a feature sink in which to store our processed features (this
-        # usually takes the form of a newly created vector layer when the
-        # algorithm is run in QGIS).
         self.addParameter(
             QgsProcessingParameterFeatureSink(
                 self.IKP_Integrasi,
-                self.tr('Integrasi IKP')
+                self.tr(
+                    'Indeks Kemampuan Pemanfaatan Lingkungan Hidup [kolom "IKPLH"]'
+                ),
             )
         )
 
@@ -139,84 +120,89 @@ class IntegrationIKPAlgorithm(QgsProcessingAlgorithm):
         ikplh1 = processing.run(
             "qgis:joinattributestable",
             {
-                    'INPUT': ikp_air,
-                    'FIELD': 'ID',
-                    'INPUT_2': ikp_lahan,
-                    'FIELD_2': 'ID',
-                    'FIELDS_TO_COPY': [f'PPK_{1}'], # OUTPUT ?
-                    'METHOD': 0,
-                    'DISCARD_NONMATCHING': False,
-                    'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+                "INPUT": ikp_air,
+                "FIELD": "ID",
+                "INPUT_2": ikp_lahan,
+                "FIELD_2": "ID",
+                "FIELDS_TO_COPY": ["SIKPLHN", "KIKPLHN"],
+                "METHOD": 0,
+                "DISCARD_NONMATCHING": False,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             },
-            context=context, feedback=feedback
+            context=context,
+            feedback=feedback,
         )["OUTPUT"]
 
         ikplh2 = processing.run(
             "qgis:joinattributestable",
             {
-                    'INPUT': ikplh1,
-                    'FIELD': 'ID',
-                    'INPUT_2': ikp_kehati,
-                    'FIELD_2': 'ID',
-                    'FIELDS_TO_COPY': [f'PPK_{1}'], # OUTPUT ?
-                    'METHOD': 0,
-                    'DISCARD_NONMATCHING': False,
-                    'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+                "INPUT": ikplh1,
+                "FIELD": "ID",
+                "INPUT_2": ikp_kehati,
+                "FIELD_2": "ID",
+                "FIELDS_TO_COPY": ["SIKPKHT", "KIKPKHT"],
+                "METHOD": 0,
+                "DISCARD_NONMATCHING": False,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             },
-            context=context, feedback=feedback
+            context=context,
+            feedback=feedback,
         )["OUTPUT"]
 
         ikplh3 = processing.run(
             "qgis:joinattributestable",
             {
-                    'INPUT': ikplh2,
-                    'FIELD': 'ID',
-                    'INPUT_2': ikp_udara,
-                    'FIELD_2': 'ID',
-                    'FIELDS_TO_COPY': [f'PPK_{1}'], # OUTPUT ?
-                    'METHOD': 0,
-                    'DISCARD_NONMATCHING': False,
-                    'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+                "INPUT": ikplh2,
+                "FIELD": "ID",
+                "INPUT_2": ikp_udara,
+                "FIELD_2": "ID",
+                "FIELDS_TO_COPY": ["SIKPUDR", "KIKPUDR"],
+                "METHOD": 0,
+                "DISCARD_NONMATCHING": False,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             },
-            context=context, feedback=feedback
+            context=context,
+            feedback=feedback,
         )["OUTPUT"]
-        
+
         ikplh_final = processing.run(
             "qgis:fieldcalculator",
             {
-                'INPUT': ikplh3,
-                'FIELD_NAME': 'IKPLH',
-                'FIELD_TYPE': 0,  # Decimal number (real)
-                'FIELD_LENGTH': 10,
-                'FIELD_PRECISION': 2,
-                'NEW_FIELD': True,
-                'FORMULA': f'( "IKU_Air" + "IKU_Lahan" + "IKU_Udara" + "IKU_Kehati" ) / 4', # OUTPUT ?
-                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+                "INPUT": ikplh3,
+                "FIELD_NAME": "IKPLH",
+                "FIELD_TYPE": 0,  # Decimal number (real)
+                "FIELD_LENGTH": 10,
+                "FIELD_PRECISION": 2,
+                "NEW_FIELD": True,
+                "FORMULA": f'( "SIKPLHN" * {self.BOBOT_IKP_Lahan} + "SIKPAIR" * {self.BOBOT_IKP_Air} + "SIKPKHT" * {self.BOBOT_Kehati} + "SIKPUDR" * {self.BOBOT_Udara}) / 4',
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             },
-            context=context, feedback=feedback
+            context=context,
+            feedback=feedback,
         )["OUTPUT"]
 
         kelas_ikplh = processing.run(
             "qgis:fieldcalculator",
             {
-                'INPUT': ikplh_final,
-                'FIELD_NAME': 'KLS_IKPLH',
-                'FIELD_TYPE': 1,  # Text (string),
-                'FIELD_LENGTH': 20,
-                'NEW_FIELD': True,
-                'FORMULA': '''
+                "INPUT": ikplh_final,
+                "FIELD_NAME": "KIKPLH",
+                "FIELD_TYPE": 1,  # Text (string),
+                "FIELD_LENGTH": 20,
+                "NEW_FIELD": True,
+                "FORMULA": """
                 CASE
-                    WHEN "IKPLH" <= 1.8 THEN 1
-                    WHEN "IKPLH" > 1.8 AND "IKPLH" <= 2.6 THEN 2
-                    WHEN "IKPLH" > 2.6 AND "IKPLH" <= 3.4 THEN 3
-                    WHEN "IKPLH" > 3.4 AND "IKPLH" <= 4.2 THEN 4
-                    WHEN "IKPLH" > 4.2 THEN 5
+                    WHEN "IKPLH" <= 1.8 THEN 'Sangat Rendah'
+                    WHEN "IKPLH" > 1.8 AND "IKPLH" <= 2.6 THEN 'Rendah'
+                    WHEN "IKPLH" > 2.6 AND "IKPLH" <= 3.4 THEN 'Sedang'
+                    WHEN "IKPLH" > 3.4 AND "IKPLH" <= 4.2 THEN 'Tinggi'
+                    WHEN "IKPLH" > 4.2 THEN 'Sangat Tinggi'
                     ELSE 0
                 END
-                ''',
-                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+                """,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             },
-            context=context, feedback=feedback
+            context=context,
+            feedback=feedback,
         )["OUTPUT"]
 
         final_layer = kelas_ikplh
@@ -226,7 +212,7 @@ class IntegrationIKPAlgorithm(QgsProcessingAlgorithm):
             context,
             final_layer.fields(),
             final_layer.wkbType(),
-            final_layer.sourceCrs()
+            final_layer.sourceCrs(),
         )
         features = final_layer.getFeatures()
         for current, feature in enumerate(features):
@@ -247,14 +233,14 @@ class IntegrationIKPAlgorithm(QgsProcessingAlgorithm):
         lowercase alphanumeric characters only and no spaces or other
         formatting characters.
         """
-        return 'integration'
+        return "ikplh"
 
     def displayName(self):
         """
         Returns the translated algorithm name, which should be used for any
         user-visible display of the algorithm name.
         """
-        return self.tr('Integrasi IKP')
+        return self.tr("IKP Lingkungan Hidup (Integrasi/Komposit IKP)")
 
     def group(self):
         """
@@ -271,10 +257,10 @@ class IntegrationIKPAlgorithm(QgsProcessingAlgorithm):
         contain lowercase alphanumeric characters only and no spaces or other
         formatting characters.
         """
-        return 'F. Integration'
+        return "F. Integration"
 
     def tr(self, string):
-        return QCoreApplication.translate('Processing', string)
+        return QCoreApplication.translate("Processing", string)
 
     def createInstance(self):
         return IntegrationIKPAlgorithm()

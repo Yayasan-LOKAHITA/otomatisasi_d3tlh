@@ -93,8 +93,8 @@ class IKPLahanAlgorithm(QgsProcessingAlgorithm):
                 <li><b>7. Nilai jejak ekologis built-up land (SJEBUILT)</b></li>
             </ul>
 
-            <h4>🗂️ Data Input dan Data Sampel Dapat diunduh di Sini:</h4>
-            <a href="bit.ly/data-plugin-d3tlh">[Klik untuk Akses Data]</a>
+            <h4>🗂️ Data Input dan Data Sampel Dapat diunduh di Sini :</h4>
+            🔗 <a href="https://bit.ly/data-plugin-d3tlh" target="_blank">[Klik untuk Akses Data]</a>
 
             <h4>📤 Output:</h4>
             <ul>
