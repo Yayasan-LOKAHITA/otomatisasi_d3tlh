@@ -22,13 +22,13 @@
  ***************************************************************************/
 """
 
-__author__ = 'Yayasan Lokahita'
-__date__ = '2025-08-15'
-__copyright__ = '(C) 2025 by Yayasan Lokahita'
+__author__ = "Yayasan Lokahita"
+__date__ = "2025-08-15"
+__copyright__ = "(C) 2025 by Yayasan Lokahita"
 
 # This will get replaced with a git SHA1 when you do a git archive
 
-__revision__ = '$Format:%H$'
+__revision__ = "$Format:%H$"
 
 from qgis.core import QgsProcessingProvider
 
@@ -65,6 +65,10 @@ from .ikp.ikp_air import IKPAirAlgorithm
 # Algoritma Integrasi
 from .integration.ikp_integration import IntegrationIKPAlgorithm
 from .integration.iprlh_integration import IntegrationD3TLHAlgorithm
+
+# Algoritma Simbologi
+from .styling.simbology import ApplyStandardStylesAlgorithm
+
 
 class OtomatisasiD3TLHProvider(QgsProcessingProvider):
 
@@ -118,13 +122,16 @@ class OtomatisasiD3TLHProvider(QgsProcessingProvider):
         self.addAlgorithm(IntegrationIKPAlgorithm())
         self.addAlgorithm(IntegrationD3TLHAlgorithm())
 
+        # Algoritma Simbology
+        self.addAlgorithm(ApplyStandardStylesAlgorithm())
+
     def id(self):
         """
         Returns the unique provider id, used for identifying the provider. This
         string should be a unique, short, character only string, eg "qgis" or
         "gdal". This string should not be localised.
         """
-        return 'd3tlh'
+        return "d3tlh"
 
     def name(self):
         """
@@ -133,7 +140,7 @@ class OtomatisasiD3TLHProvider(QgsProcessingProvider):
 
         This string should be short (e.g. "Lastools") and localised.
         """
-        return self.tr('Otomatisasi D3TLH')
+        return self.tr("Otomatisasi D3TLH")
 
     def icon(self):
         """
