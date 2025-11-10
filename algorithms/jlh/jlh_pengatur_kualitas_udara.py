@@ -531,7 +531,7 @@ class JLHAirQualityRegulationAlgorithm(QgsProcessingAlgorithm):
         return QCoreApplication.translate('Processing', string)
     
     def shortHelpString(self):
-        self.tr('''
+        return self.tr('''
         <b>Indeks Jasa Lingkungan Hidup Pengatur Kualitas Udara (JLH_PKU)</b><br><br>
         Algoritma ini digunakan untuk menghitung nilai indeks jasa lingkungan hidup 
         yang berhubungan dengan kemampuan ekosistem dalam memperbaiki dan menjaga kualitas udara. 

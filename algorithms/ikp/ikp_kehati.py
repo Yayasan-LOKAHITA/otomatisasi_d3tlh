@@ -146,14 +146,14 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFeatureSink(
                 self.OUTPUT,
-                self.tr('IKP Kehati [kolom "IKPKHT"]')
+                self.tr('IKP Kehati Poligon [kolom "IKPKHT"]')
             )
         )
 
         self.addParameter(
             QgsProcessingParameterFeatureSink(
                 self.OUTPUT_GRID,
-                self.tr('IKP Kehati Grid')
+                self.tr('IKP Kehati Grid [kolom "IKPKHT"]')
             )
         )
 
@@ -1133,7 +1133,7 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
         kls_ikp_kehati = processing.run(
             "native:fieldcalculator",
             {
-                'INPUT': ikp_kehati,
+                'INPUT': kls_ikp_kehati,
                 'FIELD_NAME': f"KIKPKHT",
                 'FIELD_TYPE': 2,
                 'NEW_FIELD': True,
@@ -1254,32 +1254,96 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
         return QCoreApplication.translate('Processing', string)
     
     def shortHelpString(self):
-        return self.tr("""
-            🇮🇩 **ID**  
-            Modul ini menghitung **Indeks Kapasitas Pendukung (IKP) Kehati** per grid SGSRI dan menghasilkan dua output:  
-            (1) **IKP Kehati dalam Poligon**, dan (2) **IKP Kehati dalam GRID**.  
+        return self.tr('''
+            <b>Indeks Kapasitas Pendukung Keanekaragaman Hayati (IKP Kehati)</b><br>
+            <i>Biodiversity Support Capacity Index (IKP Kehati)</i>
 
-            **Langkah umum:**  
-            1️⃣ Siapkan data: **IJLH PKU**, **IJLH PGA**, **IJLH PPK**, **IJLH PYA**, **Penutup Lahan (PL)**, **Ekoregion**, **RTE**, **Habitat**, dan **Grid Populasi**.  
-            2️⃣ Tentukan tahun dan standar: Pilih tahun analisis (mis. 2024).  
-            3️⃣ Masukkan data-data tersebut sesuai kolom-kolom input yang tersedia, lalu jalankan proses (Run).  
+            <h3>🇮🇩 Deskripsi (Bahasa Indonesia)</h3>
+            Algoritma ini digunakan untuk menghitung nilai <b>Indeks Kapasitas Pendukung (IKP) Kehati</b> pada setiap grid SGSRI, 
+            yang merepresentasikan kemampuan suatu ruang dalam mendukung keanekaragaman hayati berdasarkan kombinasi berbagai komponen lingkungan dan penggunaan lahan.
 
-            📝 *Catatan:*  
-            Hasil analisis ini menggambarkan kapasitas ruang dalam mendukung keanekaragaman hayati berdasarkan kombinasi berbagai komponen lingkungan dan penggunaan lahan.
+            <h4>🎯 Tujuan:</h4>
+            Menilai kapasitas spasial ekosistem dalam mendukung keanekaragaman hayati melalui analisis terpadu terhadap kondisi lingkungan, tutupan lahan, dan faktor ekologis lainnya.
 
-            ────────────────────  
-            🌍 **EN**  
-            This module calculates the **Biodiversity Support Capacity Index (IKP Kehati)** per SGSRI grid and produces two outputs:  
-            (1) **IKP Kehati in Polygon**, and (2) **IKP Kehati in GRID**.  
+            <h4>🗺️ Input yang Dibutuhkan:</h4>
+            <ul>
+                <li><b>1. IJLH PKU</b> (data vektor)</li>
+                <li><b>2. IJLH PGA</b> (data vektor)</li>
+                <li><b>3. IJLH PPK</b> (data vektor)</li>
+                <li><b>4. IJLH PYA</b> (data vektor)</li>
+                <li><b>5. Penutup Lahan (PL)</b> (data vektor)</li>
+                <li><b>6. Ekoregion</b> (data vektor)</li>
+                <li><b>7. RTE</b> (data vektor)</li>
+                <li><b>8. Habitat</b> (data vektor)</li>
+                <li><b>9. Grid Populasi</b> (data vektor)</li>
+            </ul>
 
-            **General steps:**  
-            1️⃣ Prepare input layers: **IJLH PKU**, **IJLH PGA**, **IJLH PPK**, **IJLH PYA**, **Land Cover (PL)**, **Ecoregion**, **RTE**, **Habitat**, and **Population Grid**.  
-            2️⃣ Set the analysis year (e.g., 2024).  
-            3️⃣ Fill all required inputs according to the provided fields, then click **Run** to execute the process.  
+            <h4>📤 Output:</h4>
+            <ul>
+                <li><b>1. IKP Kehati dalam Poligon</b></li>
+                <li><b>2. IKP Kehati dalam Grid</b></li>
+            </ul>
 
-            📝 *Note:*  
-            The analysis result represents the spatial capacity to support biodiversity based on multiple environmental and land-use components.
-            """)
+            <h4>⚙️ Metodologi:</h4>
+            Nilai IKP dihitung melalui pendekatan <b>komposit spasial</b> berdasarkan integrasi indeks jasa lingkungan (IJLH), data ekoregion, habitat, serta penggunaan lahan. 
+            Setiap parameter berkontribusi pada penilaian kapasitas ekologis wilayah dalam mendukung keanekaragaman hayati.
+
+            <h4>🧭 Contoh Penggunaan:</h4>
+            1. Siapkan seluruh data masukan (IJLH, Ekoregion, RTE, Habitat, Grid Populasi, dan PL).<br>
+            2. Tentukan tahun analisis (misalnya 2024).<br>
+            3. Masukkan data sesuai kolom input yang tersedia.<br>
+            4. Jalankan proses (<b>Run</b>) untuk menghasilkan peta IKP Kehati dalam format poligon dan grid.
+
+            <h4>📚 Referensi:</h4>
+            - Dokumen Petunjuk Teknis D3TLH 2024  
+            - Dokumen Petunjuk Teknis D3TLH 2025  
+
+            <hr>
+
+            <h3>🌍 Description (English)</h3>
+            This algorithm calculates the <b>Biodiversity Support Capacity Index (IKP Kehati)</b> for each SGSRI grid, 
+            representing the spatial capacity to support biodiversity based on the combination of environmental and land-use components.
+
+            <h4>🎯 Purpose:</h4>
+            To assess the ecosystem’s spatial capacity to support biodiversity by integrating environmental, land cover, and ecological parameters.
+
+            <h4>🗺️ Required Inputs:</h4>
+            <ul>
+                <li><b>1. IJLH PKU</b> (vector data)</li>
+                <li><b>2. IJLH PGA</b> (vector data)</li>
+                <li><b>3. IJLH PPK</b> (vector data)</li>
+                <li><b>4. IJLH PYA</b> (vector data)</li>
+                <li><b>5. Land Cover (PL)</b> (vector data)</li>
+                <li><b>6. Ecoregion</b> (vector data)</li>
+                <li><b>7. RTE</b> (vector data)</li>
+                <li><b>8. Habitat</b> (vector data)</li>
+                <li><b>9. Population Grid</b> (vector data)</li>
+            </ul>
+
+            <h4>📤 Output:</h4>
+            <ul>
+                <li><b>1. IKP Kehati (Polygon)</b></li>
+                <li><b>2. IKP Kehati (Grid)</b></li>
+            </ul>
+
+            <h4>⚙️ Methodology:</h4>
+            The IKP value is computed using a <b>composite spatial approach</b> combining ecosystem service indices (IJLH), ecoregion, habitat, and land cover data. 
+            The resulting index reflects each area's ecological capacity to support biodiversity.
+
+            <h4>🧭 Example Workflow:</h4>
+            1. Prepare all required datasets (IJLH layers, Ecoregion, RTE, Habitat, Population Grid, and Land Cover).<br>
+            2. Define the analysis year (e.g., 2024).<br>
+            3. Assign inputs to the corresponding fields.<br>
+            4. Click <b>Run</b> to generate polygon and grid-based IKP Kehati outputs.
+
+            <h4>📚 References:</h4>
+            - D3TLH Technical Guideline 2024  
+            - D3TLH Technical Guideline 2025  
+
+            <hr>
+
+            <b><i>Notes: Disarankan untuk tidak menyimpan output secara temporary.</i></b>
+        ''')
 
     def createInstance(self):
         return IKPKehatiAlgorithm()

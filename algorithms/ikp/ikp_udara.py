@@ -55,6 +55,7 @@ class IKPUdaraAlgorithm(QgsProcessingAlgorithm):
 
     # Output
     OUTPUT = 'OUTPUT'
+    OUTPUT_POLIGON = 'OUTPUT_POLIGON'
 
     # Constant
     bakumutu_pm25 = 15 #15µg/m^3 sesuai standar PP22/2021
@@ -63,7 +64,7 @@ class IKPUdaraAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterVectorLayer(
                 self.GRID_KPKU,
-                self.tr('Grid JLH Udara'),
+                self.tr('Grid JLH Udara [Dengan KOLOM PKU_YY, dengan YY adalah dua digit tahun]'),
                 [QgsProcessing.TypeVectorAnyGeometry],
             )
         )
@@ -71,7 +72,7 @@ class IKPUdaraAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterVectorLayer(
                 self.IPS,
-                self.tr('Indeks Proyeksi Suhu'),
+                self.tr('Indeks Proyeksi Suhu [Dengan Kolom SKOR]'),
                 [QgsProcessing.TypeVectorAnyGeometry],
             )
         )
@@ -85,16 +86,26 @@ class IKPUdaraAlgorithm(QgsProcessingAlgorithm):
 
         self.addParameter(
             QgsProcessingParameterFeatureSink(
+                self.OUTPUT_POLIGON,
+                self.tr('IKP Udara Poligon')
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterFeatureSink(
                 self.OUTPUT,
-                self.tr('IKP Udara')
+                self.tr('IKP Udara Grid')
             )
         )
 
     def processAlgorithm(self, parameters, context, feedback):
         # Parameters
-        grid_src = parameters[self.GRID_KPKU]
+        grid_src = self.parameterAsVectorLayer(parameters, self.GRID_KPKU, context)
         pm25_raster = self.parameterAsRasterLayer(parameters, self.PM25, context)
-        ips = parameters[self.IPS]
+        ips = self.parameterAsVectorLayer(parameters, self.IPS, context)
+        pku = self.parameterAsVectorLayer(parameters, self.GRID_KPKU, context)
+        pku_field = next((f.name() for f in pku.fields() if re.match(r'PKU_\d+', f.name())), None)
+        year = int(re.search(r'PKU_(\d+)', pku_field).group(1))
 
         # Standarize PM25 raster
         # 1. Reclassify to Equal Interval
@@ -124,7 +135,7 @@ class IKPUdaraAlgorithm(QgsProcessingAlgorithm):
         reclass_pm25 = processing.run(
             "qgis:reclassifybytable",
             {
-                "INPUT_RASTER": parameters[self.PM25],
+                "INPUT_RASTER": pm25_raster,
                 "RASTER_BAND": 1,
                 "TABLE": reclass_table,
                 "NO_DATA": -9999,
@@ -152,8 +163,6 @@ class IKPUdaraAlgorithm(QgsProcessingAlgorithm):
             context=context, feedback=feedback.pushInfo("Finish Polygonize Reclassified PM2.5")
         )["OUTPUT"]
 
-        polygonize_pm25 = QgsVectorLayer(polygonize_pm25, 'konsentrasi_pm25', "ogr")
-
         # 3. Input mid value based on gridcode
         case_when_expr = "CASE\n"
         for item in mid_table:
@@ -180,7 +189,7 @@ class IKPUdaraAlgorithm(QgsProcessingAlgorithm):
             "qgis:fieldcalculator",
             {
                 'INPUT': mid_pm25,
-                'FIELD_NAME': 'IPM25',
+                'FIELD_NAME': 'IP',
                 'FIELD_TYPE': 0,
                 'FIELD_LENGTH': 20,
                 'FIELD_PRECISION': 10,
@@ -196,12 +205,12 @@ class IKPUdaraAlgorithm(QgsProcessingAlgorithm):
             "qgis:fieldcalculator",
             {
                 'INPUT': ip_pm25,
-                'FIELD_NAME': 'IKU_PM25',
+                'FIELD_NAME': 'PM25',
                 'FIELD_TYPE': 0,
                 'FIELD_LENGTH': 20,
                 'FIELD_PRECISION': 3,
                 'NEW_FIELD': True,
-                'FORMULA': '100-((50/0.9) * ("IPM25" - 0.1))',
+                'FORMULA': '100-((50/0.9) * ("IP" - 0.1))',
                 'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
             },
             context=context, feedback=feedback.pushInfo("Selesai menghitung IKU_PM2.5")
@@ -211,7 +220,7 @@ class IKPUdaraAlgorithm(QgsProcessingAlgorithm):
             "gdal:gridinversedistance",
             {
                 'INPUT': indeks_pm25,
-                'Z_FIELD': 'IKU_PM25',       # Field to interpolate
+                'Z_FIELD': 'PM25',          # Field to interpolate
                 'POWER': 2.0,                # IDW power parameter (p)
                 'SMOOTHING': 0.0,            # Optional smoothing factor
                 'RADIUS_1': 0.0,             # Search radius X (0 = auto)
@@ -249,7 +258,7 @@ class IKPUdaraAlgorithm(QgsProcessingAlgorithm):
             {
                 'INPUT': zon_stat_indeks_pm25,
                 'FIELD': 'idw_mean',
-                'NEW_NAME': 'IKU_PM25',
+                'NEW_NAME': 'PM25',
                 'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
             },
             context=context, feedback=feedback
@@ -260,16 +269,16 @@ class IKPUdaraAlgorithm(QgsProcessingAlgorithm):
             "qgis:fieldcalculator",
             {
                 'INPUT': zon_stat_indeks_pm25_renamed,
-                'FIELD_NAME': 'IKU',
+                'FIELD_NAME': 'SPM25',
                 'FIELD_TYPE': 1,
                 'NEW_FIELD': True,
                 'FORMULA': '''
                     CASE
-                        WHEN "IKU_PM25" >= 95 THEN 5
-                        WHEN "IKU_PM25" >= 85 AND "IKU_PM25" < 95 THEN 4
-                        WHEN "IKU_PM25" >= 60 AND "IKU_PM25" < 85 THEN 3
-                        WHEN "IKU_PM25" >= 30 AND "IKU_PM25" < 60 THEN 2
-                        WHEN "IKU_PM25" < 30 THEN 1
+                        WHEN "PM25" >= 95 THEN 5
+                        WHEN "PM25" >= 85 AND "PM25" < 95 THEN 4
+                        WHEN "PM25" >= 60 AND "PM25" < 85 THEN 3
+                        WHEN "PM25" >= 30 AND "PM25" < 60 THEN 2
+                        WHEN "PM25" < 30 THEN 1
                     END
                 ''',
                 'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
@@ -277,23 +286,20 @@ class IKPUdaraAlgorithm(QgsProcessingAlgorithm):
             context=context, feedback=feedback
         )["OUTPUT"]
 
-        # IPS (Indeks Proyeksi Suhu) sudah ada pada layer input 'ips'
-        nama_kolom = 'IPS'
-        # Kategorisasi IPS
-        kategori_ips = processing.run(
+        # === IPS (Indeks Proyeksi Suhu) sudah ada pada layer input 'ips' ===
+        # 1. Reclass Skor Standar (Kolom SKOR)
+        reklas_ips = processing.run(
             "qgis:fieldcalculator",
             {
                 'INPUT': ips,
-                'FIELD_NAME': 'SKOR_IKU_IPS',
+                'FIELD_NAME': 'IPS',
                 'FIELD_TYPE': 1,
                 'NEW_FIELD': True,
                 'FORMULA': f'''
                     CASE
-                        WHEN "{nama_kolom}" <= 0.8 THEN 5
-                        WHEN "{nama_kolom}" > 0.8 AND "{nama_kolom}" <= 1.1 THEN 4
-                        WHEN "{nama_kolom}" > 1.1 AND "{nama_kolom}" <= 1.3 THEN 3
-                        WHEN "{nama_kolom}" > 1.3 AND "{nama_kolom}" <= 1.5 THEN 2
-                        WHEN "{nama_kolom}" > 1.5 THEN 1
+                        WHEN "SKOR" = '< 0,9 C' THEN 0.8
+                        WHEN "SKOR" = '0,9 - 1 C' THEN 1
+                        WHEN "SKOR" = '1 - 1,1 C' THEN 1.1
                     END
                 ''',
                 'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
@@ -301,16 +307,35 @@ class IKPUdaraAlgorithm(QgsProcessingAlgorithm):
             context=context, feedback=feedback
         )["OUTPUT"]
 
-        # Klasifikasi JLH PKU
-        pku = self.parameterAsVectorLayer(parameters, self.GRID_KPKU, context)
-        pku_field = next((f.name() for f in pku.fields() if re.match(r'PKU_\d+', f.name())), None)
-        year = int(re.search(r'PKU_(\d+)', pku_field).group(1))
-        
+        # 2. Kategorisasi IPS
+        kategori_ips = processing.run(
+            "qgis:fieldcalculator",
+            {
+                'INPUT': reklas_ips,
+                'FIELD_NAME': 'SIPS',
+                'FIELD_TYPE': 1,
+                'NEW_FIELD': True,
+                'FORMULA': f'''
+                    CASE
+                        WHEN "IPS" <= 0.8 THEN 5
+                        WHEN "IPS" > 0.8 AND "IPS" <= 1.1 THEN 4
+                        WHEN "IPS" > 1.1 AND "IPS" <= 1.3 THEN 3
+                        WHEN "IPS" > 1.3 AND "IPS" <= 1.5 THEN 2
+                        WHEN "IPS" > 1.5 THEN 1
+                    END
+                ''',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
+
+        # === Klasifikasi JLH PKU ===
+        # 1. Kategorisasi JLH PKU
         kelas_pku = processing.run(
             "qgis:fieldcalculator",
             {
                 'INPUT': pku,
-                'FIELD_NAME': f'SKOR_PKU_{year}',
+                'FIELD_NAME': f'SPKU',
                 'FIELD_TYPE': 1,
                 'NEW_FIELD': True,
                 'FORMULA': f'''
@@ -326,7 +351,6 @@ class IKPUdaraAlgorithm(QgsProcessingAlgorithm):
             },
             context=context, feedback=feedback
         )["OUTPUT"]
-
 
         # Intersect Grid, IPS, dan IKU PM2.5
         intersect_pm25_ips = processing.run(
@@ -354,53 +378,95 @@ class IKPUdaraAlgorithm(QgsProcessingAlgorithm):
             "qgis:fieldcalculator",
             {
                 'INPUT': intersect_seluruh,
-                'FIELD_NAME': 'IKP_Udara',
+                'FIELD_NAME': 'IKPUDR',
                 'FIELD_TYPE': 0,
                 'FIELD_LENGTH': 20,
                 'FIELD_PRECISION': 3,
                 'NEW_FIELD': True,
-                'FORMULA': f'("SKOR_PKU_24"+"IKU_IPS"+IKU)/3',
+                'FORMULA': f'("SPKU"+"SIPS"+SPM25)/3',
                 'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
             },
             context=context, feedback=feedback
         )["OUTPUT"]
 
+        IKP_udara_poly = processing.run(
+            "qgis:fieldcalculator",
+            {
+                'INPUT': IKP_udara_poly,
+                'FIELD_NAME': 'SIKPUDR',
+                'FIELD_TYPE': 0,
+                'FIELD_LENGTH': 20,
+                'FIELD_PRECISION': 3,
+                'NEW_FIELD': True,
+                'FORMULA': '''
+                    CASE
+                        WHEN "IKPUDR" <= 1.8 THEN 1
+                        WHEN "IKPUDR" > 1.8 AND "IKPUDR" <= 2.6 THEN 2
+                        WHEN "IKPUDR" > 2.6 AND "IKPUDR" <= 3.4 THEN 3
+                        WHEN "IKPUDR" > 3.4 AND "IKPUDR" <= 4.2 THEN 4
+                        WHEN "IKPUDR" > 4.2 THEN 5
+                        ELSE 0
+                    END
+                ''',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
+
+        IKP_udara_poly = processing.run(
+            "qgis:fieldcalculator",
+            {
+                'INPUT': IKP_udara_poly,
+                'FIELD_NAME': f'KIKPUDR',
+                'FIELD_TYPE': 2,
+                'FIELD_LENGTH': 255,
+                'NEW_FIELD': True,
+                'FORMULA': f'''
+                    CASE
+                        WHEN "SIKPUDR" = 1 THEN 'Sangat Rendah'
+                        WHEN "SIKPUDR" = 2 THEN 'Rendah'
+                        WHEN "SIKPUDR" = 3 THEN 'Sedang'
+                        WHEN "SIKPUDR" = 4 THEN 'Tinggi'
+                        WHEN "SIKPUDR" = 5 THEN 'Sangat Tinggi'
+                    END
+                ''',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            context=context, feedback=feedback
+        )["OUTPUT"]
+        
+        IKP_udara_poly = processing.run(
+            "qgis:refactorfields",
+            {
+                'INPUT': IKP_udara_poly,  # your input layer (can be a QgsVectorLayer or file path)
+                'FIELDS_MAPPING': [
+                    {'expression': '"ID"', 'name': 'ID', 'type': 10, 'length': 0, 'precision': 0},
+                    {'expression': f'"PKU_{year}"', 'name': f'PKU_{year}', 'type': 6, 'length': 0, 'precision': 0},
+                    {'expression': f'"KPKU_{year}"', 'name': f'KPKU_{year}', 'type': 10, 'length': 0, 'precision': 0},
+                    {'expression': '"SPKU"', 'name': 'SPKU', 'type': 2, 'length': 0, 'precision': 0},
+                    {'expression': '"PM25"', 'name': 'PM25', 'type': 6, 'length': 0, 'precision': 2},
+                    {'expression': '"SPM25"', 'name': 'SPM25', 'type': 2, 'length': 0, 'precision': 0},
+                    {'expression': '"SKOR"', 'name': 'SKOR', 'type': 10, 'length': 0, 'precision': 0},
+                    {'expression': '"IPS"', 'name': 'IPS', 'type': 2, 'length': 0, 'precision': 0},
+                    {'expression': '"SIPS"', 'name': 'SIPS', 'type': 2, 'length': 0, 'precision': 0},
+                    {'expression': '"IKPUDR"', 'name': 'IKPUDR', 'type': 6, 'length': 0, 'precision': 3},
+                    {'expression': '"SIKPUDR"', 'name': 'SIKPUDR', 'type': 2, 'length': 0, 'precision': 3},
+                    {'expression': '"KIKPUDR"', 'name': 'KIKPUDR', 'type': 10, 'length': 0, 'precision': 0},
+                ],
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            }
+        )["OUTPUT"]
+
         # Menghitung IKP Udara per Grid
-        IKP_udara_poly_summed = processing.run(
-                "qgis:statisticsbycategories",
-                {
-                    'INPUT': IKP_udara_poly,
-                    'CATEGORIES_FIELD_NAME': ['ID'],
-                    'VALUES_FIELD_NAME': 'IKP_Udara',
-                    'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-                },
-                context=context, feedback=feedback
-        )["OUTPUT"]
-
-        IKP_udara_joined = processing.run(
-                "qgis:joinattributestable",
-                {
-                    'INPUT': grid_src,
-                    'FIELD': 'ID',
-                    'INPUT_2': IKP_udara_poly_summed,
-                    'FIELD_2': 'ID',
-                    'FIELDS_TO_COPY': ['sum'],
-                    'METHOD': 0,
-                    'DISCARD_NONMATCHING': False,
-                    'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-                },
-                context=context, feedback=feedback
-        )["OUTPUT"]
-
         IKP_udara_grid = processing.run(
-                "qgis:renametablefield",
-                {
-                    'INPUT': IKP_udara_joined,
-                    'FIELD': 'sum',
-                    'NEW_NAME': 'IKP_Udara',
-                    'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-                },
-                context=context, feedback=feedback
+            "d3tlh:mcagrid", 
+            {
+                'GRID': grid_src,
+                'LAYER2': IKP_udara_poly,
+                'LAYER2_FIELD' : f"IKPUDR",
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            feedback=feedback, context=context
         )["OUTPUT"]
 
         # Klasifikasi nilai IKP_Udara
@@ -408,16 +474,16 @@ class IKPUdaraAlgorithm(QgsProcessingAlgorithm):
             "qgis:fieldcalculator",
             {
                 'INPUT': IKP_udara_grid,
-                'FIELD_NAME': f'Skor_IKP_Udara',
+                'FIELD_NAME': f'SIKPUDR',
                 'FIELD_TYPE': 1,
                 'NEW_FIELD': True,
                 'FORMULA': '''
                 CASE
-                    WHEN "IKP_Udara" <= 1.8 THEN 1
-                    WHEN "IKP_Udara" > 1.8 AND "IKP_Udara" <= 2.6 THEN 2
-                    WHEN "IKP_Udara" > 2.6 AND "IKP_Udara" <= 3.4 THEN 3
-                    WHEN "IKP_Udara" > 3.4 AND "IKP_Udara" <= 4.2 THEN 4
-                    WHEN "IKP_Udara" > 4.2 THEN 5
+                    WHEN "IKPUDR" <= 1.8 THEN 1
+                    WHEN "IKPUDR" > 1.8 AND "IKPUDR" <= 2.6 THEN 2
+                    WHEN "IKPUDR" > 2.6 AND "IKPUDR" <= 3.4 THEN 3
+                    WHEN "IKPUDR" > 3.4 AND "IKPUDR" <= 4.2 THEN 4
+                    WHEN "IKPUDR" > 4.2 THEN 5
                     ELSE 0
                 END
                 ''',
@@ -426,38 +492,69 @@ class IKPUdaraAlgorithm(QgsProcessingAlgorithm):
             context=context, feedback=feedback
         )["OUTPUT"]
 
-        out_src = processing.run(
-                "d3tlh:mcagrid",
-                {
-                    'GRID': pku,
-                    'LAYER2': IKP_udara_grid,
-                    'LAYER2_FIELD' : 'Skor_IKP_Udara',
-                    'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-                },
-                context=context, feedback=feedback
-        )["OUTPUT"]
-
-        drop_out_src = processing.run(
-            "native:deletecolumn", 
+        IKP_udara_grid = processing.run(
+            "qgis:fieldcalculator",
             {
-                'INPUT': out_src,
-                'COLUMN':['PKU_24','KPKU_24'],
-                'OUTPUT':'TEMPORARY_OUTPUT'
+                'INPUT': IKP_udara_grid,
+                'FIELD_NAME': f'KIKPUDR',
+                'FIELD_TYPE': 2,
+                'FIELD_LENGTH': 255,
+                'NEW_FIELD': True,
+                'FORMULA': f'''
+                    CASE
+                        WHEN "SIKPUDR" = 1 THEN 'Sangat Rendah'
+                        WHEN "SIKPUDR" = 2 THEN 'Rendah'
+                        WHEN "SIKPUDR" = 3 THEN 'Sedang'
+                        WHEN "SIKPUDR" = 4 THEN 'Tinggi'
+                        WHEN "SIKPUDR" = 5 THEN 'Sangat Tinggi'
+                    END
+                ''',
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
             },
             context=context, feedback=feedback
-        )
+        )["OUTPUT"]
 
-        final = drop_out_src
+        IKP_udara_grid = processing.run(
+            "qgis:refactorfields",
+            {
+                'INPUT': IKP_udara_grid,  # your input layer (can be a QgsVectorLayer or file path)
+                'FIELDS_MAPPING': [
+                    {'expression': '"ID"', 'name': 'ID', 'type': 10, 'length': 0, 'precision': 0},
+                    {'expression': '"IKPUDR"', 'name': 'IKPUDR', 'type': 6, 'length': 0, 'precision': 3},
+                    {'expression': '"SIKPUDR"', 'name': 'SIKPUDR', 'type': 6, 'length': 0, 'precision': 3},
+                    {'expression': '"KIKPUDR"', 'name': 'KIKPUDR', 'type': 10, 'length': 0, 'precision': 0},
+                ],
+                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+            },
+            feedback=feedback, context=context
+        )["OUTPUT"]
+
+        # Output IKPUDR Poligon
+        final = IKP_udara_poly
 
         (sink, dest_id) = self.parameterAsSink(
-            parameters, self.OUTPUT, context,
+            parameters, self.OUTPUT_POLIGON, context,
             final.fields(), final.wkbType(), final.sourceCrs()
         )
 
         for f in final.getFeatures():
             sink.addFeature(f)
 
-        return {self.OUTPUT: dest_id}
+        # Output IKPUDR Grid
+        final2 = IKP_udara_grid
+
+        (sink2, dest_id2) = self.parameterAsSink(
+            parameters, self.OUTPUT, context,
+            final2.fields(), final2.wkbType(), final2.sourceCrs()
+        )
+
+        for f in final2.getFeatures():
+            sink2.addFeature(f)
+
+        return {
+                    self.OUTPUT_POLIGON: dest_id,
+                    self.OUTPUT: dest_id2, 
+        }
 
     def tr(self, s):
         return QCoreApplication.translate('Processing', s)
@@ -477,10 +574,101 @@ class IKPUdaraAlgorithm(QgsProcessingAlgorithm):
     
     def shortHelpString(self):
         return self.tr('''
-Menghitung IKP Lahan per GRID.
-Modul ini digunakan untuk menghitung indeks kemampuan pemanfaatan udara.
+            <b>Indeks Kapasitas Pendukung Udara (IKP Udara)</b><br>
+            <i>Air Support Capacity Index (IKP Udara)</i>
 
-    ''')
+            <h3>🇮🇩 Deskripsi (Bahasa Indonesia)</h3>
+            Algoritma ini digunakan untuk menghitung nilai <b>Indeks Kapasitas Pendukung Udara (IKP Udara)</b> 
+            yang menggambarkan kemampuan ruang dalam mendukung kualitas udara sehat berdasarkan parameter polusi (PM2.5) 
+            dan proyeksi suhu udara (IPS).
+
+            <h4>🎯 Tujuan:</h4>
+            Menilai kapasitas spasial wilayah dalam menjaga kualitas udara dan mengurangi dampak polusi 
+            melalui integrasi data polutan, suhu, dan grid KPKU.
+
+            <h4>🗺️ Input yang Dibutuhkan:</h4>
+            <ul>
+                <li><b>1. Grid KPKU</b> (data vektor berisi unit analisis spasial)</li>
+                <li><b>2. Raster PM2.5 (Time-Averaged)</b> (data raster konsentrasi polutan udara)</li>
+                <li><b>3. Layer Indeks Proyeksi Suhu (IPS)</b> (data vektor atau raster indeks suhu udara)</li>
+            </ul>
+
+            <h4>📤 Output:</h4>
+            <ul>
+                <li>Peta vektor hasil <b>IKP Udara per Grid</b> dengan atribut ID, nilai <code>IKP_Udara</code>, dan kategori kualitas udara</li>
+            </ul>
+
+            <h4>⚙️ Metodologi:</h4>
+            Langkah-langkah perhitungan IKP Udara meliputi:
+            <ol>
+                <li><b>Reklasifikasi PM2.5</b> menjadi 11 kelas, kemudian polygonisasi untuk mendapatkan nilai tengah tiap kelas.</li>
+                <li><b>Perhitungan Indeks Polusi PM2.5</b> dengan membandingkan konsentrasi terhadap baku mutu, dikonversi menjadi <b>Indeks Kualitas Udara (IKU_PM25)</b>.</li>
+                <li><b>Interpolasi dan Statistik Zonal</b> menggunakan metode IDW untuk memperoleh nilai rata-rata per grid.</li>
+                <li><b>Kategorisasi</b> nilai IKU_PM25 dan IPS menjadi 5 kelas: sangat baik, baik, sedang, buruk, dan sangat buruk.</li>
+                <li><b>Intersect</b> antara layer kategori PM2.5, IPS, dan grid.</li>
+                <li><b>Perhitungan IKP Udara</b> dilakukan dengan menghitung rata-rata dari KPKU_24, IKU_PM25, dan IKU_IPS per polygon, kemudian diagregasi ke level grid.</li>
+            </ol>
+
+            <h4>🧭 Contoh Penggunaan:</h4>
+            1. Siapkan data raster PM2.5, layer IPS, dan grid KPKU.  
+            2. Pastikan semua layer memiliki sistem koordinat yang sama.  
+            3. Jalankan algoritma untuk menghasilkan peta IKP Udara per grid.  
+            4. Gunakan hasil IKP Udara untuk analisis kualitas udara spasial atau integrasi dalam IKP Kehati.
+
+            <h4>📚 Referensi:</h4>
+            - Dokumen Petunjuk Teknis D3TLH 2024  
+            - Dokumen Petunjuk Teknis D3TLH 2025  
+
+            <hr>
+
+            <h3>🌍 Description (English)</h3>
+            This algorithm calculates the <b>Air Support Capacity Index (IKP Udara)</b>, 
+            representing the spatial capacity of an area to sustain healthy air quality 
+            based on PM2.5 concentration and air temperature projection (IPS).
+
+            <h4>🎯 Purpose:</h4>
+            To assess the spatial capacity of ecosystems to maintain clean air quality and mitigate pollution impacts 
+            through integrated analysis of air pollutants, temperature, and grid-based environmental indices.
+
+            <h4>🗺️ Required Inputs:</h4>
+            <ul>
+                <li><b>1. KPKU Grid</b> (vector data defining spatial analysis units)</li>
+                <li><b>2. PM2.5 Raster (Time-Averaged)</b> (raster of air pollutant concentration)</li>
+                <li><b>3. Temperature Projection Index (IPS)</b> (vector or raster data representing air temperature projections)</li>
+            </ul>
+
+            <h4>📤 Output:</h4>
+            <ul>
+                <li>Vector layer of <b>IKP Udara per Grid</b> containing <code>ID</code>, <code>IKP_Udara</code> value, and air quality category</li>
+            </ul>
+
+            <h4>⚙️ Methodology:</h4>
+            The calculation steps include:
+            <ol>
+                <li><b>Reclassifying PM2.5</b> raster into 11 classes and polygonizing to obtain class mean values.</li>
+                <li><b>Computing PM2.5 Pollution Index</b> by comparing concentrations to air quality standards, 
+                    then converting to <b>Air Quality Index (IKU_PM25)</b>.</li>
+                <li><b>Interpolation and Zonal Statistics</b> using IDW to calculate average values per grid.</li>
+                <li><b>Categorization</b> of IKU_PM25 and IPS into 5 classes (very good to very poor).</li>
+                <li><b>Intersecting Layers</b> between PM2.5, IPS, and grid layers.</li>
+                <li><b>IKP Udara Calculation</b> by averaging KPKU_24, IKU_PM25, and IKU_IPS per polygon, aggregated to grid level.</li>
+            </ol>
+
+            <h4>🧭 Example Workflow:</h4>
+            1. Prepare PM2.5 raster, IPS layer, and KPKU grid.  
+            2. Ensure all datasets share the same coordinate reference system.  
+            3. Run the process to generate the <b>IKP Udara</b> grid layer.  
+            4. Use the resulting layer for spatial air quality assessment or integration within broader IKP analyses.
+
+            <h4>📚 References:</h4>
+            - D3TLH Technical Guideline 2024  
+            - D3TLH Technical Guideline 2025  
+
+            <hr>
+
+            <b><i>Notes: Disarankan untuk tidak menyimpan output secara temporary.</i></b>
+
+        ''')
 
     def createInstance(self):
         return IKPUdaraAlgorithm()
