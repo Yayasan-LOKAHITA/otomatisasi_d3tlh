@@ -44,7 +44,7 @@ from qgis.core import (
     QgsProcessingException,
 )
 import processing
-from ..core.field_mappings_jlh import build_field_mappings
+from ..core.field_mappings import build_field_mappings_jlh
 
 
 class JLHWaterRegulationAlgorithm(QgsProcessingAlgorithm):
@@ -641,7 +641,7 @@ class JLHWaterRegulationAlgorithm(QgsProcessingAlgorithm):
         )["OUTPUT"]
 
         # 9) Standarisasi Nama-Nama Kolom
-        final_field_mappings = build_field_mappings(
+        final_field_mappings = build_field_mappings_jlh(
             jlh=self.JLH, tahun=tahun, bentuk_output=self.BENTUK_OUTPUT, layer=out_src
         )
 

@@ -46,9 +46,11 @@ from qgis.core import (
 )
 import processing
 import re
+from ..core.field_mappings import build_field_mappings_ikp
 
 
 class IKPUdaraAlgorithm(QgsProcessingAlgorithm):
+    IKP = "Udara"
     # Parameters
     GRID_KPKU = "GRID_KPKU"
     PM25 = "PM25"
@@ -108,6 +110,7 @@ class IKPUdaraAlgorithm(QgsProcessingAlgorithm):
             (f.name() for f in pku.fields() if re.match(r"PKU_\d+", f.name())), None
         )
         year = int(re.search(r"PKU_(\d+)", pku_field).group(1))
+        pl_year = str(2000 + year)
 
         # Standarize PM25 raster
         # 1. Reclassify to Equal Interval
@@ -459,96 +462,18 @@ class IKPUdaraAlgorithm(QgsProcessingAlgorithm):
             feedback=feedback,
         )["OUTPUT"]
 
+        final_field_mappings = build_field_mappings_ikp(
+            ikp_type=self.IKP,
+            bentuk_output="Poligon",
+            tahun=pl_year,
+            layer=IKP_udara_poly,
+        )
+
         IKP_udara_poly = processing.run(
             "qgis:refactorfields",
             {
                 "INPUT": IKP_udara_poly,  # your input layer (can be a QgsVectorLayer or file path)
-                "FIELDS_MAPPING": [
-                    {
-                        "expression": '"ID"',
-                        "name": "ID",
-                        "type": 10,
-                        "length": 0,
-                        "precision": 0,
-                    },
-                    {
-                        "expression": f'"PKU_{year}"',
-                        "name": f"PKU_{year}",
-                        "type": 6,
-                        "length": 0,
-                        "precision": 0,
-                    },
-                    {
-                        "expression": f'"KPKU_{year}"',
-                        "name": f"KPKU_{year}",
-                        "type": 10,
-                        "length": 0,
-                        "precision": 0,
-                    },
-                    {
-                        "expression": '"SPKU"',
-                        "name": "SPKU",
-                        "type": 2,
-                        "length": 0,
-                        "precision": 0,
-                    },
-                    {
-                        "expression": '"PM25"',
-                        "name": "PM25",
-                        "type": 6,
-                        "length": 0,
-                        "precision": 2,
-                    },
-                    {
-                        "expression": '"SPM25"',
-                        "name": "SPM25",
-                        "type": 2,
-                        "length": 0,
-                        "precision": 0,
-                    },
-                    {
-                        "expression": '"SKOR"',
-                        "name": "SKOR",
-                        "type": 10,
-                        "length": 0,
-                        "precision": 0,
-                    },
-                    {
-                        "expression": '"IPS"',
-                        "name": "IPS",
-                        "type": 2,
-                        "length": 0,
-                        "precision": 0,
-                    },
-                    {
-                        "expression": '"SIPS"',
-                        "name": "SIPS",
-                        "type": 2,
-                        "length": 0,
-                        "precision": 0,
-                    },
-                    {
-                        "expression": '"IKPUDR"',
-                        "name": "IKPUDR",
-                        "type": 6,
-                        "length": 0,
-                        "precision": 3,
-                    },
-                    {
-                        "expression": '"SIKPUDR"',
-                        "name": "SIKPUDR",
-                        "type": 2,
-                        "length": 0,
-                        "precision": 3,
-                    },
-                    {
-                        "expression": '"KIKPUDR"',
-                        "name": "KIKPUDR",
-                        "type": 10,
-                        "length": 0,
-                        "precision": 0,
-                    },
-                ],
+                "FIELDS_MAPPING": final_field_mappings,
                 "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             },
         )["OUTPUT"]
@@ -613,40 +538,18 @@ class IKPUdaraAlgorithm(QgsProcessingAlgorithm):
             feedback=feedback,
         )["OUTPUT"]
 
+        final_field_mappings = build_field_mappings_ikp(
+            ikp_type=self.IKP,
+            bentuk_output="Grid",
+            tahun=pl_year,
+            layer=IKP_udara_grid,
+        )
+
         IKP_udara_grid = processing.run(
             "qgis:refactorfields",
             {
                 "INPUT": IKP_udara_grid,  # your input layer (can be a QgsVectorLayer or file path)
-                "FIELDS_MAPPING": [
-                    {
-                        "expression": '"ID"',
-                        "name": "ID",
-                        "type": 10,
-                        "length": 0,
-                        "precision": 0,
-                    },
-                    {
-                        "expression": '"IKPUDR"',
-                        "name": "IKPUDR",
-                        "type": 6,
-                        "length": 0,
-                        "precision": 3,
-                    },
-                    {
-                        "expression": '"SIKPUDR"',
-                        "name": "SIKPUDR",
-                        "type": 6,
-                        "length": 0,
-                        "precision": 3,
-                    },
-                    {
-                        "expression": '"KIKPUDR"',
-                        "name": "KIKPUDR",
-                        "type": 10,
-                        "length": 0,
-                        "precision": 0,
-                    },
-                ],
+                "FIELDS_MAPPING": final_field_mappings,
                 "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             },
             feedback=feedback,

@@ -43,9 +43,12 @@ from qgis.core import (
 )
 
 import processing, os, re
+from ..core.field_mappings import build_field_mappings_ikp
 
 
 class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
+    # IKP
+    IKP = "KEHATI"
     # Parameters BCPI
     GRID_PGA = "GRID_PGA"
     GRID_PPK = "GRID_PPK"
@@ -1279,6 +1282,24 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
             feedback=feedback,
         )["OUTPUT"]
 
+        final_field_mappings = build_field_mappings_ikp(
+            ikp_type=self.IKP,
+            bentuk_output="Poligon",
+            tahun=pl_year,
+            layer=kls_ikp_kehati,
+        )
+
+        kls_ikp_kehati = processing.run(
+            "qgis:refactorfields",
+            {
+                "INPUT": kls_ikp_kehati,
+                "FIELDS_MAPPING": final_field_mappings,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
         # Gridding IKP
         grid_ikp_kehati = processing.run(
             "d3tlh:mcagrid",
@@ -1296,6 +1317,71 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
             "native:deleteduplicategeometries",
             {"INPUT": grid_ikp_kehati, "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT},
         )["OUTPUT"]
+
+        final_field_mappings = build_field_mappings_ikp(
+            ikp_type=self.IKP,
+            bentuk_output="Grid",
+            tahun=pl_year,
+            layer=grid_ikp_kehati,
+        )
+
+        grid_ikp_kehati = processing.run(
+            "qgis:refactorfields",
+            {
+                "INPUT": grid_ikp_kehati,
+                "FIELDS_MAPPING": final_field_mappings,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        grid_ikp_kehati = processing.run(
+            "native:fieldcalculator",
+            {
+                "INPUT": grid_ikp_kehati,
+                "FIELD_NAME": f"SIKPKHT",
+                "FIELD_TYPE": 1,
+                "NEW_FIELD": True,
+                "FORMULA": """
+                    CASE
+                        WHEN "IKPKHT" <= 1.4 THEN 1
+                        WHEN "IKPKHT" > 1.4 AND "IKPKHT" <=2.3 THEN 2
+                        WHEN "IKPKHT" > 2.3 AND "IKPKHT" <=3.2 THEN 3
+                        WHEN "IKPKHT" > 3.2 AND "IKPKHT" <=4.1 THEN 4
+                        WHEN "IKPKHT" > 4.1 THEN 5
+                    END
+                """,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # Menghitung kelas ikp_kehati
+        grid_ikp_kehati = processing.run(
+            "native:fieldcalculator",
+            {
+                "INPUT": grid_ikp_kehati,
+                "FIELD_NAME": f"KIKPKHT",
+                "FIELD_TYPE": 2,
+                "NEW_FIELD": True,
+                "FORMULA": """
+                    CASE
+                        WHEN "SIKPKHT" = 1 THEN 'Sangat Rendah'
+                        WHEN "SIKPKHT" = 2 THEN 'Rendah'
+                        WHEN "SIKPKHT" = 3 THEN 'Sedang'
+                        WHEN "SIKPKHT" = 4 THEN 'Tinggi'
+                        WHEN "SIKPKHT" = 5 THEN 'Sangat Tinggi'
+                    END
+                """,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        feedback.pushInfo("✅ Standarisasi nama-nama kolom output berhasil")
 
         feedback.pushInfo("✅ Perhitungan IKP Kehati selesai.")
 
