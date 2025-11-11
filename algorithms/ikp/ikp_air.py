@@ -49,6 +49,7 @@ from qgis.core import (
     QgsApplication,
     QgsProcessingParameterMapLayer,
     QgsProject,
+    QgsProcessingParameterFeatureSource,
 )
 import processing
 
@@ -62,7 +63,6 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
     GRID = "GRID"
     PL = "PENUTUP_LAHAN"
     IP = "INDEKS_PENCEMAR"
-    BPL = "BOBOT_PENUTUP_LAHAN"
     POP = "POPULASI"
     JLN = "JALAN"
     OUTPUT = "OUTPUT"
@@ -91,80 +91,62 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
     def initAlgorithm(self, config):
         # PARAMETER INPUT DAN OUTPUT (Masukan ketiga parameter input layer vektor (Grid, PYA, WS) dan satu parameter output layer vektor (OUTPUT))
         self.addParameter(
-            QgsProcessingParameterVectorLayer(
-                self.GRID,
-                self.tr('Data Grid [Dengan Kolom "ID" dan "WADMKK"]'),
-                [QgsProcessing.TypeVectorAnyGeometry],
-            )
-        )
-
-        self.addParameter(
-            QgsProcessingParameterVectorLayer(
-                self.JLH,
-                self.tr(
-                    'Grid JLH Penyedia Air [Dengan kolom "PYA_YY, YY adalah dua digit terakhir tahun."]'
-                ),
-                [QgsProcessing.TypeVectorAnyGeometry],
-            )
-        )
-
-        self.addParameter(
-            QgsProcessingParameterVectorLayer(
-                self.WS,
-                self.tr('Layer Wilayah Sungai [Dengan kolom "Nama_Ws" dan "Ktrs_Air"]'),
-                [QgsProcessing.TypeVectorAnyGeometry],
-            )
-        )
-
-        self.addParameter(
             QgsProcessingParameterNumber(
                 self.YEAR,
-                self.tr("Tahun Data Penutup Lahan [contoh: 2024]"),
+                self.tr("Tahun (mis. 2024)"),
                 type=QgsProcessingParameterNumber.Integer,
                 defaultValue=2024,
                 minValue=1900,
                 maxValue=2100,
             )
         )
-
         self.addParameter(
             QgsProcessingParameterVectorLayer(
-                self.PL,
-                self.tr('Data Penutup Lahan [Dengan Kolom "PL"]'),
+                self.JLH,
+                self.tr("JLH Penyedia Air"),
                 [QgsProcessing.TypeVectorAnyGeometry],
             )
         )
-
         self.addParameter(
             QgsProcessingParameterVectorLayer(
-                self.POP,
-                self.tr(
-                    'Grid Populasi [Dengan kolom "POPGRIDYY, YY adalah dua digit terakhir tahun."]'
-                ),
+                self.WS,
+                self.tr("Layer Wilayah Sungai"),
                 [QgsProcessing.TypeVectorAnyGeometry],
             )
         )
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.GRID, self.tr("GRID"), [QgsProcessing.TypeVectorAnyGeometry]
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.PL, self.tr("Penutup Lahan"), [QgsProcessing.TypeVectorAnyGeometry]
+            )
+        )
 
-        parameterCSV = QgsProcessingParameterFile(
+        parameterCSV = QgsProcessingParameterMapLayer(
             self.IP,
-            self.tr(
-                'Tabel Indeks Pencemar dalam format .csv [Dengan kolom "Kab_Kota" dan "Indeks_Cemar"]'
-            ),
-            extension="csv",
+            self.tr("Tabel Indeks Pencemar (CSV)"),
             optional=False,
         )
-
         parameterCSV.setHelp(
             "Select the CSV table containing pollutant index data."
             "<br>For more information, visit: "
             '<a href="https://docs.qgis.org/latest/en/docs/user_manual/processing/">QGIS Processing Docs</a>'
         )
-
         self.addParameter(parameterCSV)
 
         self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.POP,
+                self.tr("Grid Populasi"),
+                [QgsProcessing.TypeVectorAnyGeometry],
+            )
+        )
+        self.addParameter(
             QgsProcessingParameterFeatureSink(
-                self.OUTPUT, self.tr('IKP Air Grid [kolom "IKPAIR"]')
+                self.OUTPUT, self.tr("Indeks Kemampuan Pemanfaatan Air")
             )
         )
 
@@ -173,30 +155,7 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
         year_full = int(self.parameterAsInt(parameters, self.YEAR, context))
         yy = f"{year_full % 100:02d}"  # hasilnya '24' kalau 2024
         POPGRIDYY = f"POPGRID{yy}"
-
-        # === CSV INTERNAL UNTUK BOBOT PL ===
-
-        # Dapatkan path plugin di folder profil QGIS user (universal di semua komputer)
-        plugin_dir = os.path.join(
-            QgsApplication.qgisSettingsDirPath(),  # contoh: C:/Users/<username>/AppData/Roaming/QGIS/QGIS3/profiles/default/
-            "python",
-            "plugins",
-            "otomatisasi_d3tlh",
-        )
-
-        # Path file CSV internal
-        csv_path_pl = os.path.join(plugin_dir, "data", "ikp_air", "bobot_pl.csv")
-
-        # Cek keberadaan file
-        if not os.path.exists(csv_path_pl):
-            raise QgsProcessingException(
-                f"File CSV internal bobot PL tidak ditemukan: {csv_path_pl}"
-            )
-
-        # Muat CSV sebagai layer
-        csv_pl_layer = self._load_csv_as_table(
-            csv_path_pl, layer_name="bobot_pl_internal"
-        )
+        PYA_FIELD = f"PYA_{yy}"
 
         # === LAYER INPUT VERSI QGIS ===
         jlh_src = self.parameterAsVectorLayer(parameters, self.JLH, context)
@@ -204,8 +163,6 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
         grid_based_src = self.parameterAsVectorLayer(parameters, self.GRID, context)
         pl_src = self.parameterAsVectorLayer(parameters, self.PL, context)
         pop_src = self.parameterAsVectorLayer(parameters, self.POP, context)
-        pl_year = self.parameterAsString(parameters, self.TAHUN, context)
-        year = pl_year[-2:]
 
         # === Membuat Layer GRID Populasi menjadi EPSG:4326 =====
         # Pastikan CRS target
@@ -213,7 +170,9 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
 
         # Jika CRS pop_src bukan 4326, reproject dulu
         if pop_src.crs() != target_crs:
-            feedback.pushInfo("  Reprojecting Populasi layer ke EPSG:4326...")
+            feedback.pushInfo(
+                "  Reprojecting Populasi layer dari EPSG:3857 ke EPSG:4326..."
+            )
             pop_src = processing.run(
                 "native:reprojectlayer",
                 {
@@ -228,6 +187,8 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
         if not jlh_src or not ws_src or not grid_based_src:
             raise QgsProcessingException("Semua layer input harus diisi!")
 
+        # === CSV INPUT DARI PARAMETER ===
+
         # IP
         csv_ip_layer = self.parameterAsLayer(parameters, self.IP, context)
         if not csv_ip_layer or not csv_ip_layer.isValid():
@@ -235,26 +196,42 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
                 "Tabel Indeks Pencemar tidak valid atau belum dimuat di QGIS."
             )
 
-        # === MULAI ANALISIS IKP AIR ===
-        # 1. Intersection Grid JLH PYA dengan WS
+        # --- PROSES ANALISIS ---
+        ## ASPEK SUPPLY AIR
+
+        # 1) Intersection Grid × JLH_PYA
         inter = processing.run(
             "qgis:intersection",
             {
-                "INPUT": jlh_src,
-                "OVERLAY": ws_src,
-                "INPUT_FIELDS": [],
-                "OVERLAY_FIELDS": [],
+                "INPUT": grid_based_src,
+                "OVERLAY": jlh_src,
+                "INPUT_FIELDS": ["ID", "Kab/Kota", "Provinsi", "Luas"],
+                "OVERLAY_FIELDS": [PYA_FIELD],
                 "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             },
             context=context,
             feedback=feedback,
         )["OUTPUT"]
 
-        # 2) Menghitung luas grid ke satuan Ha
+        # 2) Intersection Hasil Grid dan JLH PYA × WS
+        inter_1 = processing.run(
+            "qgis:intersection",
+            {
+                "INPUT": inter,
+                "OVERLAY": ws_src,
+                "INPUT_FIELDS": ["ID", "Kab/Kota", "Provinsi", "Luas", PYA_FIELD],
+                "OVERLAY_FIELDS": ["Nama_WS", "Ktrs_Air"],
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # 3) Menghitung luas grid ke satuan Ha
         inter_grid_with_area = processing.run(
             "qgis:fieldcalculator",
             {
-                "INPUT": inter,
+                "INPUT": inter_1,
                 "FIELD_NAME": "luas_obj",
                 "FIELD_TYPE": 0,  # Decimal number (real)
                 "FIELD_LENGTH": 10,
@@ -267,7 +244,7 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
             feedback=feedback,
         )["OUTPUT"]
 
-        # 3) Menghitung nilai IJLH per grid (Menghitung JLH PYA Proporsional)
+        # 4) Menghitung nilai IJLH per grid (Menghitung JLH PYA Proporsional)
         inter_grid_with_ijlh = processing.run(
             "qgis:fieldcalculator",
             {
@@ -277,7 +254,7 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
                 "FIELD_LENGTH": 10,
                 "FIELD_PRECISION": 3,
                 "NEW_FIELD": True,
-                "FORMULA": f'("luas_obj"/"Luas") * ("PYA_{year}"- 1)/4',  # Assuming the original area is in square meters
+                "FORMULA": f'("luas_obj"/"Luas") * ("{PYA_FIELD}" - 1)/4',  # Assuming the original area is in square meters
                 "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             },
             context=context,
@@ -297,30 +274,30 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
             feedback=feedback,
         )["OUTPUT"]
 
-        # 6) Rename field 'sum' menjadi 'ije_ws'
-        ije_ws_fix = processing.run(
-            "qgis:renametablefield",
+        # 6) Join atribut ije_ws ke layer inter_grid_with_ijlh
+        joined_ws = processing.run(
+            "qgis:joinattributestable",
             {
-                "INPUT": ije_by_ws,
-                "FIELD": "sum",
-                "NEW_NAME": "ije_ws",
+                "INPUT": inter_grid_with_ijlh,
+                "FIELD": "Nama_WS",
+                "INPUT_2": ije_by_ws,
+                "FIELD_2": "Nama_WS",
+                "FIELDS_TO_COPY": ["sum"],
+                "METHOD": 0,
+                "DISCARD_NONMATCHING": False,
                 "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             },
             context=context,
             feedback=feedback,
         )["OUTPUT"]
 
-        # 7) Join atribut ije_ws ke layer inter_grid_with_ijlh
+        # 7) Rename field 'sum' menjadi 'ije_ws'
         inter_ije_ws = processing.run(
-            "qgis:joinattributestable",
+            "qgis:renametablefield",
             {
-                "INPUT": inter_grid_with_ijlh,
-                "FIELD": "Nama_WS",
-                "INPUT_2": ije_ws_fix,
-                "FIELD_2": "Nama_WS",
-                "FIELDS_TO_COPY": ["ije_ws"],
-                "METHOD": 0,
-                "DISCARD_NONMATCHING": False,
+                "INPUT": joined_ws,
+                "FIELD": "sum",
+                "NEW_NAME": "ije_ws",
                 "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             },
             context=context,
@@ -405,7 +382,7 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
             {
                 "INPUT": air_ws_sum,
                 "COLUMN": [
-                    "PYA_23",
+                    PYA_FIELD,
                     "Nama_WS",
                     "Ktrs_Air",
                     "luas_obj",
@@ -425,7 +402,7 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
             "qgis:joinattributestable",
             {
                 "INPUT": cleaned_layer,  # layer spasial hasil tahap sebelumnya
-                "FIELD": "Kab_Kota",  # field kunci di layer spasial
+                "FIELD": "Kab/Kota",  # field kunci di layer spasial
                 "INPUT_2": csv_ip_layer,  # tabel indeks pencemar (non-spasial)
                 "FIELD_2": "Kab_Kota",  # field kunci di CSV
                 "FIELDS_TO_COPY": [
@@ -536,67 +513,50 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
             feedback=feedback,
         )["OUTPUT"]
 
-        ## ASPEK DEMAND AIR
-        ## 3️⃣ FASE GRID PL
-        # 19) Intersection Layer Grid Based × PL
+        # 19) Intersection Grid × PL
         inter_pl = processing.run(
             "qgis:intersection",
             {
                 "INPUT": grid_based_src,
                 "OVERLAY": pl_src,
-                "INPUT_FIELDS": ["ID", "Kab_Kota", "Provinsi", "Luas"],
-                "OVERLAY_FIELDS": ["PL2024_ID", "LC"],
+                "INPUT_FIELDS": ["ID", "Kab/Kota", "Provinsi", "Luas"],
+                "OVERLAY_FIELDS": ["PL2024_ID", "PL"],
                 "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             },
             context=context,
             feedback=feedback,
         )["OUTPUT"]
 
-        # 20) Fix nama kolom di CSV PL (kalau perlu), simpan hasilnya ke layer sementara
-        csv_pl_fix = processing.run(
-            "qgis:refactorfields",
-            {
-                "INPUT": csv_pl_layer,
-                "FIELDS_MAPPING": [
-                    {
-                        "expression": '"PL2024_ID"',
-                        "name": "PL2024_ID",
-                        "type": QVariant.Int,
-                        "length": 10,
-                        "precision": 0,
-                    },
-                    {
-                        "expression": '"bobot_pl"',
-                        "name": "bobot_pl",
-                        "type": QVariant.Double,
-                        "length": 10,
-                        "precision": 3,
-                    },
-                ],
-                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
-            },
-            context=context,
-            feedback=feedback,
-        )["OUTPUT"]
-
-        # 21) Join table bobot_pl ke layer inter_pl (join via PL2024_ID)
+        # 20) Hitung bobot_pl berdasarkan PL2024_ID pakai CASE (versi dari gambar)
         join_inter_pl = processing.run(
-            "qgis:joinattributestable",
+            "qgis:fieldcalculator",
             {
-                "INPUT": inter_pl,  # layer spasial hasil tahap sebelumnya
-                "FIELD": "PL2024_ID",  # field kunci di layer spasial
-                "INPUT_2": csv_pl_fix,  # tabel indeks pencemar (non-spasial)
-                "FIELD_2": "PL2024_ID",  # field kunci di CSV
-                "FIELDS_TO_COPY": ["bobot_pl"],
-                "METHOD": 0,
-                "DISCARD_NONMATCHING": False,
+                "INPUT": inter_pl,
+                "FIELD_NAME": "bobot_pl",
+                "FIELD_TYPE": 0,  # Real
+                "FIELD_LENGTH": 20,
+                "FIELD_PRECISION": 3,
+                "NEW_FIELD": True,
+                "FORMULA": """
+                    CASE
+                        WHEN "PL2024_ID" = 2012 THEN 0.437                -- Pemukiman
+                        WHEN "PL2024_ID" = 20093 THEN 0.126               -- Sawah
+                        WHEN "PL2024_ID" = 20141 THEN 0.111               -- Pertambangan
+                        WHEN "PL2024_ID" = 20094 THEN 0.1                 -- Tambak
+                        WHEN "PL2024_ID" IN (20091, 20092) THEN 0.077     -- Pertanian lahan kering & campur
+                        WHEN "PL2024_ID" IN (2007, 20071) THEN 0.048      -- Belukar & belukar rawa
+                        WHEN "PL2024_ID" IN (2002, 2006) THEN 0.023       -- Hutan lahan kering sekunder & hutan tanaman
+                        WHEN "PL2024_ID" = 2010 THEN 0.005                -- Perkebunan
+                        ELSE 0
+                    END
+                """,
                 "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             },
             context=context,
             feedback=feedback,
         )["OUTPUT"]
 
-        # 22) Hitung Luas PL
+        # 21) Hitung Luas PL
         luas_pl_ha = processing.run(
             "qgis:fieldcalculator",
             {
@@ -613,7 +573,7 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
             feedback=feedback,
         )["OUTPUT"]
 
-        # 23) Hitung W PL
+        # 22) Hitung W PL
         w_pl = processing.run(
             "qgis:fieldcalculator",
             {
@@ -630,7 +590,7 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
             feedback=feedback,
         )["OUTPUT"]
 
-        # 24) Hitung Q (khusus sawah / PL2024_ID = 20093)
+        # 23) Hitung Q (khusus sawah / PL2024_ID = 20093)
         Q_layer = processing.run(
             "qgis:fieldcalculator",
             {
@@ -655,7 +615,7 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
             feedback=feedback,
         )["OUTPUT"]
 
-        # 25) Summarize W_PL per ID
+        # 24) Summarize W_PL per ID
         w_pl_summary = processing.run(
             "qgis:statisticsbycategories",
             {
@@ -668,7 +628,7 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
             feedback=feedback,
         )["OUTPUT"]
 
-        # 26) Rename field 'sum' menjadi 'W_PL'
+        # 25) Rename field 'sum' menjadi 'W_PL'
         w_pl_fix = processing.run(
             "qgis:renametablefield",
             {
@@ -681,7 +641,7 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
             feedback=feedback,
         )["OUTPUT"]
 
-        # 27) Summarize Q per ID
+        # 26) Summarize Q per ID
         Q_summary = processing.run(
             "qgis:statisticsbycategories",
             {
@@ -694,7 +654,7 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
             feedback=feedback,
         )["OUTPUT"]
 
-        # 28) Rename field 'sum' menjadi 'Q'
+        # 27) Rename field 'sum' menjadi 'Q'
         Q_fix = processing.run(
             "qgis:renametablefield",
             {
@@ -707,7 +667,7 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
             feedback=feedback,
         )["OUTPUT"]
 
-        # 29) Gabungkan hasil W_PL dan Q per grid ID
+        # 28) Gabungkan hasil W_PL dan Q per grid ID
         wpl_Q = processing.run(
             "qgis:joinattributestable",
             {
@@ -724,7 +684,7 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
             feedback=feedback,
         )["OUTPUT"]
 
-        # 30) Join hasil W_PL dan Q ke grid utama
+        # 29) Join hasil W_PL dan Q ke grid utama
         grid_wpl_q = processing.run(
             "qgis:joinattributestable",
             {
@@ -742,7 +702,7 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
         )["OUTPUT"]
 
         ## 4️⃣ Fase Populasi
-        # 31)  Join table pakai kolom dinamis
+        # 30)  Join table pakai kolom dinamis
         inter_pop = processing.run(
             "qgis:joinattributestable",
             {
@@ -759,7 +719,7 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
             feedback=feedback,
         )["OUTPUT"]
 
-        # 32) Contoh kalkulasi field pakai kolom dinamis ---
+        # 31) Contoh kalkulasi field pakai kolom dinamis ---
         calc_BA_Pop = processing.run(
             "qgis:fieldcalculator",
             {
@@ -776,7 +736,7 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
             feedback=feedback,
         )["OUTPUT"]
 
-        # 33) Hitung Summarize BA Pop per ID
+        # 32) Hitung Summarize BA Pop per ID
         sum_BA_Pop = processing.run(
             "qgis:statisticsbycategories",
             {
@@ -789,7 +749,7 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
             feedback=feedback,
         )["OUTPUT"]
 
-        # 34) Rename BA Pop
+        # 33) Rename BA Pop
         BA_Pop_Fix = processing.run(
             "qgis:renametablefield",
             {
@@ -803,7 +763,7 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
         )["OUTPUT"]
 
         ## Finalisasi Untuk IKP
-        # 35) Join table BA_Pop ke layer IKP
+        # 34) Join table BA_Pop ke layer IKP
         join_BA_Pop = processing.run(
             "qgis:joinattributestable",
             {
@@ -820,7 +780,7 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
             feedback=feedback,
         )["OUTPUT"]
 
-        # 36) Join table Q ke layer IKP
+        # 35) Join table Q ke layer IKP
         join_Q = processing.run(
             "qgis:joinattributestable",
             {
@@ -837,7 +797,7 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
             feedback=feedback,
         )["OUTPUT"]
 
-        # 37) Rename field 'sum' menjadi 'BA_Pop'
+        # 36) Rename field 'sum' menjadi 'BA_Pop'
         BA_lahan_Fix = processing.run(
             "qgis:renametablefield",
             {
@@ -850,7 +810,7 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
             feedback=feedback,
         )["OUTPUT"]
 
-        # 38) Calc BA Total
+        # 37) Calc BA Total
         BA_Total = processing.run(
             "qgis:fieldcalculator",
             {
@@ -867,7 +827,7 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
             feedback=feedback,
         )["OUTPUT"]
 
-        # 39) Calc IKP
+        # 38) Calc IKP
         calc_IKP = processing.run(
             "qgis:fieldcalculator",
             {
@@ -884,7 +844,7 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
             feedback=feedback,
         )["OUTPUT"]
 
-        # 40) Buat Kelas IKP
+        # 39) Buat Kelas IKP
         kelas_IKP = processing.run(
             "qgis:fieldcalculator",
             {
@@ -909,7 +869,7 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
             feedback=feedback,
         )["OUTPUT"]
 
-        # 41) Tambah juga skor IKP Air
+        # 40) Tambah juga skor IKP Air
         Skor_IKP = processing.run(
             "qgis:fieldcalculator",
             {
@@ -934,26 +894,61 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
             feedback=feedback,
         )["OUTPUT"]
 
-        # 42) Retain only final fields
-        out_src = processing.run(
-            "qgis:retainfields",
+        # 41) Refactor – Rename final fields
+        refactor_fields = processing.run(
+            "qgis:refactorfields",
             {
-                "INPUT": Skor_IKP,  # layer hasil step klasifikasi
-                "FIELDS": ["ID", "air_layak", "IKP", "KELAS_IKP", "SKOR_IKP"],
-                "OUTPUT": parameters[self.OUTPUT],
+                "INPUT": Skor_IKP,
+                "FIELDS_MAPPING": [
+                    {
+                        "expression": '"ID"',
+                        "length": 0,
+                        "name": "ID",
+                        "precision": 0,
+                        "type": 0,
+                    },
+                    {
+                        "expression": '"air_layak"',
+                        "length": 0,
+                        "name": "AIRLYK",
+                        "precision": 0,
+                        "type": 0,
+                    },
+                    {
+                        "expression": '"IKP"',
+                        "length": 0,
+                        "name": "IKPAIR",
+                        "precision": 0,
+                        "type": 0,
+                    },
+                    {
+                        "expression": '"KELAS_IKP"',
+                        "length": 0,
+                        "name": "KIKPAIR",
+                        "precision": 0,
+                        "type": 2,
+                    },
+                    {
+                        "expression": '"SKOR_IKP"',
+                        "length": 0,
+                        "name": "SIKPAIR",
+                        "precision": 0,
+                        "type": 1,
+                    },
+                ],
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             },
             context=context,
             feedback=feedback,
         )["OUTPUT"]
 
-        # 43) MCA
+        # 42) Retain only final fields
         out_src = processing.run(
-            "d3tlh:mcagrid",
+            "qgis:retainfields",
             {
-                "GRID": grid_based_src,
-                "LAYER2": out_src,
-                "LAYER2_FIELD": f"SKOR_IKP{yy}",
-                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+                "INPUT": refactor_fields,
+                "FIELDS": ["ID", "AIRLYK", "IKPAIR", "KIKPAIR", "SIKPAIR"],
+                "OUTPUT": parameters[self.OUTPUT],
             },
             context=context,
             feedback=feedback,
@@ -999,40 +994,14 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
 
     def shortHelpString(self):
         return """
-            <h2>Algorithm Description</h2>
-            <p>
-            This algorithm calculates the <b>Pollutant Index (Indeks Pencemar)</b>
-            from input environmental monitoring data.
-            </p>
-
-            <h3>Input Parameters</h3>
-            <ul>
-            <li><b>Tabel Indeks Pencemar (CSV)</b> — CSV table containing pollutant concentration data.</li>
-            <li><b>Boundary Layer</b> — Polygon layer defining spatial zones for aggregation.</li>
-            </ul>
-
-            <h3>Output</h3>
-            <p>
-            A vector layer with new fields for pollutant index (IP) and classification.
-            </p>
-
-            <h3>Formula</h3>
-            <p>
-            The calculation follows:
-            <br><code>IP = (Ci / Lij) × 100</code>
-            <br>where:
-            <ul>
-            <li><code>Ci</code> = pollutant concentration</li>
-            <li><code>Lij</code> = quality standard limit</li>
-            </ul>
-            </p>
-
-            <h3>CSV Files Template</h3>
-            <p>
-            Sample CSV files can be found in the plugin's data directory:
-            <a href="https://docs.qgis.org/latest/en/docs/user_manual/processing/">QGIS Processing Docs</a>
-            </p>
-
+Modul ini digunakan untuk menghitung Indeks Kemampuan Pemanfaatan Keanekaragaman Hayati (IKP Kehati).
+Berikut beberapa langkah dasar:
+1. Siapkan Data Dasar: grid, penyedia air (PYA), wilayah sungai (WS), penutup lahan (PL), populasi, dan tabel Indeks Pencemar.
+2.Proses Supply Air: hitung luas dan proporsi air per grid, lalu agregasi per WS untuk memperoleh air layak pakai (air_ws).
+3. Proses Kualitas Air: gabungkan Indeks Pencemar ke grid, hitung air tercemar (air_cemar) dan air layak pakai (air_layak).
+4. Proses Demand Air: hitung kebutuhan air dari penutup lahan (W_PL) dan populasi (BA_POP), kemudian gabungkan menjadi total kebutuhan (BA_TOTAL).
+5. Perhitungan IKP Air: kalkulasikan IKP per grid (IKP = BA_TOTAL / air_layak), klasifikasikan menjadi lima kelas (Sangat Tinggi–Sangat Rendah), dan tambahkan skor 1–5.
+6 Hasil Akhir: layer per grid berisi ID, air layak pakai (air_layak), nilai IKP, kelas IKP (KELAS_IKP), dan skor IKP (SKOR_IKP).
             <br>
         """
 

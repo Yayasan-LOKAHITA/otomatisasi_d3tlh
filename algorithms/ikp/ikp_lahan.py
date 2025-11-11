@@ -129,7 +129,7 @@ class IKPLahanAlgorithm(QgsProcessingAlgorithm):
             </ul>
 
             <h4>🗂️ Input and Sample Data Download:</h4>
-            <a href="bit.ly/data-plugin-d3tlh">[Click to Access Data]</a>
+            🔗 <a href="https://bit.ly/data-plugin-d3tlh" target="_blank">[Click to Access Data]</a>
 
             <h4>📤 Output:</h4>
             <ul>
