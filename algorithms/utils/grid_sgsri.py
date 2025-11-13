@@ -406,7 +406,7 @@ Keluaran akhir SGSRI terdiri dari kolom/field: id, WADMKD, WADMKC, WADMKK, WADMP
 
         #  refactor fields: fix urutan dan tipe 
         schema = [
-            {"name": "id",      "type": 10, "length": 254, "precision": 0, "expression": '"id"'},
+            {"name": "ID",      "type": 10, "length": 254, "precision": 0, "expression": '"ID"'},
             {"name": "WADMKD",  "type": 10, "length": 254, "precision": 0, "expression": '"WADMKD"'},
             {"name": "WADMKC",  "type": 10, "length": 254, "precision": 0, "expression": '"WADMKC"'},
             {"name": "WADMKK",  "type": 10, "length": 254, "precision": 0, "expression": '"WADMKK"'},
