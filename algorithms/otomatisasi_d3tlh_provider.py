@@ -64,7 +64,6 @@ from .ikp.ikp_air import IKPAirAlgorithm
 
 # Algoritma Integrasi
 from .integration.ikp_integration import IntegrationIKPAlgorithm
-from .integration.iprlh_integration import IntegrationD3TLHAlgorithm
 
 # Algoritma Simbologi
 from .styling.simbology import ApplyStandardStylesAlgorithm
@@ -120,7 +119,6 @@ class OtomatisasiD3TLHProvider(QgsProcessingProvider):
 
         # Algoritma Integrasi
         self.addAlgorithm(IntegrationIKPAlgorithm())
-        self.addAlgorithm(IntegrationD3TLHAlgorithm())
 
         # Algoritma Simbology
         self.addAlgorithm(ApplyStandardStylesAlgorithm())

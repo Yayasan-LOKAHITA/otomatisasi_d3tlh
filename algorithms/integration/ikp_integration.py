@@ -35,9 +35,9 @@ from qgis.core import (
     QgsProcessing,
     QgsFeatureSink,
     QgsProcessingAlgorithm,
-    QgsProcessingParameterFeatureSource,
     QgsProcessingParameterFeatureSink,
     QgsProcessingParameterVectorLayer,
+    QgsProcessingParameterMapLayer
 )
 
 import processing
@@ -52,6 +52,7 @@ class IntegrationIKPAlgorithm(QgsProcessingAlgorithm):
     IKP_Kehati = "IKP_Kehati"
     IKP_Laut = "IKP_Laut"
     IKP_Integrasi = "IKP_Integrasi"
+    IPRLH = "IPRLH"
 
     # BOBOT TIAP IKP UNTUK INTEGRASI
     BOBOT_IKP_Air = 0.49
@@ -60,6 +61,13 @@ class IntegrationIKPAlgorithm(QgsProcessingAlgorithm):
     BOBOT_Udara = 0.08
 
     def initAlgorithm(self, config):
+        self.addParameter(
+            QgsProcessingParameterMapLayer(
+                self.IPRLH,
+                self.tr('Tabel Indeks Pencemar [dengan kolom "Provinsi" dan "IPRLH"]'),
+                optional=False,
+            )
+        )
         self.addParameter(
             QgsProcessingParameterVectorLayer(
                 self.IKP_Lahan,
@@ -104,7 +112,7 @@ class IntegrationIKPAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterFeatureSink(
                 self.IKP_Integrasi,
                 self.tr(
-                    'Indeks Kemampuan Pemanfaatan Lingkungan Hidup [kolom "IKPLH"]'
+                    'Indeks D3TLH [Kolom "D3TLH"]'
                 ),
             )
         )
@@ -115,6 +123,7 @@ class IntegrationIKPAlgorithm(QgsProcessingAlgorithm):
         ikp_lahan = self.parameterAsVectorLayer(parameters, self.IKP_Lahan, context)
         ikp_kehati = self.parameterAsVectorLayer(parameters, self.IKP_Kehati, context)
         ikp_udara = self.parameterAsVectorLayer(parameters, self.IKP_Udara, context)
+        iprlh = self.parameterAsVectorLayer(parameters, self.IPRLH, context)
 
         # 1. Integrasi semua data menjadi satu
         ikplh1 = processing.run(
@@ -186,7 +195,7 @@ class IntegrationIKPAlgorithm(QgsProcessingAlgorithm):
             {
                 "INPUT": ikplh_final,
                 "FIELD_NAME": "KIKPLH",
-                "FIELD_TYPE": 1,  # Text (string),
+                "FIELD_TYPE": 2,  # Text (string),
                 "FIELD_LENGTH": 20,
                 "NEW_FIELD": True,
                 "FORMULA": """
@@ -205,7 +214,67 @@ class IntegrationIKPAlgorithm(QgsProcessingAlgorithm):
             feedback=feedback,
         )["OUTPUT"]
 
-        final_layer = kelas_ikplh
+        skor_ikplh = processing.run(
+            "qgis:fieldcalculator",
+            {
+                "INPUT": kelas_ikplh,
+                "FIELD_NAME": "SIKPLH",
+                "FIELD_TYPE": 1,  # Decimal number (real)
+                "FIELD_LENGTH": 10,
+                "NEW_FIELD": True,
+                "FORMULA": """
+                CASE
+                    WHEN "KIKPLH" = 'Sangat Rendah' THEN 1
+                    WHEN "KIKPLH" = 'Rendah' THEN 2
+                    WHEN "KIKPLH" = 'Sedang' THEN 3
+                    WHEN "KIKPLH" = 'Tinggi' THEN 4
+                    WHEN "KIKPLH" = 'Sangat Tinggi' THEN 5
+                    ELSE 0
+                END
+                """,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # Join csv iprlh to ikplh final dengan Provinsi dan WADMKP sebagai key
+        # Load map layer (csv) from parameter
+        join_iprlh = processing.run(
+            "qgis:joinattributestable",
+            {
+                "INPUT": skor_ikplh,
+                "FIELD": "WADMPR",
+                "INPUT_2": iprlh,
+                "FIELD_2": "Provinsi",
+                "FIELDS_TO_COPY": ["IPRLH"],
+                "METHOD": 0,
+                "DISCARD_NONMATCHING": False,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # Hitung Indeks D3TLH
+        d3tlh = processing.run(
+            "qgis:fieldcalculator",
+            {
+                "INPUT": join_iprlh,
+                "FIELD_NAME": "D3TLH",
+                "FIELD_TYPE": 0,  # Decimal number (real)
+                "FIELD_LENGTH": 10,
+                "FIELD_PRECISION": 3,
+                "NEW_FIELD": True,
+                "FORMULA": '("SIKPLH" + "IPRLH") / 2',
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+
+        final_layer = d3tlh
         (sink, dest_id) = self.parameterAsSink(
             parameters,
             self.PENUTUP_LAHAN_FIX,
