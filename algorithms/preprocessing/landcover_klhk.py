@@ -65,8 +65,8 @@ class PreprocLandCoverKLHKAlgorithm(QgsProcessingAlgorithm):
     OUT_FIELD_KWS = "kwshutan"
 
     # nama file lookup default relatif ke file algoritma ini
-    LOOKUP_PL_FILES = ["lookup_pl.csv", os.path.join("data", "lookup_pl.csv")]
-    LOOKUP_KWS_FILES = ["lookup_kws.csv", os.path.join("data", "lookup_kws.csv")]
+    LOOKUP_PL_FILES = "lookup_pl.csv"
+    LOOKUP_KWS_FILES = "lookup_kws.csv"
 
     # ----- boilerplate -----
     def tr(self, s): return QCoreApplication.translate("Processing", s)
@@ -101,7 +101,7 @@ CSV files are resolved automatically beside this script or in 'data/'. No CSV pa
         )
         self.addParameter(
             QgsProcessingParameterEnum(
-                self.CLASS_TYPE, self.tr("Classification type / Jenis klasifikasi"),
+                self.CLASS_TYPE, self.tr("Classification type / Jenis klasifikasi [PL / Kawasan Hutan]"),
                 options=self.CLASS_OPTIONS, defaultValue=0
             )
         )
@@ -130,15 +130,6 @@ CSV files are resolved automatically beside this script or in 'data/'. No CSV pa
         )
 
     # ----- utilities -----
-    def _resolve_lookup_path(self, filenames):
-        # cari relatif ke file algoritma (dibundel)
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        for rel in filenames:
-            p = os.path.join(base_dir, rel)
-            if os.path.isfile(p):
-                return p
-        return None
-
     def _read_csv_lookup(self, csv_path, key_col, val_col):
         """
         Baca CSV jadi dict:
@@ -206,17 +197,27 @@ CSV files are resolved automatically beside this script or in 'data/'. No CSV pa
         force_text = self.parameterAsBool(parameters, self.FORCE_ID_TEXT, context)
         flex_numeric = self.parameterAsBool(parameters, self.FLEX_NUMERIC_ID, context)
 
+        def load_csv_path(name: str):
+            this_file = os.path.abspath(__file__)
+            plugin_root = os.path.dirname(os.path.dirname(os.path.dirname(this_file)))
+            data_root = os.path.join(plugin_root, "data", name)
+            if data_root and os.path.isfile(data_root):
+                feedback.pushInfo(self.tr(f"Memuat CSV dari: {data_root}"))
+                return data_root 
+            else:
+                raise QgsProcessingException(f"File CSV {name} tidak ditemukan: {data_root}")
+
         # Tentukan CSV & skema
         if class_type == 0:
             out_field = self.OUT_FIELD_PL
             key_col, val_col = "CODE", "PL"
-            lookup_path = self._resolve_lookup_path(self.LOOKUP_PL_FILES)
+            lookup_path = load_csv_path(self.LOOKUP_PL_FILES)
             missing_msg = ("Lookup PL tidak ditemukan. Taruh 'lookup_pl.csv' "
                            "di folder algoritma ini atau subfolder 'data/'.")
         else:
             out_field = self.OUT_FIELD_KWS
             key_col, val_col = "fungsikws", "kwshutan"
-            lookup_path = self._resolve_lookup_path(self.LOOKUP_KWS_FILES)
+            lookup_path = load_csv_path(self.LOOKUP_KWS_FILES)
             missing_msg = ("Lookup Kawasan Hutan tidak ditemukan. Taruh 'lookup_kws.csv' "
                            "di folder algoritma ini atau subfolder 'data/'.")
 
