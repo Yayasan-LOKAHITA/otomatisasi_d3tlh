@@ -546,11 +546,35 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
             feedback=feedback,
         )["OUTPUT"]
 
+        # 24) menghitung ambang batas populasi
+        calc_ambang_pop = processing.run(
+            "qgis:fieldcalculator",
+            {
+                "INPUT": kebutuhan_air_total,
+                "FIELD_NAME": "ambang_pop",
+                "FIELD_TYPE": 0,
+                "FIELD_LENGTH": 20,
+                "FIELD_PRECISION": 3,
+                "NEW_FIELD": True,
+                "FORMULA": f'''
+                    CASE
+                        WHEN ("air_layak" - "dmnd_air_total" < 0) THEN "air_layak" / (850)
+                        WHEN ("air_layak" - "dmnd_air_total" >= 0) THEN (("air_layak" - "dmnd_air_total") / (850)) + GRIDPOP{yy}
+                    END
+                ''',
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # === Fase IKP AIR ===
+
         # 24) Calc IKP
         calc_IKP = processing.run(
             "qgis:fieldcalculator",
             {
-                "INPUT": kebutuhan_air_total,
+                "INPUT": calc_ambang_pop,
                 "FIELD_NAME": "IKPAIR",
                 "FIELD_TYPE": 0,  # Decimal number (real)
                 "FIELD_LENGTH": 10,
