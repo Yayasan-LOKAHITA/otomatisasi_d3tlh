@@ -108,7 +108,7 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterVectorLayer(
                 self.WS,
-                self.tr('Layer Wilayah Sungai / WS [Dengan kolom "Nama_WS" dan "Ktrs_Air"]'),
+                self.tr('Layer Wilayah Sungai / WS [Dengan kolom "WS" dan "Ktrs_Air"]'),
                 [QgsProcessing.TypeVectorAnyGeometry],
             )
         )
@@ -119,20 +119,19 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
                 [QgsProcessing.TypeVectorAnyGeometry]
             )
         )
-        parameterCSV = QgsProcessingParameterMapLayer(
+
+        parameterCSV = QgsProcessingParameterFeatureSource(
             self.IP,
             self.tr('Tabel Indeks Pencemar [Dengan kolom "Kab_Kota" dan "Indeks_Cemar"]'),
-            optional=False,
-        )
-        parameterCSV.setHelp(
-            "Pilih data layer atau file csv dari data indeks cemar per kabupaten/kota"
+            types=[QgsProcessing.TypeVector, QgsProcessing.TypeFile],
+            optional=False
         )
         self.addParameter(parameterCSV)
 
         self.addParameter(
             QgsProcessingParameterVectorLayer(
                 self.POP,
-                self.tr('Grid Populasi [Dengan Kolom "GRIDPOPYY", dengan YY adalah dua digit tahun]'),
+                self.tr('Grid Populasi [Dengan Kolom "POPGRIDYY", dengan YY adalah dua digit tahun]'),
                 [QgsProcessing.TypeVectorAnyGeometry],
             )
         )
@@ -152,7 +151,22 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
         ws_src = self.parameterAsVectorLayer(parameters, self.WS, context)
         pop_src = self.parameterAsVectorLayer(parameters, self.POP, context)
         grid_src = self.parameterAsVectorLayer(parameters, self.GRID, context)
-        csv_ip_layer = self.parameterAsMapLayer(parameters, self.IP, context)
+        csv_ip_source = self.parameterAsSource(parameters, self.IP, context)
+        if csv_ip_source is None:
+            raise QgsProcessingException("Tidak dapat membaca tabel Indeks Pencemar dari input.")
+        else:
+            csv_ip_layer = QgsVectorLayer(
+                "None",  # No geometry
+                "csv_ip_layer",
+                "memory"
+            )
+
+            prov = csv_ip_layer.dataProvider()
+            prov.addAttributes(csv_ip_source.fields())
+            csv_ip_layer.updateFields()
+
+            prov.addFeatures(csv_ip_source.getFeatures())
+            csv_ip_layer.updateExtents()
 
         # === PROSES ANALISIS ===
         
@@ -228,7 +242,7 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
             "qgis:statisticsbycategories",
             {
                 "INPUT": inter_grid_with_ijlh,
-                "CATEGORIES_FIELD_NAME": "Nama_WS",
+                "CATEGORIES_FIELD_NAME": "WS",
                 "VALUES_FIELD_NAME": "ije_pa",
                 "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             },
@@ -241,16 +255,16 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
             "native:joinattributestable",
             {
                 "INPUT": inter_grid_with_ijlh,
-                "FIELD": "Nama_WS",
+                "FIELD": "WS",
                 "INPUT_2": ije_by_ws,
-                "FIELD_2": "Nama_WS",
+                "FIELD_2": "WS",
                 "FIELDS_TO_COPY": ["sum"],
                 "METHOD": 0,
                 "DISCARD_NONMATCHING": False,
                 "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             },
             context=context,
-            feedback=feedback,
+            feedback=feedback.pushInfo("✅ Join tabel IJE satu WS berhasil"),
         )["OUTPUT"]
 
         # 7) Rename field 'sum' menjadi 'ije_ws'
@@ -323,12 +337,12 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
                 "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             },
             context=context,
-            feedback=feedback,
+            feedback=feedback.pushInfo("✅ Join tabel Air Per WS berhasil"),
         )["OUTPUT"]
 
         # ## 2️⃣ Fase Kolom Air
 
-        # 13)Menambahkan kolom baru untuk IP dari Indeks Pencemar
+        # 13) Menambahkan kolom baru untuk IP dari Indeks Pencemar
         join_ip = processing.run(
             "qgis:joinattributestable",
             {
@@ -347,12 +361,12 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
                 "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             },
             context=context,
-            feedback=feedback,
+            feedback=feedback.pushInfo("✅ Join tabel Indeks Pencemar berhasil"),
         )["OUTPUT"]
 
         # 14) Refactor untuk merubah tipe data Jumlah Titik Cemar
         refactored = processing.run(
-            "qgis:refactorfields",
+            "native:refactorfields",
             {
                 "INPUT": join_ip,
                 "FIELDS_MAPPING": [
@@ -363,18 +377,17 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
                     {"name": "WADMKC", "type": 10, "length": 255, "expression": "WADMKC"},
                     {"name": "WADMKD", "type": 10, "length": 255, "expression": "WADMKD"},
                     {"name": "PL", "type": 10, "length": 255, "expression": "PL"},
-                    {"name": "air_ws", "type": 0, "expression": "air_ws"},
-                    {"name": "Jumlah_Titik_Cemar_Ringan", "type": 1, "expression": "to_int(\"Jumlah_Titik_Cemar_Ringan\")"},
-                    {"name": "Jumlah_Titik_Cemar_Sedang", "type": 1, "expression": "to_int(\"Jumlah_Titik_Cemar_Sedang\")"},
-                    {"name": "Jumlah_Titik_Cemar_Berat", "type": 1, "expression": "to_int(\"Jumlah_Titik_Cemar_Berat\")"},
-                    {"name": "Total", "type": 1, "expression": "to_int(\"Total\")"},
+                    {"name": "air_ws", "type": 6, "expression": "air_ws"},
+                    {"name": "Jumlah_Titik_Cemar_Ringan", "type": 2, "expression": "to_int(\"Jumlah_Titik_Cemar_Ringan\")"},
+                    {"name": "Jumlah_Titik_Cemar_Sedang", "type": 2, "expression": "to_int(\"Jumlah_Titik_Cemar_Sedang\")"},
+                    {"name": "Jumlah_Titik_Cemar_Berat", "type": 2, "expression": "to_int(\"Jumlah_Titik_Cemar_Berat\")"},
+                    {"name": "Total", "type": 2, "expression": "to_int(\"Total\")"},
                 ],
                 "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             },
             context=context,
-            feedback=feedback,
+            feedback=feedback.pushInfo("✅ Perapihan nama-nama kolom berhasil.."),
         )["OUTPUT"]
-        feedback.pushInfo("✅ Standarisasi nama-nama kolom output berhasil")
 
         # 15) Buat Kolom IP (Indeks Pencemar) dan Kalkulasi Perhitungan IP (buat string jadi double)
         calc_ip = processing.run(
@@ -435,7 +448,7 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
                 "FIELD": "ID",
                 "INPUT_2": pop_src,  
                 "FIELD_2": "ID",
-                "FIELDS_TO_COPY": [f'GRIDPOP{yy}'],
+                "FIELDS_TO_COPY": [f'POPGRID{yy}'],
                 "METHOD": 0,
                 "DISCARD_NONMATCHING": False,
                 "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
@@ -559,7 +572,7 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
                 "FORMULA": f'''
                     CASE
                         WHEN ("air_layak" - "dmnd_air_total" < 0) THEN "air_layak" / (850)
-                        WHEN ("air_layak" - "dmnd_air_total" >= 0) THEN (("air_layak" - "dmnd_air_total") / (850)) + GRIDPOP{yy}
+                        WHEN ("air_layak" - "dmnd_air_total" >= 0) THEN (("air_layak" - "dmnd_air_total") / (850)) + "POPGRID{yy}"
                     END
                 ''',
                 "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
@@ -598,11 +611,11 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
                 "NEW_FIELD": True,
                 "FORMULA": """
                     CASE
-                        WHEN "IKP" <= 0.1 THEN 'Sangat Tinggi'
-                        WHEN "IKP" > 0.1 AND "IKP" <= 0.2 THEN 'Tinggi'
-                        WHEN "IKP" > 0.2 AND "IKP" <= 0.4 THEN 'Sedang'
-                        WHEN "IKP" > 0.4 AND "IKP" <= 0.8 THEN 'Rendah'
-                        WHEN "IKP" > 0.8 THEN 'Sangat Rendah'
+                        WHEN "IKPAIR" <= 0.1 THEN 'Sangat Tinggi'
+                        WHEN "IKPAIR" > 0.1 AND "IKPAIR" <= 0.2 THEN 'Tinggi'
+                        WHEN "IKPAIR" > 0.2 AND "IKPAIR" <= 0.4 THEN 'Sedang'
+                        WHEN "IKPAIR" > 0.4 AND "IKPAIR" <= 0.8 THEN 'Rendah'
+                        WHEN "IKPAIR" > 0.8 THEN 'Sangat Rendah'
                         ELSE 'Tidak Terdefinisi'
                     END
                 """,
@@ -623,11 +636,11 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
                 "NEW_FIELD": True,
                 "FORMULA": """
                     CASE
-                        WHEN "IKP" <= 0.1 THEN 5
-                        WHEN "IKP" > 0.1 AND "IKP" <= 0.2 THEN 4
-                        WHEN "IKP" > 0.2 AND "IKP" <= 0.4 THEN 3
-                        WHEN "IKP" > 0.4 AND "IKP" <= 0.8 THEN 2
-                        WHEN "IKP" > 0.8 THEN '1
+                        WHEN "IKPAIR" <= 0.1 THEN 5
+                        WHEN "IKPAIR" > 0.1 AND "IKPAIR" <= 0.2 THEN 4
+                        WHEN "IKPAIR" > 0.2 AND "IKPAIR" <= 0.4 THEN 3
+                        WHEN "IKPAIR" > 0.4 AND "IKPAIR" <= 0.8 THEN 2
+                        WHEN "IKPAIR" > 0.8 THEN 1
                         ELSE NULL
                     END
                 """,
@@ -637,7 +650,33 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
             feedback=feedback,
         )["OUTPUT"]
 
-        out_src = skor_IKP
+        # 27) Standarisasi nama-nama kolom output terakhir
+        refactored_final = processing.run(
+            "native:refactorfields",
+            {
+                "INPUT": skor_IKP,
+                "FIELDS_MAPPING": [
+                    {'name': 'ID', 'type': 10, 'length': 0, 'precision': 0, 'expression': '"ID"', 'alias': '', 'comment': '', 'sub_type': 0, 'type_name': 'text'},
+                    {'name': 'PULAU', 'type': 10, 'length': 255, 'precision': 0, 'expression': '"PULAU"', 'alias': '', 'comment': '', 'sub_type': 0, 'type_name': 'text'},
+                    {'name': 'WADMKK', 'type': 10, 'length': 255, 'precision': 0, 'expression': '"WADMKK"', 'alias': '', 'comment': '', 'sub_type': 0, 'type_name': 'text'},
+                    {'name': 'PL', 'type': 10, 'length': 255, 'precision': 0, 'expression': '"PL"', 'alias': '', 'comment': '', 'sub_type': 0, 'type_name': 'text'},
+                    {'name': 'AIRCMR', 'type': 6, 'length': 0, 'precision': 3, 'expression': '"air_cemar"', 'alias': '', 'comment': '', 'sub_type': 0, 'type_name': 'double precision'},
+                    {'name': 'AIRLYK', 'type': 6, 'length': 10, 'precision': 3, 'expression': '"air_layak"', 'alias': '', 'comment': '', 'sub_type': 0, 'type_name': 'double precision'},
+                    {'name': 'D_LHN', 'type': 6, 'length': 20, 'precision': 3, 'expression': '"dmnd_air_lhn"', 'alias': '', 'comment': '', 'sub_type': 0, 'type_name': 'double precision'},
+                    {'name': 'D_POP', 'type': 6, 'length': 20, 'precision': 3, 'expression': '"dmnd_air_pop"', 'alias': '', 'comment': '', 'sub_type': 0, 'type_name': 'double precision'},
+                    {'name': 'D_TOT', 'type': 6, 'length': 20, 'precision': 3, 'expression': '"dmnd_air_total"', 'alias': '', 'comment': '', 'sub_type': 0, 'type_name': 'double precision'},
+                    {'name': 'AB_POP', 'type': 6, 'length': 20, 'precision': 3, 'expression': '"ambang_pop"', 'alias': '', 'comment': '', 'sub_type': 0, 'type_name': 'double precision'},
+                    {'name': 'IKPAIR', 'type': 6, 'length': 10, 'precision': 3, 'expression': '"IKPAIR"', 'alias': '', 'comment': '', 'sub_type': 0, 'type_name': 'double precision'},
+                    {'name': 'KIKPAIR', 'type': 10, 'length': 20, 'precision': 0, 'expression': '"KIKPAIR"', 'alias': '', 'comment': '', 'sub_type': 0, 'type_name': 'text'},
+                    {'name': 'SIKPAIR', 'type': 2, 'length': 1, 'precision': 0, 'expression': '"SIKPAIR"', 'alias': '', 'comment': '', 'sub_type': 0, 'type_name': 'integer'},
+                ],
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback.pushInfo("✅ Standarisasi nama-nama kolom output final berhasil"),
+        )["OUTPUT"]
+
+        out_src = refactored_final
         # Output sink
         (sink, dest_id) = self.parameterAsSink(
             parameters,
