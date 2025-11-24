@@ -122,10 +122,11 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
 
         parameterCSV = QgsProcessingParameterFeatureSource(
             self.IP,
-            self.tr('Tabel Indeks Pencemar [Dengan kolom "Kab_Kota" dan "Indeks_Cemar"]'),
+            self.tr('Tabel Indeks Pencemar \n[Untuk melihat detail kolom yang dibutuhkan arahkan cursor ke sini]'),
             types=[QgsProcessing.TypeVector, QgsProcessing.TypeFile],
             optional=False
         )
+        parameterCSV.setHelp('Kolom yang dibutuhkan : "Kab_Kota", "Jumlah_Titik_Cemar_Ringan", "Jumlah_Titik_Cemar_Sedang", "Jumlah_Titik_Cemar_Berat", dan "Total"')
         self.addParameter(parameterCSV)
 
         self.addParameter(
