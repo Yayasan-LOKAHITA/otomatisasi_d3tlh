@@ -101,7 +101,7 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterVectorLayer(
                 self.JLH,
-                self.tr('Grid JLH Penyedia Air [Dengan Kolom "PYA_YY", YY adalah dua digit terakhir tahun.]'),
+                self.tr('Grid JLH Penyedia Air [Dengan Kolom "PYA_YY_KK", YY adalah dua digit terakhir tahun.]'),
                 [QgsProcessing.TypeVectorAnyGeometry],
             )
         )
@@ -231,7 +231,7 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
                 "FIELD_LENGTH": 10,
                 "FIELD_PRECISION": 3,
                 "NEW_FIELD": True,
-                "FORMULA": f'("luas_obj"/"Luas") * ("{self.JLH}_{yy}" - 1)/4',  # Assuming the original area is in square meters
+                "FORMULA": f'("luas_obj"/"Luas") * ("{self.JLH}_{yy}_KK" - 1)/4',  # Assuming the original area is in square meters # OPEN !
                 "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             },
             context=context,
@@ -581,6 +581,44 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
             context=context,
             feedback=feedback,
         )["OUTPUT"]
+        
+        # 25a) Menentukan selisih ambang batas populasi
+        calc_selisih_ambang = processing.run(
+            "qgis:fieldcalculator",
+            {
+                "INPUT": calc_ambang_pop,
+                "FIELD_NAME": "SELISIH_AB",
+                "FIELD_TYPE": 0,
+                "FIELD_LENGTH": 20,
+                "FIELD_PRECISION": 3,
+                "NEW_FIELD": True,
+                "FORMULA": f'"ambang_pop" - "POPGRID{yy}"',
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback
+        )["OUTPUT"]
+        
+        # 25b) Menentukan status ambang batas populasi
+        status_air = processing.run(
+            "qgis:fieldcalculator",
+            {
+                "INPUT": calc_selisih_ambang,
+                "FIELD_NAME": "STATUSAIR",
+                "FIELD_TYPE": 2,
+                "FIELD_LENGTH": 20,
+                "NEW_FIELD": True,
+                "FORMULA": '''
+                    CASE
+                        WHEN "SELISIH_AB" <= 0 THEN 'Terlampaui'
+                        ELSE 'Belum Terlampaui'
+                    END
+                ''',
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback
+        )["OUTPUT"]
 
         # === Fase IKP AIR ===
 
@@ -588,7 +626,7 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
         calc_IKP = processing.run(
             "qgis:fieldcalculator",
             {
-                "INPUT": calc_ambang_pop,
+                "INPUT": status_air,
                 "FIELD_NAME": "IKPAIR",
                 "FIELD_TYPE": 0,  # Decimal number (real)
                 "FIELD_LENGTH": 10,
@@ -667,6 +705,8 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
                     {'name': 'D_POP', 'type': 6, 'length': 20, 'precision': 3, 'expression': '"dmnd_air_pop"', 'alias': '', 'comment': '', 'sub_type': 0, 'type_name': 'double precision'},
                     {'name': 'D_TOT', 'type': 6, 'length': 20, 'precision': 3, 'expression': '"dmnd_air_total"', 'alias': '', 'comment': '', 'sub_type': 0, 'type_name': 'double precision'},
                     {'name': 'AB_POP', 'type': 6, 'length': 20, 'precision': 3, 'expression': '"ambang_pop"', 'alias': '', 'comment': '', 'sub_type': 0, 'type_name': 'double precision'},
+                    {'name': 'SELISIH_AB', 'type': 6, 'length': 10, 'precision': 3, 'expression': '"SELISIH_AB"', 'alias': '', 'comment': '', 'sub_type': 0, 'type_name': 'double precision'},
+                    {'name': 'STATUSAIR', 'type': 10, 'length': 20, 'precision': 0, 'expression': '"STATUSAIR"', 'alias': '', 'comment': '', 'sub_type': 0, 'type_name': 'text'},
                     {'name': 'IKPAIR', 'type': 6, 'length': 10, 'precision': 3, 'expression': '"IKPAIR"', 'alias': '', 'comment': '', 'sub_type': 0, 'type_name': 'double precision'},
                     {'name': 'KIKPAIR', 'type': 10, 'length': 20, 'precision': 0, 'expression': '"KIKPAIR"', 'alias': '', 'comment': '', 'sub_type': 0, 'type_name': 'text'},
                     {'name': 'SIKPAIR', 'type': 2, 'length': 1, 'precision': 0, 'expression': '"SIKPAIR"', 'alias': '', 'comment': '', 'sub_type': 0, 'type_name': 'integer'},
