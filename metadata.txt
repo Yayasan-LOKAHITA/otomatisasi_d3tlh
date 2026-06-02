@@ -7,8 +7,8 @@ name=Otomatisasi D3TLH
 qgisMinimumVersion=3.0
 description=Plugin yang membantu pengolahan D3TLH secara otomatis
 version=1.0
-author=Yayasan Lokahita
-email=fadillahazhardk@yayasanlokahita.org
+author=Fadillah Azhar Deaudin Kurniawan, Sitarani Safitri, Dini Aprilia Norvyani, Suchi Rahmadani, Fariz Rizaldy Wibowo
+email=tech@yayasanlokahita.org
 
 about=Plugin ini bertujuan untuk memudahkan proses pengolahan data D3TLH dengan mengotomatisasi prosesnya.
 
