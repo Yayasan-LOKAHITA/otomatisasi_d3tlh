@@ -1,0 +1,26 @@
+[general]
+name=Otomatisasi D3TLH
+qgisMinimumVersion=3.0
+description=Automated D3TLH analysis and environmental carrying capacity assessment tools for QGIS.
+version=1.0
+author=Fadillah Azhar Deaudin Kurniawan, Sitarani Safitri, Dini Aprilia Norvyani, Suchi Rahmadani, Fariz Rizaldy Wibowo
+email=tech@yayasanlokahita.org
+
+about=Otomatisasi D3TLH is a QGIS plugin developed to streamline and automate workflows for D3TLH (Environmental Carrying Capacity and Environmental Carrying Capability) assessments. The plugin integrates demographic, ecological, environmental, and spatial analysis models into a unified processing framework, reducing manual data preparation and calculation efforts. It provides tools for generating standardized outputs that support environmental planning, regional development assessment, and decision-making processes. The plugin was developed by the Directorate of Environmental Quality and Watershed Control (PDLKWS), Ministry of Environment of the Republic of Indonesia (KLH/BPLH), with support from Yayasan Lokus Bijak Hijau Lestari (LOKAHITA).
+
+repository=https://github.com/Yayasan-LOKAHITA/otomatisasi_d3tlh
+tracker=https://github.com/Yayasan-LOKAHITA/otomatisasi_d3tlh/issues
+homepage=https://github.com/Yayasan-LOKAHITA/otomatisasi_d3tlh
+
+hasProcessingProvider=yes
+
+tags=d3tlh
+category=environment
+icon=algorithm/00 main logo.svg
+
+experimental=False
+deprecated=False
+
+server=False
+
+license=GPL-3.0-or-later
