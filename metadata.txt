@@ -16,7 +16,7 @@ hasProcessingProvider=yes
 
 tags=d3tlh
 category=environment
-icon=algorithm/00 main logo.svg
+icon=icon.png
 
 experimental=False
 deprecated=False
