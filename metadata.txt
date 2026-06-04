@@ -9,6 +9,8 @@ email=tech@yayasanlokahita.org
 about=Plugin ini bertujuan untuk memudahkan proses pengolahan data D3TLH dengan mengotomatisasi prosesnya.
 
 repository=https://github.com/Yayasan-LOKAHITA/otomatisasi_d3tlh
+tracker=https://github.com/Yayasan-LOKAHITA/otomatisasi_d3tlh/issues
+homepage=https://github.com/Yayasan-LOKAHITA/otomatisasi_d3tlh
 
 hasProcessingProvider=yes
 
