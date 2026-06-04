@@ -72,6 +72,13 @@ class UtilsMCADominantAlgorithm(QgsProcessingAlgorithm):
 
     def createInstance(self):
         return UtilsMCADominantAlgorithm()
+    
+    def shortHelpString(self):
+        return self.tr(
+            "Algoritma ini menggabungkan dua layer poligon (GRID dan Layer2) untuk menentukan kelas dominan pada setiap grid berdasarkan luas irisan terbesar (Maximum Combined Area - MCA). "
+            "Input GRID harus memiliki field 'id' atau 'ID' sebagai identifier unik. "
+            "Output akan menambahkan kolom dari Layer2 yang berisi kelas dominan per grid."
+        )
         
     def icon(self):
         return QIcon(os.path.join(os.path.dirname(__file__), '01 Utilities.svg'))

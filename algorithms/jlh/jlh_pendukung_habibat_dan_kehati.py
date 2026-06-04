@@ -44,7 +44,6 @@ from qgis.core import (
     QgsProcessingParameterNumber,
     QgsVectorLayer,
     QgsProcessingException,
-    QgsProcessingFeatureSourceDefinition,
 )
 import processing
 from ..core.field_mappings import build_field_mappings_jlh

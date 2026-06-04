@@ -331,6 +331,13 @@ class IntegrationIKPAlgorithm(QgsProcessingAlgorithm):
 
     def tr(self, string):
         return QCoreApplication.translate("Processing", string)
+    
+    def shortHelpString(self):
+        return self.tr(
+            "Algoritma ini mengintegrasikan hasil perhitungan IKP Air, IKP Lahan, IKP Kehati, dan IKP Udara untuk menghasilkan Indeks D3TLH. "
+            "Indeks D3TLH dihitung dengan memberikan bobot pada masing-masing IKP dan menggabungkannya dengan IPRLH dari tabel input. "
+            "Output berupa layer baru dengan kolom 'D3TLH' yang berisi nilai indeks D3TLH untuk setiap grid."
+        )
 
     def icon(self):
         return QIcon(os.path.join(os.path.dirname(__file__), '06 Integration.svg'))

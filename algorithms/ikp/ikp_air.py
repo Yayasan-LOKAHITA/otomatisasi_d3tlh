@@ -31,10 +31,8 @@ __copyright__ = "(C) 2025 by Direktorat PDLKWS - Deputi TLSDAB - Kementerian Lin
 
 __revision__ = "$Format:%H$"
 
-import csv
 import os
-import re
-from qgis.PyQt.QtCore import QCoreApplication, QVariant
+from qgis.PyQt.QtCore import QCoreApplication
 from qgis.core import (
     QgsProcessing,
     QgsFeatureSink,
@@ -43,19 +41,14 @@ from qgis.core import (
     QgsProcessingParameterNumber,
     QgsProcessingParameterFeatureSink,
     QgsProcessingException,
-    QgsProcessingParameterFile,
-    QgsProcessingParameterField,
     QgsVectorLayer,
-    QgsCoordinateReferenceSystem,
-    QgsApplication,
-    QgsProcessingParameterMapLayer,
-    QgsProject,
     QgsProcessingParameterFeatureSource,
 )
 import processing
 from qgis.PyQt.QtGui import QIcon
 
 class IKPAirAlgorithm(QgsProcessingAlgorithm):
+
 
     # VARIABEL PARAMETER INPUT DAN OUTPUT.
     YEAR = "YEAR"
@@ -172,7 +165,7 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
 
         # === PROSES ANALISIS ===
         
-        ## A. ASPEK SUPPLY AIR
+        # A. ASPEK SUPPLY AIR
 
         # 0) Menghitung luas per grid dalam satuan hektar
         jlh_src = processing.run(
@@ -665,7 +658,7 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
             feedback=feedback,
         )["OUTPUT"]
 
-         # 26) Hitung Skor IKP Air
+        # 26) Hitung Skor IKP Air
         skor_IKP = processing.run(
             "qgis:fieldcalculator",
             {
@@ -759,7 +752,7 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
 
     def icon(self):
         return QIcon(os.path.join(os.path.dirname(__file__), '05 Carrying Capacity.svg'))
-        
+    
     def shortHelpString(self):
         return """
 Modul ini digunakan untuk menghitung Indeks Kemampuan Pemanfaatan Keanekaragaman Hayati (IKP Kehati).

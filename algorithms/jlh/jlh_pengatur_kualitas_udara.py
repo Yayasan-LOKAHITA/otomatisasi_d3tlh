@@ -148,7 +148,6 @@ class JLHAirQualityRegulationAlgorithm(QgsProcessingAlgorithm):
 
         # LAYER INPUT SEBAGAI QgsVectorLayer
         pl_src = self.parameterAsSource(parameters, self.PENUTUP_LAHAN, context)
-        ekoregion_src = self.parameterAsSource(parameters, self.EKOREGION, context)
         grid_src = self.parameterAsVectorLayer(parameters, self.GRID, context)
 
         # PARAMETER INPUT
@@ -218,18 +217,6 @@ class JLHAirQualityRegulationAlgorithm(QgsProcessingAlgorithm):
             raise QgsProcessingException(
                 self.tr(f"CSV tidak valid atau tidak ditemukan:\n{csv_abs_path}")
             )
-
-        def pl_filename(island_name: str) -> str:
-            base = {
-                "Jawa": "skor_pl_pku.csv",
-                "Sumatera": "skor_pl_pku.csv",
-                "Kalimantan": "skor_pl_pku.csv",
-                "Sulawesi": "skor_pl_pku.csv",
-                "Papua": "skor_pl_pku.csv",
-                "Bali–Nusra": "skor_pl_pku.csv",
-                "Maluku": "skor_pl_pku.csv",
-            }
-            return base[island_name]
 
         def sanitize_suffix(s: str) -> str:
             # buat nama kolom aman, contoh "Bali–Nusra" -> "BaliNusra"

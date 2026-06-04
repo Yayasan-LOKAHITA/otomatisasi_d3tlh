@@ -215,25 +215,6 @@ class JLHWaterSupplyAlgorithm(QgsProcessingAlgorithm):
                 self.tr(f"CSV tidak valid atau tidak ditemukan:\n{csv_abs_path}")
             )
 
-        def pl_filename(island_name: str) -> str:
-            base = {
-                "Jawa": "skor_pl_pya.csv",
-                "Sumatera": "skor_pl_pya.csv",
-                "Kalimantan": "skor_pl_pya.csv",
-                "Sulawesi": "skor_pl_pya.csv",
-                "Papua": "skor_pl_pya.csv",
-                "Bali–Nusra": "skor_pl_pya.csv",
-                "Maluku": "skor_pl_pya.csv",
-            }
-            return base[island_name]
-
-        def sanitize_suffix(s: str) -> str:
-            # buat nama kolom aman, contoh "Bali–Nusra" -> "BaliNusra"
-            return re.sub(r"[^A-Za-z0-9]+", "", s)
-
-        def has_field(layer: QgsVectorLayer, name: str) -> bool:
-            return layer.fields().indexFromName(name) != -1
-
         # --- PROSES ANALISIS ---
         # 1) Intersection PL × Ekoregion (bawa LC, KBA_250, KVA_250, dan PULAU)
         inter = processing.run(

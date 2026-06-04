@@ -85,17 +85,11 @@ def build_field_mappings_jlh(
     if jlh == "PHK":
         if bentuk_output == "Poligon":
             mappings = (
-                base_admin_fields
-                + kba_kva_fields
-                + common_value_fields
-                + common_value_fields_kk
+                base_admin_fields + kba_kva_fields + common_value_fields + common_value_fields_kk
             )
         else:  # Grid
             mappings = (
-                grid_prefix
-                + base_admin_fields
-                + common_value_fields
-                + common_value_fields_kk
+                grid_prefix + base_admin_fields + common_value_fields + common_value_fields_kk
             )
 
     elif jlh == "PKU":
@@ -107,34 +101,22 @@ def build_field_mappings_jlh(
     elif jlh == "PGA":
         if bentuk_output == "Poligon":
             mappings = (
-                base_admin_fields
-                + kba_kva_fields
-                + common_value_fields
-                + common_value_fields_kk
+                base_admin_fields + kba_kva_fields + common_value_fields + common_value_fields_kk
             )
         else:
             mappings = (
-                grid_prefix
-                + base_admin_fields
-                + common_value_fields
-                + common_value_fields_kk
+                grid_prefix + base_admin_fields + common_value_fields + common_value_fields_kk
             )
 
     elif jlh == "PYA":
         if area == "Kabupaten/Kota":
             if bentuk_output == "Poligon":
                 mappings = (
-                    base_admin_fields
-                    + kba_kva_fields
-                    + common_value_fields
-                    + common_value_fields_kk
+                    base_admin_fields + kba_kva_fields + common_value_fields + common_value_fields_kk
                 )
             else:
                 mappings = (
-                    grid_prefix
-                    + base_admin_fields
-                    + common_value_fields
-                    + common_value_fields_kk
+                    grid_prefix + base_admin_fields + common_value_fields + common_value_fields_kk
                 )
         else:
             if bentuk_output == "Poligon":

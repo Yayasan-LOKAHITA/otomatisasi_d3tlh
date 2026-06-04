@@ -147,7 +147,6 @@ class JLHWaterRegulationAlgorithm(QgsProcessingAlgorithm):
 
         # LAYER INPUT SEBAGAI QgsVectorLayer
         pl_src = self.parameterAsSource(parameters, self.PENUTUP_LAHAN, context)
-        ekoregion_src = self.parameterAsSource(parameters, self.EKOREGION, context)
         grid_src = self.parameterAsVectorLayer(parameters, self.GRID, context)
 
         # PARAMETER INPUT

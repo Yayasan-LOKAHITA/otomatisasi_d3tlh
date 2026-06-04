@@ -12,13 +12,13 @@ repository=https://github.com/Yayasan-LOKAHITA/otomatisasi_d3tlh
 tracker=https://github.com/Yayasan-LOKAHITA/otomatisasi_d3tlh/issues
 homepage=https://github.com/Yayasan-LOKAHITA/otomatisasi_d3tlh
 
-hasProcessingProvider=yes
+hasProcessingProvider=no
 
 tags=d3tlh
 category=Analysis
 icon=icon.png
 
-experimental=False
+experimental=True
 deprecated=False
 
 server=False

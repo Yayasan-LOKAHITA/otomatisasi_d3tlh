@@ -35,14 +35,10 @@ from qgis.PyQt.QtCore import QCoreApplication
 from qgis.core import (
     QgsProcessing,
     QgsProcessingAlgorithm,
-    QgsProcessingParameterFeatureSource,
     QgsProcessingParameterRasterLayer,
-    QgsProcessingParameterNumber,
     QgsProcessingParameterFeatureSink,
     QgsRasterBandStats,
-    QgsVectorLayer,
     QgsRasterLayer,
-    QgsProject,
     QgsProcessingParameterVectorLayer,
 )
 import processing

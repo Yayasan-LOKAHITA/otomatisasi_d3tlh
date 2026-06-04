@@ -213,6 +213,12 @@ class PreprocDataValidationAlgorithm(QgsProcessingAlgorithm):
         formatting characters.
         """
         return 'B. Preprocessing'
+    
+    def shortHelpString(self):
+        return self.tr(
+            "Algoritma ini melakukan pengecekan kualitas data dengan memperbaiki geometri pada layer Penutup Lahan dan Ekoregion. "
+            "Output berupa layer baru dengan geometri yang sudah diperbaiki, siap untuk digunakan dalam analisis selanjutnya."
+        )
         
     def icon(self):
         return QIcon(os.path.join(os.path.dirname(__file__), '02 Pre-processing.svg'))
