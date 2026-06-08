@@ -647,7 +647,7 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
                         WHEN "PL" IN (
                             'Permukiman',
                             'Permukiman Transmigrasi',
-                            'Bandara/Pelabuhan',
+                            'Bandara/ Pelabuhan',
                             'Tanah Terbuka',
                             'Pertambangan'
                         )
