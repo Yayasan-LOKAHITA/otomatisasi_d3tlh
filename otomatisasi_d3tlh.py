@@ -36,7 +36,7 @@ __copyright__ = (
 
 # This will get replaced with a git SHA1 when you do a git archive
 
-__revision__ = '$Format:%H$'
+__revision__ = "$Format:%H$"
 
 import os
 import sys

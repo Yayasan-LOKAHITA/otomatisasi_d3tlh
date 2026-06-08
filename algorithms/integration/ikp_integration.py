@@ -1,0 +1,550 @@
+# -*- coding: utf-8 -*-
+
+"""
+/***************************************************************************
+ OtomatisasiD3TLH
+ Plugin yang membantu pengolahan D3TLH secara otomatis
+                              -------------------
+        begin                : 2025-08-15
+        copyright            : (C) 2025 by Direktorat PDLKWS -
+                               Deputi TLSDAB - Kementerian Lingkungan
+                               Hidup/BPLH Republik Indonesia
+        supported by         : Yayasan Lokus Bijak Hijau Lestari (LOKAHITA)
+        email                : tech@yayasanlokahita.org
+ ***************************************************************************/
+
+/***************************************************************************
+ *                                                                         *
+ *   This program is free software; you can redistribute it and/or modify  *
+ *   it under the terms of the GNU General Public License as published by  *
+ *   the Free Software Foundation; either version 2 of the License, or     *
+ *   (at your option) any later version.                                   *
+ *                                                                         *
+ ***************************************************************************/
+"""
+
+__author__ = (
+    "Fadillah Azhar Deaudin Kurniawan, "
+    "Sitarani Safitri, Dini Aprilia Norvyani, "
+    "Suchi Rahmadani, Fariz Rizaldy Wibowo"
+)
+__date__ = "2025-08-15"
+__copyright__ = (
+    "(C) 2025 by Direktorat PDLKWS - Deputi TLSDAB - "
+    "Kementerian Lingkungan Hidup/BPLH Republik Indonesia"
+)
+
+# This will get replaced with a git SHA1 when you do a git archive
+
+__revision__ = "$Format:%H$"
+
+from qgis.PyQt.QtCore import QCoreApplication
+from qgis.core import (
+    QgsProcessing,
+    QgsFeatureSink,
+    QgsProcessingAlgorithm,
+    QgsProcessingParameterFeatureSink,
+    QgsProcessingParameterVectorLayer,
+    QgsProcessingParameterMapLayer,
+)
+
+import processing
+import os
+from qgis.PyQt.QtGui import QIcon
+
+
+class IntegrationIKPAlgorithm(QgsProcessingAlgorithm):
+    # Parameter Integrasi
+    IKP_Air = "IKP_Air"
+    IKP_Udara = "IKP_Udara"
+    IKP_Lahan = "IKP_Lahan"
+    IKP_Kehati = "IKP_Kehati"
+    IKP_Laut = "IKP_Laut"
+    IKP_Integrasi = "IKP_Integrasi"
+    IPRLH = "IPRLH"
+
+    # BOBOT TIAP IKP UNTUK INTEGRASI
+    BOBOT_IKP_Air = 0.49
+    BOBOT_IKP_Lahan = 0.29
+    BOBOT_Kehati = 0.14
+    BOBOT_Udara = 0.08
+
+    def initAlgorithm(self, config):
+        self.addParameter(
+            QgsProcessingParameterMapLayer(
+                self.IPRLH,
+                self.tr(
+                    "Tabel Indeks Perilaku Ramah Lingkungan Hidup "
+                    '[dengan kolom "Provinsi" dan "IPRLH"]'
+                ),
+                optional=False,
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.IKP_Lahan,
+                self.tr('Grid IKP Lahan [dengan kolom "IKPLHN"]'),
+                [QgsProcessing.TypeVectorAnyGeometry],
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.IKP_Air,
+                self.tr('Grid IKP Air [dengan kolom "IKPAIR"]'),
+                [QgsProcessing.TypeVectorAnyGeometry],
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.IKP_Udara,
+                self.tr('Grid IKP Udara [dengan kolom "IKPUDR"]'),
+                [QgsProcessing.TypeVectorAnyGeometry],
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.IKP_Kehati,
+                self.tr('Grid IKP Kehati [dengan kolom "IKPKHT"]'),
+                [QgsProcessing.TypeVectorAnyGeometry],
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.IKP_Laut,
+                self.tr('Grid IKP Laut [dengan kolom "IKPLUT"]'),
+                optional=True,
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterFeatureSink(
+                self.IKP_Integrasi,
+                self.tr('Indeks D3TLH [Kolom "D3TLH"]'),
+            )
+        )
+
+    def processAlgorithm(self, parameters, context, feedback):
+        # DATA INPUT
+        ikp_air = self.parameterAsVectorLayer(
+            parameters, self.IKP_Air, context
+        )
+        ikp_lahan = self.parameterAsVectorLayer(
+            parameters, self.IKP_Lahan, context
+        )
+        ikp_kehati = self.parameterAsVectorLayer(
+            parameters, self.IKP_Kehati, context
+        )
+        ikp_udara = self.parameterAsVectorLayer(
+            parameters, self.IKP_Udara, context
+        )
+        iprlh = self.parameterAsVectorLayer(
+            parameters, self.IPRLH, context
+        )
+
+        # 1. Integrasi semua data menjadi satu
+        ikplh1 = processing.run(
+            "qgis:joinattributestable",
+            {
+                "INPUT": ikp_air,
+                "FIELD": "ID",
+                "INPUT_2": ikp_lahan,
+                "FIELD_2": "ID",
+                "FIELDS_TO_COPY": ["SIKPLHN", "KIKPLHN"],
+                "METHOD": 0,
+                "DISCARD_NONMATCHING": False,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        ikplh2 = processing.run(
+            "qgis:joinattributestable",
+            {
+                "INPUT": ikplh1,
+                "FIELD": "ID",
+                "INPUT_2": ikp_kehati,
+                "FIELD_2": "ID",
+                "FIELDS_TO_COPY": ["SIKPKHT", "KIKPKHT"],
+                "METHOD": 0,
+                "DISCARD_NONMATCHING": False,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        ikplh3 = processing.run(
+            "qgis:joinattributestable",
+            {
+                "INPUT": ikplh2,
+                "FIELD": "ID",
+                "INPUT_2": ikp_udara,
+                "FIELD_2": "ID",
+                "FIELDS_TO_COPY": ["SIKPUDR", "KIKPUDR"],
+                "METHOD": 0,
+                "DISCARD_NONMATCHING": False,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        ikplh_final = processing.run(
+            "qgis:fieldcalculator",
+            {
+                "INPUT": ikplh3,
+                "FIELD_NAME": "IKPLH",
+                "FIELD_TYPE": 0,  # Decimal number (real)
+                "FIELD_LENGTH": 10,
+                "FIELD_PRECISION": 2,
+                "NEW_FIELD": True,
+                "FORMULA": f"""
+                    ( "SIKPLHN" * {self.BOBOT_IKP_Lahan} + "SIKPAIR" *
+                    {self.BOBOT_IKP_Air} + "SIKPKHT" * {self.BOBOT_Kehati} +
+                    "SIKPUDR" * {self.BOBOT_Udara}) / 4
+                """,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        kelas_ikplh = processing.run(
+            "qgis:fieldcalculator",
+            {
+                "INPUT": ikplh_final,
+                "FIELD_NAME": "KIKPLH",
+                "FIELD_TYPE": 2,  # Text (string),
+                "FIELD_LENGTH": 20,
+                "NEW_FIELD": True,
+                "FORMULA": """
+                CASE
+                    WHEN "IKPLH" <= 1.8 THEN 'Sangat Rendah'
+                    WHEN "IKPLH" > 1.8 AND "IKPLH" <= 2.6 THEN 'Rendah'
+                    WHEN "IKPLH" > 2.6 AND "IKPLH" <= 3.4 THEN 'Sedang'
+                    WHEN "IKPLH" > 3.4 AND "IKPLH" <= 4.2 THEN 'Tinggi'
+                    WHEN "IKPLH" > 4.2 THEN 'Sangat Tinggi'
+                    ELSE 0
+                END
+                """,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        skor_ikplh = processing.run(
+            "qgis:fieldcalculator",
+            {
+                "INPUT": kelas_ikplh,
+                "FIELD_NAME": "SIKPLH",
+                "FIELD_TYPE": 1,  # Decimal number (real)
+                "FIELD_LENGTH": 10,
+                "NEW_FIELD": True,
+                "FORMULA": """
+                CASE
+                    WHEN "KIKPLH" = 'Sangat Rendah' THEN 1
+                    WHEN "KIKPLH" = 'Rendah' THEN 2
+                    WHEN "KIKPLH" = 'Sedang' THEN 3
+                    WHEN "KIKPLH" = 'Tinggi' THEN 4
+                    WHEN "KIKPLH" = 'Sangat Tinggi' THEN 5
+                    ELSE 0
+                END
+                """,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # Join csv iprlh to ikplh final dengan Provinsi dan WADMKP sebagai key
+        # Load map layer (csv) from parameter
+        join_iprlh = processing.run(
+            "qgis:joinattributestable",
+            {
+                "INPUT": skor_ikplh,
+                "FIELD": "WADMPR",
+                "INPUT_2": iprlh,
+                "FIELD_2": "Provinsi",
+                "FIELDS_TO_COPY": ["IPRLH"],
+                "METHOD": 0,
+                "DISCARD_NONMATCHING": False,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # Hitung Indeks D3TLH
+        d3tlh = processing.run(
+            "qgis:fieldcalculator",
+            {
+                "INPUT": join_iprlh,
+                "FIELD_NAME": "D3TLH",
+                "FIELD_TYPE": 0,  # Decimal number (real)
+                "FIELD_LENGTH": 10,
+                "FIELD_PRECISION": 3,
+                "NEW_FIELD": True,
+                "FORMULA": '("SIKPLH" + "IPRLH") / 2',
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        final_layer = d3tlh
+        sink, dest_id = self.parameterAsSink(
+            parameters,
+            self.PENUTUP_LAHAN_FIX,
+            context,
+            final_layer.fields(),
+            final_layer.wkbType(),
+            final_layer.sourceCrs(),
+        )
+        features = final_layer.getFeatures()
+        for current, feature in enumerate(features):
+            # Stop the algorithm if cancel button has been clicked
+            if feedback.isCanceled():
+                break
+
+            # Add a feature in the sink
+            sink.addFeature(feature, QgsFeatureSink.FastInsert)
+
+        return {self.IKP_Integrasi: dest_id}
+
+    def name(self):
+        """
+        Returns the algorithm name, used for identifying the algorithm. This
+        string should be fixed for the algorithm, and must not be localised.
+        The name should be unique within each provider. Names should contain
+        lowercase alphanumeric characters only and no spaces or other
+        formatting characters.
+        """
+        return "ikplh"
+
+    def displayName(self):
+        """
+        Returns the translated algorithm name, which should be used for any
+        user-visible display of the algorithm name.
+        """
+        return self.tr("IKP Lingkungan Hidup (Integrasi/Komposit IKP)")
+
+    def group(self):
+        """
+        Returns the name of the group this algorithm belongs to. This string
+        should be localised.
+        """
+        return self.tr(self.groupId())
+
+    def groupId(self):
+        """
+        Returns the unique ID of the group this algorithm belongs to. This
+        string should be fixed for the algorithm, and must not be localised.
+        The group id should be unique within each provider. Group id should
+        contain lowercase alphanumeric characters only and no spaces or other
+        formatting characters.
+        """
+        return "F. Integration"
+
+    def tr(self, string):
+        return QCoreApplication.translate("Processing", string)
+
+    def shortHelpString(self):
+        return self.tr("""
+    <h2>Indeks D3TLH</h2>
+
+    <h2>D3TLH Index</h2>
+
+    <hr>
+
+    <h3>Deskripsi (Bahasa Indonesia)</h3>
+
+    <p>
+    Algoritma ini digunakan untuk menghitung nilai
+    <b>Indeks D3TLH</b> dengan mengintegrasikan hasil
+    perhitungan IKP Air, IKP Lahan, IKP Kehati,
+    IKP Udara, dan IPRLH.
+    </p>
+
+    <p>
+    Indeks D3TLH merupakan indeks komposit yang
+    menggambarkan kondisi daya dukung dan daya
+    tampung lingkungan hidup suatu wilayah dengan
+    menggabungkan berbagai indikator lingkungan
+    ke dalam satu nilai indeks.
+    </p>
+
+    <h4>🗺️ Input yang Dibutuhkan:</h4>
+
+    <ul>
+        <li>
+            <b>1. IKP Air</b>
+            (layer hasil perhitungan IKP Air)
+        </li>
+        <li>
+            <b>2. IKP Lahan</b>
+            (layer hasil perhitungan IKP Lahan)
+        </li>
+        <li>
+            <b>3. IKP Kehati</b>
+            (layer hasil perhitungan IKP Kehati)
+        </li>
+        <li>
+            <b>4. IKP Udara</b>
+            (layer hasil perhitungan IKP Udara)
+        </li>
+        <li>
+            <b>5. Tabel IPRLH</b>
+            (tabel nilai IPRLH sesuai wilayah analisis)
+        </li>
+    </ul>
+
+    <h4>📤 Output:</h4>
+
+    <ul>
+        <li>
+            <b>1. Layer Indeks D3TLH</b>
+        </li>
+        <li>
+            <b>2. Kolom D3TLH</b>
+            yang berisi nilai indeks untuk setiap grid
+        </li>
+    </ul>
+
+    <h4>🧭 Contoh Penggunaan:</h4>
+
+    <ol>
+        <li>
+            Pastikan seluruh perhitungan IKP Air,
+            IKP Lahan, IKP Kehati, dan IKP Udara
+            telah selesai dilakukan.
+        </li>
+        <li>
+            Siapkan tabel IPRLH yang sesuai
+            dengan wilayah analisis.
+        </li>
+        <li>
+            Masukkan seluruh layer dan tabel
+            ke parameter input.
+        </li>
+        <li>
+            Jalankan algoritma untuk menghasilkan
+            nilai Indeks D3TLH.
+        </li>
+    </ol>
+
+    <h4>📚 Referensi:</h4>
+
+    <ul>
+        <li>Dokumen Petunjuk Teknis D3TLH 2024</li>
+        <li>Dokumen Petunjuk Teknis D3TLH 2025</li>
+    </ul>
+
+    <hr>
+
+    <h3>Description (English)</h3>
+
+    <p>
+    This algorithm calculates the
+    <b>D3TLH Index</b> by integrating
+    the results of the Water IKP,
+    Land IKP, Biodiversity IKP,
+    Air IKP, and IPRLH.
+    </p>
+
+    <p>
+    The D3TLH Index is a composite index
+    representing the environmental carrying
+    capacity and environmental quality of
+    an area by combining multiple
+    environmental indicators into a single value.
+    </p>
+
+    <h4>🗺️ Required Inputs:</h4>
+
+    <ul>
+        <li>
+            <b>1. Water IKP</b>
+            (output layer from Water IKP analysis)
+        </li>
+        <li>
+            <b>2. Land IKP</b>
+            (output layer from Land IKP analysis)
+        </li>
+        <li>
+            <b>3. Biodiversity IKP</b>
+            (output layer from Biodiversity IKP analysis)
+        </li>
+        <li>
+            <b>4. Air IKP</b>
+            (output layer from Air IKP analysis)
+        </li>
+        <li>
+            <b>5. IPRLH Table</b>
+            (IPRLH values for the analysis area)
+        </li>
+    </ul>
+
+    <h4>📤 Output:</h4>
+
+    <ul>
+        <li>
+            <b>1. D3TLH Index Layer</b>
+        </li>
+        <li>
+            <b>2. D3TLH Field</b>
+            containing the index value
+            for each grid
+        </li>
+    </ul>
+
+    <h4>🧭 Example of Use:</h4>
+
+    <ol>
+        <li>
+            Complete the Water, Land,
+            Biodiversity, and Air IKP analyses.
+        </li>
+        <li>
+            Prepare the corresponding
+            IPRLH table.
+        </li>
+        <li>
+            Load all layers and tables
+            into the input parameters.
+        </li>
+        <li>
+            Run the algorithm to generate
+            the D3TLH Index.
+        </li>
+    </ol>
+
+    <h4>📚 References:</h4>
+
+    <ul>
+        <li>D3TLH Technical Guidelines 2024</li>
+        <li>D3TLH Technical Guidelines 2025</li>
+    </ul>
+
+    <hr>
+
+    <b><i>
+    Notes: Disarankan untuk tidak menyimpan output
+    secara temporary.
+    </i></b>
+    """)
+
+    def icon(self):
+        return QIcon(
+            os.path.join(
+                os.path.dirname(__file__), "06 Integration.svg"
+            )
+        )
+
+    def createInstance(self):
+        return IntegrationIKPAlgorithm()

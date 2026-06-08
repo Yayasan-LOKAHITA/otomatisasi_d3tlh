@@ -139,7 +139,9 @@ class OtomatisasiD3TLHProvider(QgsProcessingProvider):
         return self.tr("Otomatisasi D3TLH")
 
     def icon(self):
-        icon_path = os.path.join(os.path.dirname(__file__), '00 Main Logo.svg')
+        icon_path = os.path.join(
+            os.path.dirname(__file__), "00 Main Logo.svg"
+        )
         print(f"[OtomatisasiD3TLHProvider] Loading icon from: {icon_path}")
         if os.path.exists(icon_path):
             return QIcon(icon_path)

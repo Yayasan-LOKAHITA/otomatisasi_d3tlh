@@ -57,25 +57,25 @@ from qgis.core import (
 
 class UtilsMCADominantAlgorithm(QgsProcessingAlgorithm):
     # Parameter keys
-    GRID = 'GRID'
-    LAYER2 = 'LAYER2'
-    LAYER2_FIELD = 'LAYER2_FIELD'
-    OUTPUT = 'OUTPUT'   # satu-satunya output
+    GRID = "GRID"
+    LAYER2 = "LAYER2"
+    LAYER2_FIELD = "LAYER2_FIELD"
+    OUTPUT = "OUTPUT"  # satu-satunya output
 
     def tr(self, s):
-        return QCoreApplication.translate('Processing', s)
+        return QCoreApplication.translate("Processing", s)
 
     # ---- Boilerplate metadata ----
     def name(self):
-        return 'mcagrid'
+        return "mcagrid"
 
     def displayName(self):
         return self.tr(
-            'Atribut Dominan Per Grid / Maximum Combined Area (MCA)'
+            "Atribut Dominan Per Grid / Maximum Combined Area (MCA)"
         )
 
     def groupId(self):
-        return 'A. Utilities'
+        return "A. Utilities"
 
     def group(self):
         return self.tr(self.groupId())
@@ -105,7 +105,9 @@ class UtilsMCADominantAlgorithm(QgsProcessingAlgorithm):
         )
 
     def icon(self):
-        icon_path = os.path.join(os.path.dirname(__file__), '01 Utilities.svg')
+        icon_path = os.path.join(
+            os.path.dirname(__file__), "01 Utilities.svg"
+        )
         return QIcon(icon_path)
 
     # ---- params ----
@@ -114,32 +116,34 @@ class UtilsMCADominantAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterFeatureSource(
                 self.GRID,
                 self.tr('GRID (polygon, wajib punya field "id" atau "ID")'),
-                [QgsProcessing.TypeVectorPolygon]
+                [QgsProcessing.TypeVectorPolygon],
             )
         )
         self.addParameter(
             QgsProcessingParameterFeatureSource(
                 self.LAYER2,
-                self.tr('Layer 2 (polygon, kolom fleksibel)'),
-                [QgsProcessing.TypeVectorPolygon]
+                self.tr("Layer 2 (polygon, kolom fleksibel)"),
+                [QgsProcessing.TypeVectorPolygon],
             )
         )
         self.addParameter(
             QgsProcessingParameterField(
                 self.LAYER2_FIELD,
                 self.tr(
-                    'Pilih kolom dari Layer 2 untuk digabung '
-                    '(mis. kwshutan)'
+                    "Pilih kolom dari Layer 2 untuk digabung "
+                    "(mis. kwshutan)"
                 ),
                 parentLayerParameterName=self.LAYER2,
                 type=QgsProcessingParameterField.Any,
-                allowMultiple=False
+                allowMultiple=False,
             )
         )
         self.addParameter(
             QgsProcessingParameterFeatureSink(
                 self.OUTPUT,
-                self.tr('GRID dengan atribut dominan pada kolom yang dipilih')
+                self.tr(
+                    "GRID dengan atribut dominan pada kolom yang dipilih"
+                ),
             )
         )
 
@@ -147,17 +151,17 @@ class UtilsMCADominantAlgorithm(QgsProcessingAlgorithm):
     def _as_layer(self, ref, context):
         # ref bisa layer object, layer id, atau path
         try:
-            if hasattr(ref, 'fields') and hasattr(ref, 'getFeatures'):
+            if hasattr(ref, "fields") and hasattr(ref, "getFeatures"):
                 return ref
             lyr = QgsProcessingUtils.mapLayerFromString(ref, context)
             if lyr is not None:
                 return lyr
-            lyr = QgsVectorLayer(ref, 'layer', 'ogr')
+            lyr = QgsVectorLayer(ref, "layer", "ogr")
             if lyr is not None and lyr.isValid():
                 return lyr
         except Exception:
             pass
-        msg = self.tr('Failed to load layer: {}').format(ref)
+        msg = self.tr("Failed to load layer: {}").format(ref)
         raise QgsProcessingException(msg)
 
     def processAlgorithm(self, parameters, context, feedback):
@@ -166,16 +170,16 @@ class UtilsMCADominantAlgorithm(QgsProcessingAlgorithm):
         lyr2_src = self.parameterAsSource(parameters, self.LAYER2, context)
 
         if grid_src is None or lyr2_src is None:
-            raise QgsProcessingException(self.tr('Input tidak valid.'))
+            raise QgsProcessingException(self.tr("Input tidak valid."))
 
         grid_fields = [f.name() for f in grid_src.fields()]
         lyr2_fields = [f.name() for f in lyr2_src.fields()]
 
         # Deteksi field ID pada GRID (wajib)
-        if 'id' in grid_fields:
-            id_field = 'id'
-        elif 'ID' in grid_fields:
-            id_field = 'ID'
+        if "id" in grid_fields:
+            id_field = "id"
+        elif "ID" in grid_fields:
+            id_field = "ID"
         else:
             raise QgsProcessingException(
                 self.tr(
@@ -186,13 +190,11 @@ class UtilsMCADominantAlgorithm(QgsProcessingAlgorithm):
 
         # Field yang dipilih dari Layer2
         src_field = self.parameterAsString(
-            parameters,
-            self.LAYER2_FIELD,
-            context
+            parameters, self.LAYER2_FIELD, context
         )
         if not src_field or src_field not in lyr2_fields:
             raise QgsProcessingException(
-                self.tr('Kolom yang dipilih tidak ada di Layer 2.')
+                self.tr("Kolom yang dipilih tidak ada di Layer 2.")
             )
 
         out_field = src_field  # output kolom ikut nama input
@@ -204,9 +206,9 @@ class UtilsMCADominantAlgorithm(QgsProcessingAlgorithm):
         # join tidak bikin suffix
         if out_field in grid_fields:
             params = {
-                'INPUT': grid,
-                'COLUMN': [out_field],
-                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT,
+                "INPUT": grid,
+                "COLUMN": [out_field],
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             }
             grid_no_out = processing.run(
                 "native:deletecolumn",
@@ -214,7 +216,7 @@ class UtilsMCADominantAlgorithm(QgsProcessingAlgorithm):
                 context=context,
                 feedback=feedback,
                 is_child_algorithm=True,
-            )['OUTPUT']
+            )["OUTPUT"]
         else:
             grid_no_out = grid
 
@@ -223,14 +225,16 @@ class UtilsMCADominantAlgorithm(QgsProcessingAlgorithm):
         inter1 = processing.run(
             "native:intersection",
             {
-                'INPUT': grid_no_out,
-                'OVERLAY': lyr2,
-                'INPUT_FIELDS': [id_field],
-                'OVERLAY_FIELDS': [src_field],
-                'OVERLAY_FIELDS_PREFIX': '',
-                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+                "INPUT": grid_no_out,
+                "OVERLAY": lyr2,
+                "INPUT_FIELDS": [id_field],
+                "OVERLAY_FIELDS": [src_field],
+                "OVERLAY_FIELDS_PREFIX": "",
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             },
-            context=context, feedback=feedback, is_child_algorithm=True
+            context=context,
+            feedback=feedback,
+            is_child_algorithm=True,
         )["OUTPUT"]
 
         # 2) Dissolve by [id_field, src_field] (akumulasi luas per kombinasi)
@@ -238,12 +242,14 @@ class UtilsMCADominantAlgorithm(QgsProcessingAlgorithm):
         diss = processing.run(
             "native:dissolve",
             {
-                'INPUT': inter1,
-                'FIELD': [id_field, src_field],
-                'SEPARATE_DISJOINT': False,
-                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+                "INPUT": inter1,
+                "FIELD": [id_field, src_field],
+                "SEPARATE_DISJOINT": False,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             },
-            context=context, feedback=feedback, is_child_algorithm=True
+            context=context,
+            feedback=feedback,
+            is_child_algorithm=True,
         )["OUTPUT"]
 
         # 3) Hitung luas m2 seperti contoh (area(transform(..., 3857)))
@@ -252,19 +258,20 @@ class UtilsMCADominantAlgorithm(QgsProcessingAlgorithm):
         add_lm2 = processing.run(
             "native:fieldcalculator",
             {
-                'INPUT': diss,
-                'FIELD_NAME': 'LM2',
-                'FIELD_TYPE': 0,  # Float
-                'FIELD_LENGTH': 20,
-                'FIELD_PRECISION': 3,
-                'NEW_FIELD': True,
-                'FORMULA': (
-                    "area(transform($geometry,'EPSG:4326',"
-                    "'EPSG:3857'))"
+                "INPUT": diss,
+                "FIELD_NAME": "LM2",
+                "FIELD_TYPE": 0,  # Float
+                "FIELD_LENGTH": 20,
+                "FIELD_PRECISION": 3,
+                "NEW_FIELD": True,
+                "FORMULA": (
+                    "area(transform($geometry,'EPSG:4326'," "'EPSG:3857'))"
                 ),
-                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             },
-            context=context, feedback=feedback, is_child_algorithm=True
+            context=context,
+            feedback=feedback,
+            is_child_algorithm=True,
         )["OUTPUT"]
 
         # 4) MAX(LM2) per id
@@ -272,12 +279,14 @@ class UtilsMCADominantAlgorithm(QgsProcessingAlgorithm):
         stats = processing.run(
             "qgis:statisticsbycategories",
             {
-                'INPUT': add_lm2,
-                'CATEGORIES_FIELD_NAME': [id_field],
-                'VALUES_FIELD_NAME': 'LM2',
-                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+                "INPUT": add_lm2,
+                "CATEGORIES_FIELD_NAME": [id_field],
+                "VALUES_FIELD_NAME": "LM2",
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             },
-            context=context, feedback=feedback, is_child_algorithm=True
+            context=context,
+            feedback=feedback,
+            is_child_algorithm=True,
         )["OUTPUT"]
 
         # Deteksi nama kolom max
@@ -285,19 +294,18 @@ class UtilsMCADominantAlgorithm(QgsProcessingAlgorithm):
         max_col = None
         for f in stats_layer.fields():
             n = f.name().lower()
-            if ('max' in n or 'maximum' in n) and ('lm2' in n):
+            if ("max" in n or "maximum" in n) and ("lm2" in n):
                 max_col = f.name()
                 break
         if not max_col:
             for f in stats_layer.fields():
-                if f.name().lower() in ('max', 'maximum'):
+                if f.name().lower() in ("max", "maximum"):
                     max_col = f.name()
                     break
         if not max_col:
             raise QgsProcessingException(
                 self.tr(
-                    'Tidak menemukan kolom MAX(LM2) pada '
-                    'output statistik.'
+                    "Tidak menemukan kolom MAX(LM2) pada " "output statistik."
                 )
             )
 
@@ -306,41 +314,47 @@ class UtilsMCADominantAlgorithm(QgsProcessingAlgorithm):
         joined = processing.run(
             "native:joinattributestable",
             {
-                'INPUT': add_lm2,
-                'FIELD': id_field,
-                'INPUT_2': stats_layer,
-                'FIELD_2': id_field,
-                'FIELDS_TO_COPY': [max_col],
-                'METHOD': 1,  # first matching (hindari penggandaan)
-                'DISCARD_NONMATCHING': True,
-                'PREFIX': '_stat_',
-                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+                "INPUT": add_lm2,
+                "FIELD": id_field,
+                "INPUT_2": stats_layer,
+                "FIELD_2": id_field,
+                "FIELDS_TO_COPY": [max_col],
+                "METHOD": 1,  # first matching (hindari penggandaan)
+                "DISCARD_NONMATCHING": True,
+                "PREFIX": "_stat_",
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             },
-            context=context, feedback=feedback, is_child_algorithm=True
+            context=context,
+            feedback=feedback,
+            is_child_algorithm=True,
         )["OUTPUT"]
 
         # 6) Winners: LM2 == _stat_max
         feedback.pushInfo("6) Ambil pemenang (kelas dominan per grid) ...")
-        expr = f"\"LM2\" = \"_stat_{max_col}\""
+        expr = f'"LM2" = "_stat_{max_col}"'
         winners = processing.run(
             "native:extractbyexpression",
             {
-                'INPUT': joined,
-                'EXPRESSION': expr,
-                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+                "INPUT": joined,
+                "EXPRESSION": expr,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             },
-            context=context, feedback=feedback, is_child_algorithm=True
+            context=context,
+            feedback=feedback,
+            is_child_algorithm=True,
         )["OUTPUT"]
 
         # 6b) retain hanya [id, src_field] (tetap ada geometri)
         dominant_clean = processing.run(
             "native:retainfields",
             {
-                'INPUT': winners,
-                'FIELDS': [id_field, src_field],
-                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+                "INPUT": winners,
+                "FIELDS": [id_field, src_field],
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             },
-            context=context, feedback=feedback, is_child_algorithm=True
+            context=context,
+            feedback=feedback,
+            is_child_algorithm=True,
         )["OUTPUT"]
 
         # 7) Join dominan ke GRID (by id) — METHOD=1 tidak menggandakan
@@ -348,17 +362,19 @@ class UtilsMCADominantAlgorithm(QgsProcessingAlgorithm):
         grid_with_dom = processing.run(
             "native:joinattributestable",
             {
-                'INPUT': grid_no_out,
-                'FIELD': id_field,
-                'INPUT_2': dominant_clean,
-                'FIELD_2': id_field,
-                'FIELDS_TO_COPY': [src_field],
-                'METHOD': 1,                 # first matching feature
-                'DISCARD_NONMATCHING': False,
-                'PREFIX': '',
-                'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+                "INPUT": grid_no_out,
+                "FIELD": id_field,
+                "INPUT_2": dominant_clean,
+                "FIELD_2": id_field,
+                "FIELDS_TO_COPY": [src_field],
+                "METHOD": 1,  # first matching feature
+                "DISCARD_NONMATCHING": False,
+                "PREFIX": "",
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             },
-            context=context, feedback=feedback, is_child_algorithm=True
+            context=context,
+            feedback=feedback,
+            is_child_algorithm=True,
         )["OUTPUT"]
 
         # 8) Pastikan nama kolom output tepat (cek suffix QGIS)
@@ -371,30 +387,30 @@ class UtilsMCADominantAlgorithm(QgsProcessingAlgorithm):
                 grid_with_dom = processing.run(
                     "native:renametablefield",
                     {
-                        'INPUT': grid_with_dom,
-                        'FIELD': cand[0],
-                        'NEW_NAME': out_field,
-                        'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+                        "INPUT": grid_with_dom,
+                        "FIELD": cand[0],
+                        "NEW_NAME": out_field,
+                        "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
                     },
-                    context=context, feedback=feedback, is_child_algorithm=True
-                )['OUTPUT']
+                    context=context,
+                    feedback=feedback,
+                    is_child_algorithm=True,
+                )["OUTPUT"]
 
         # 9) Output sink — sekali saja (tidak double insert)
-        (sink_grid, out_grid_id) = self.parameterAsSink(
-            parameters, self.OUTPUT, context,
+        sink_grid, out_grid_id = self.parameterAsSink(
+            parameters,
+            self.OUTPUT,
+            context,
             self._as_layer(grid_with_dom, context).fields(),
-            self._as_layer(grid_with_dom, context)
-                .wkbType(),
-            self._as_layer(grid_with_dom, context).sourceCrs()
+            self._as_layer(grid_with_dom, context).wkbType(),
+            self._as_layer(grid_with_dom, context).sourceCrs(),
         )
 
         layer = self._as_layer(grid_with_dom, context)
         for current, ft in enumerate(layer.getFeatures()):
             if feedback.isCanceled():
                 break
-            sink_grid.addFeature(
-                ft,
-                QgsFeatureSink.FastInsert
-            )
+            sink_grid.addFeature(ft, QgsFeatureSink.FastInsert)
 
         return {self.OUTPUT: out_grid_id}

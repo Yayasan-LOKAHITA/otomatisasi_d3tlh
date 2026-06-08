@@ -1,0 +1,1089 @@
+# -*- coding: utf-8 -*-
+
+"""
+/***************************************************************************
+ OtomatisasiD3TLH
+ Plugin yang membantu pengolahan D3TLH secara otomatis
+                              -------------------
+        begin                : 2025-08-15
+        copyright            : (C) 2025 by Direktorat PDLKWS -
+                               Deputi TLSDAB - Kementerian Lingkungan
+                               Hidup/BPLH Republik Indonesia
+        supported by         : Yayasan Lokus Bijak Hijau Lestari (LOKAHITA)
+        email                : tech@yayasanlokahita.org
+ ***************************************************************************/
+
+/***************************************************************************
+ *                                                                         *
+ *   This program is free software; you can redistribute it and/or modify  *
+ *   it under the terms of the GNU General Public License as published by  *
+ *   the Free Software Foundation; either version 2 of the License, or     *
+ *   (at your option) any later version.                                   *
+ *                                                                         *
+ ***************************************************************************/
+"""
+
+__author__ = (
+    "Fadillah Azhar Deaudin Kurniawan, "
+    "Sitarani Safitri, Dini Aprilia Norvyani, "
+    "Suchi Rahmadani, Fariz Rizaldy Wibowo"
+)
+__date__ = "2025-08-15"
+__copyright__ = (
+    "(C) 2025 by Direktorat PDLKWS - Deputi TLSDAB - "
+    "Kementerian Lingkungan Hidup/BPLH Republik Indonesia"
+)
+
+# This will get replaced with a git SHA1 when you do a git archive
+
+__revision__ = "$Format:%H$"
+
+import os
+from qgis.PyQt.QtCore import QCoreApplication
+from qgis.core import (
+    QgsProcessing,
+    QgsFeatureSink,
+    QgsProcessingAlgorithm,
+    QgsProcessingParameterVectorLayer,
+    QgsProcessingParameterNumber,
+    QgsProcessingParameterFeatureSink,
+    QgsProcessingException,
+    QgsVectorLayer,
+    QgsProcessingParameterFeatureSource,
+)
+import processing
+from qgis.PyQt.QtGui import QIcon
+
+
+class IKPAirAlgorithm(QgsProcessingAlgorithm):
+
+    # VARIABEL PARAMETER INPUT DAN OUTPUT.
+    YEAR = "YEAR"
+    JLH = "PYA"
+    WS = "WILAYAH_SUNGAI"
+    GRID = "GRID"
+    IP = "INDEKS_PENCEMAR"
+    POP = "POPULASI"
+    JLN = "JALAN"
+    OUTPUT = "OUTPUT"
+
+    #    UNTUK MEMBACA CSV
+    def _load_csv_as_table(self, csv_path, layer_name=None):
+        if not os.path.exists(csv_path):
+            raise QgsProcessingException(
+                f"File CSV tidak ditemukan: {csv_path}"
+            )
+
+        with open(csv_path, "r", encoding="utf-8") as f:
+            first_line = f.readline()
+            delimiter = ";" if ";" in first_line else ","
+
+        if layer_name is None:
+            layer_name = "csv_data"
+
+        uri = f"file:///{csv_path}?delimiter={delimiter}&encoding=UTF-8"
+        csv_layer = QgsVectorLayer(uri, layer_name, "delimitedtext")
+
+        if not csv_layer.isValid():
+            raise QgsProcessingException(
+                f"CSV tidak valid atau gagal dibaca: "
+                f"{csv_path} (delimiter={delimiter})"
+            )
+        return csv_layer
+
+    def initAlgorithm(self, config):
+        self.addParameter(
+            QgsProcessingParameterNumber(
+                self.YEAR,
+                self.tr("Tahun Penutup Lahan (mis. 2024)"),
+                type=QgsProcessingParameterNumber.Integer,
+                defaultValue=2024,
+                minValue=1900,
+                maxValue=2100,
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.JLH,
+                self.tr(
+                    'Grid JLH Penyedia Air [Dengan Kolom "PYA_YY_KK", YY '
+                    "adalah dua digit terakhir tahun.]"
+                ),
+                [QgsProcessing.TypeVectorAnyGeometry],
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.WS,
+                self.tr(
+                    "Layer Wilayah Sungai / WS "
+                    '[Dengan kolom "WS" dan "Ktrs_Air"]'
+                ),
+                [QgsProcessing.TypeVectorAnyGeometry],
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.GRID,
+                self.tr(
+                    "Data Grid Penutup Lahan "
+                    '[Dengan Kolom "ID", "WADMXX", dan "PL"]'
+                ),
+                [QgsProcessing.TypeVectorAnyGeometry],
+            )
+        )
+
+        parameterCSV = QgsProcessingParameterFeatureSource(
+            self.IP,
+            self.tr(
+                "Tabel Indeks Pencemar \n"
+                "[Untuk melihat detail kolom yang dibutuhkan arahkan cursor "
+                "ke sini]"
+            ),
+            types=[QgsProcessing.TypeVector, QgsProcessing.TypeFile],
+            optional=False,
+        )
+        parameterCSV.setHelp(
+            'Kolom yang dibutuhkan : "Kab_Kota", "Jumlah_Titik_Cemar_Ringan", '
+            '"Jumlah_Titik_Cemar_Sedang", "Jumlah_Titik_Cemar_Berat", '
+            'dan "Total"'
+        )
+        self.addParameter(parameterCSV)
+
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.POP,
+                self.tr(
+                    'Grid Populasi [Dengan Kolom "POPGRIDYY", dengan YY '
+                    "adalah dua digit tahun]"
+                ),
+                [QgsProcessing.TypeVectorAnyGeometry],
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterFeatureSink(
+                self.OUTPUT, self.tr('IKP Air Grid [kolom "IKPAIR"]')
+            )
+        )
+
+    def processAlgorithm(self, parameters, context, feedback):
+        # LOGIC PROGRAM UNTUK MEMBACA TAHUN ALGORTIMA DISTRIBUSI PENDUDUK
+        year_full = int(
+            self.parameterAsInt(parameters, self.YEAR, context)
+        )
+        yy = f"{year_full % 100:02d}"  # hasilnya '24' kalau 2024
+
+        # === LAYER INPUT VERSI QGIS ===
+        jlh_src = self.parameterAsVectorLayer(
+            parameters, self.JLH, context
+        )
+        ws_src = self.parameterAsVectorLayer(
+            parameters, self.WS, context
+        )
+        pop_src = self.parameterAsVectorLayer(
+            parameters, self.POP, context
+        )
+        grid_src = self.parameterAsVectorLayer(
+            parameters, self.GRID, context
+        )
+        csv_ip_source = self.parameterAsSource(
+            parameters, self.IP, context
+        )
+        if csv_ip_source is None:
+            raise QgsProcessingException(
+                "Tidak dapat membaca tabel Indeks Pencemar dari input."
+            )
+        else:
+            csv_ip_layer = QgsVectorLayer(
+                "None", "csv_ip_layer", "memory"  # No geometry
+            )
+
+            prov = csv_ip_layer.dataProvider()
+            prov.addAttributes(csv_ip_source.fields())
+            csv_ip_layer.updateFields()
+
+            prov.addFeatures(csv_ip_source.getFeatures())
+            csv_ip_layer.updateExtents()
+
+        # === PROSES ANALISIS ===
+
+        # A. ASPEK SUPPLY AIR
+
+        # 0) Menghitung luas per grid dalam satuan hektar
+        jlh_src = processing.run(
+            "native:fieldcalculator",
+            {
+                "INPUT": jlh_src,
+                "FIELD_NAME": "Luas",
+                "FIELD_TYPE": 0,  # Decimal number (real)
+                "FIELD_LENGTH": 10,
+                "FIELD_PRECISION": 5,
+                "NEW_FIELD": True,
+                "FORMULA": "$area / 10000",
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # 1) Intersection Hasil Grid dan JLH PYA × WS
+        inter = processing.run(
+            "native:intersection",
+            {
+                "INPUT": jlh_src,
+                "OVERLAY": ws_src,
+                "INPUT_FIELDS": [],
+                "OVERLAY_FIELDS": [],
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # 2) Menghitung luas poligon dalam satuan hektar
+        inter_grid_with_area = processing.run(
+            "native:fieldcalculator",
+            {
+                "INPUT": inter,
+                "FIELD_NAME": "luas_obj",
+                "FIELD_TYPE": 0,  # Decimal number (real)
+                "FIELD_LENGTH": 10,
+                "FIELD_PRECISION": 5,
+                "NEW_FIELD": True,
+                "FORMULA": "$area / 10000",
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # 4) Menghitung nilai IJLH per grid (Menghitung JLH PYA Proporsional)
+        inter_grid_with_ijlh = processing.run(
+            "native:fieldcalculator",
+            {
+                "INPUT": inter_grid_with_area,
+                "FIELD_NAME": "ije_pa",
+                "FIELD_TYPE": 0,  # Decimal number (real)
+                "FIELD_LENGTH": 10,
+                "FIELD_PRECISION": 3,
+                "NEW_FIELD": True,
+                # Assuming the original area is in square meters # OPEN !
+                "FORMULA": f'("luas_obj"/"Luas") * '
+                f'("{self.JLH}_{yy}_KK" - 1)/4',
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # 5) Summarized ije_pa (ije/grid) per Nama WS
+        ije_by_ws = processing.run(
+            "qgis:statisticsbycategories",
+            {
+                "INPUT": inter_grid_with_ijlh,
+                "CATEGORIES_FIELD_NAME": "WS",
+                "VALUES_FIELD_NAME": "ije_pa",
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # 6) Join atribut ije_ws ke layer inter_grid_with_ijlh
+        joined_ws = processing.run(
+            "native:joinattributestable",
+            {
+                "INPUT": inter_grid_with_ijlh,
+                "FIELD": "WS",
+                "INPUT_2": ije_by_ws,
+                "FIELD_2": "WS",
+                "FIELDS_TO_COPY": ["sum"],
+                "METHOD": 0,
+                "DISCARD_NONMATCHING": False,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback.pushInfo(
+                "✅ Join tabel IJE satu WS berhasil"
+            ),
+        )["OUTPUT"]
+
+        # 7) Rename field 'sum' menjadi 'ije_ws'
+        inter_ije_ws = processing.run(
+            "qgis:renametablefield",
+            {
+                "INPUT": joined_ws,
+                "FIELD": "sum",
+                "NEW_NAME": "ije_ws",
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # 8) Menghitung ketersediaan air per grid (ketersediaan/grid)
+        inter_air_ws = processing.run(
+            "qgis:fieldcalculator",
+            {
+                "INPUT": inter_ije_ws,
+                "FIELD_NAME": "air_ws_unfixed",
+                "FIELD_TYPE": 0,  # Decimal number (real)
+                "FIELD_LENGTH": 10,
+                "FIELD_PRECISION": 3,
+                "NEW_FIELD": True,
+                # Assuming the original area is in square meters
+                "FORMULA": '"Ktrs_Air" * "ije_pa"/"ije_ws"',
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # 9) Summarized air_ws (air/grid) per ID
+        airws_by_id = processing.run(
+            "qgis:statisticsbycategories",
+            {
+                "INPUT": inter_air_ws,
+                "CATEGORIES_FIELD_NAME": ["ID"],
+                "VALUES_FIELD_NAME": "air_ws_unfixed",
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # 9b) Rename field 'sum' menjadi 'air_ws'
+        airws_fix = processing.run(
+            "qgis:renametablefield",
+            {
+                "INPUT": airws_by_id,
+                "FIELD": "sum",
+                "NEW_NAME": "air_ws",
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # 10) Join atribut air_ws ke layer inter_air_ws
+        # (join via ID, bukanair_ws_unfixed)
+        air_ws = processing.run(
+            "qgis:joinattributestable",
+            {
+                "INPUT": grid_src,
+                "FIELD": "ID",  # join key dari grid/inter
+                "INPUT_2": airws_fix,
+                "FIELD_2": "ID",  # join key dari summary
+                "FIELDS_TO_COPY": [
+                    "air_ws"
+                ],  # ambil kolom hasil summary
+                "METHOD": 0,
+                "DISCARD_NONMATCHING": False,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback.pushInfo(
+                "✅ Join tabel Air Per WS berhasil"
+            ),
+        )["OUTPUT"]
+
+        # ## 2️⃣ Fase Kolom Air
+
+        # 13) Menambahkan kolom baru untuk IP dari Indeks Pencemar
+        join_ip = processing.run(
+            "qgis:joinattributestable",
+            {
+                "INPUT": air_ws,  # layer spasial hasil tahap sebelumnya
+                "FIELD": "WADMKK",  # field kunci di layer spasial
+                "INPUT_2": csv_ip_layer,  # tabel indeks pencemar (non-spasial)
+                "FIELD_2": "Kab_Kota",  # field kunci di CSV
+                "FIELDS_TO_COPY": [
+                    "Jumlah_Titik_Cemar_Ringan",
+                    "Jumlah_Titik_Cemar_Sedang",
+                    "Jumlah_Titik_Cemar_Berat",
+                    "Total",
+                ],
+                "METHOD": 0,
+                "DISCARD_NONMATCHING": False,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback.pushInfo(
+                "✅ Join tabel Indeks Pencemar berhasil"
+            ),
+        )["OUTPUT"]
+
+        # 14) Refactor untuk merubah tipe data Jumlah Titik Cemar
+        refactored = processing.run(
+            "native:refactorfields",
+            {
+                "INPUT": join_ip,
+                "FIELDS_MAPPING": [
+                    {"name": "ID", "type": 10, "expression": "ID"},
+                    {
+                        "name": "PULAU",
+                        "type": 10,
+                        "length": 255,
+                        "expression": "PULAU",
+                    },
+                    {
+                        "name": "WADMPR",
+                        "type": 10,
+                        "length": 255,
+                        "expression": "WADMPR",
+                    },
+                    {
+                        "name": "WADMKK",
+                        "type": 10,
+                        "length": 255,
+                        "expression": "WADMKK",
+                    },
+                    {
+                        "name": "WADMKC",
+                        "type": 10,
+                        "length": 255,
+                        "expression": "WADMKC",
+                    },
+                    {
+                        "name": "WADMKD",
+                        "type": 10,
+                        "length": 255,
+                        "expression": "WADMKD",
+                    },
+                    {
+                        "name": "PL",
+                        "type": 10,
+                        "length": 255,
+                        "expression": "PL",
+                    },
+                    {
+                        "name": "air_ws",
+                        "type": 6,
+                        "expression": "air_ws",
+                    },
+                    {
+                        "name": "Jumlah_Titik_Cemar_Ringan",
+                        "type": 2,
+                        "expression": 'to_int("Jumlah_Titik_Cemar_Ringan")',
+                    },
+                    {
+                        "name": "Jumlah_Titik_Cemar_Sedang",
+                        "type": 2,
+                        "expression": 'to_int("Jumlah_Titik_Cemar_Sedang")',
+                    },
+                    {
+                        "name": "Jumlah_Titik_Cemar_Berat",
+                        "type": 2,
+                        "expression": 'to_int("Jumlah_Titik_Cemar_Berat")',
+                    },
+                    {
+                        "name": "Total",
+                        "type": 2,
+                        "expression": 'to_int("Total")',
+                    },
+                ],
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback.pushInfo(
+                "✅ Perapihan nama-nama kolom berhasil.."
+            ),
+        )["OUTPUT"]
+
+        # 15) Buat Kolom IP (Indeks Pencemar) dan Kalkulasi Perhitungan IP
+        # (buat string jadi double)
+        calc_ip = processing.run(
+            "qgis:fieldcalculator",
+            {
+                "INPUT": refactored,
+                "FIELD_NAME": "ip",
+                "FIELD_TYPE": 0,
+                "FIELD_PRECISION": 3,
+                "NEW_FIELD": True,
+                "FORMULA": '(0.1 * "Jumlah_Titik_Cemar_Ringan" + '
+                '"Jumlah_Titik_Cemar_Sedang" + "Jumlah_Titik_Cemar_Berat") '
+                '/ "Total"',
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # 16) Buat Kolom dan Hitung Air Cemar
+        calc_air_cemar = processing.run(
+            "qgis:fieldcalculator",
+            {
+                "INPUT": calc_ip,
+                "FIELD_NAME": "air_cemar",
+                "FIELD_TYPE": 0,
+                "FIELD_PRECISION": 3,
+                "NEW_FIELD": True,
+                "FORMULA": '"air_ws" * "ip"',
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # 17) Buat Kolom dan Hitung Air Layak
+        calc_air_layak = processing.run(
+            "qgis:fieldcalculator",
+            {
+                "INPUT": calc_air_cemar,
+                "FIELD_NAME": "air_layak",
+                "FIELD_TYPE": 0,  # Decimal number (real)
+                "FIELD_LENGTH": 10,
+                "FIELD_PRECISION": 3,
+                "NEW_FIELD": True,
+                "FORMULA": '"air_ws" - "air_cemar"',
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # ==== DEMAND ===
+
+        # 18) Join GRIDPOP ke Grid Air Layak
+        join_gridpop = processing.run(
+            "qgis:joinattributestable",
+            {
+                "INPUT": calc_air_layak,
+                "FIELD": "ID",
+                "INPUT_2": pop_src,
+                "FIELD_2": "ID",
+                "FIELDS_TO_COPY": [f"POPGRID{yy}"],
+                "METHOD": 0,
+                "DISCARD_NONMATCHING": False,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # === KEBUTUHAN AIR PADA LAHAN ===
+
+        # 19) Hitung bobot_pl atau I pada rumus kebutuhan air pada lahan
+        calc_bobot_pl = processing.run(
+            "qgis:fieldcalculator",
+            {
+                "INPUT": join_gridpop,
+                "FIELD_NAME": "bobot_pl",
+                "FIELD_TYPE": 0,  # Real
+                "FIELD_LENGTH": 20,
+                "FIELD_PRECISION": 3,
+                "NEW_FIELD": True,
+                "FORMULA": """
+                    CASE      
+                        WHEN "PL" = 'Sawah' THEN 4
+                        WHEN "PL" = 'Pertanian Lahan Kering' THEN 1
+                        WHEN "PL" = 'Pertanian Lahan Kering Campur' THEN 1
+                        WHEN "PL" = 'Perkebunan' THEN 1.5
+                        ELSE 0
+                    END
+                """,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # 20) Hitung Luas PL
+        calc_luas_pl = processing.run(
+            "qgis:fieldcalculator",
+            {
+                "INPUT": calc_bobot_pl,
+                "FIELD_NAME": "luas_pl",
+                "FIELD_TYPE": 0,  # Decimal number (real)
+                "FIELD_LENGTH": 20,
+                "FIELD_PRECISION": 5,
+                "NEW_FIELD": True,
+                "FORMULA": "$area / 10000",
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # 21) Hitung Kebutuhan Air pada Lahan
+        kebutuhan_air_lahan = processing.run(
+            "qgis:fieldcalculator",
+            {
+                "INPUT": calc_luas_pl,
+                "FIELD_NAME": "dmnd_air_lhn",
+                "FIELD_TYPE": 0,
+                "FIELD_LENGTH": 20,
+                "FIELD_PRECISION": 3,
+                "NEW_FIELD": True,
+                "FORMULA": """
+                    CASE
+                        WHEN "PL" = 'Tambak' THEN "luas_pl" * 10000
+                        ELSE
+                        ("luas_pl" * "bobot_pl" * 0.001 * 3600 * 24 * 120 / 2)
+                    END
+                """,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # === Fase Populasi ===
+
+        # 22)  Hitung kebutuhan air populasi
+        kebutuhan_air_pop = processing.run(
+            "qgis:fieldcalculator",
+            {
+                "INPUT": kebutuhan_air_lahan,
+                "FIELD_NAME": "dmnd_air_pop",
+                "FIELD_TYPE": 0,
+                "FIELD_LENGTH": 20,
+                "FIELD_PRECISION": 3,
+                "NEW_FIELD": True,
+                "FORMULA": f'43.2 * "POPGRID{yy}" * 2',
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # 23) Hitung kebutuhan air total (air lahan + air populasi)
+        kebutuhan_air_total = processing.run(
+            "qgis:fieldcalculator",
+            {
+                "INPUT": kebutuhan_air_pop,
+                "FIELD_NAME": "dmnd_air_total",
+                "FIELD_TYPE": 0,
+                "FIELD_LENGTH": 20,
+                "FIELD_PRECISION": 3,
+                "NEW_FIELD": True,
+                "FORMULA": '"dmnd_air_pop" + "dmnd_air_lhn"',
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # 24) menghitung ambang batas populasi
+        calc_ambang_pop = processing.run(
+            "qgis:fieldcalculator",
+            {
+                "INPUT": kebutuhan_air_total,
+                "FIELD_NAME": "ambang_pop",
+                "FIELD_TYPE": 0,
+                "FIELD_LENGTH": 20,
+                "FIELD_PRECISION": 3,
+                "NEW_FIELD": True,
+                "FORMULA": f"""
+                    CASE
+                        WHEN ("air_layak" - "dmnd_air_total" < 0)
+                            THEN "air_layak" / (850)
+                        WHEN ("air_layak" - "dmnd_air_total" >= 0)
+                            THEN (("air_layak" - "dmnd_air_total") / (850))
+                            + "POPGRID{yy}"
+                    END
+                """,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # 25a) Menentukan selisih ambang batas populasi
+        calc_selisih_ambang = processing.run(
+            "qgis:fieldcalculator",
+            {
+                "INPUT": calc_ambang_pop,
+                "FIELD_NAME": "SELISIH_AB",
+                "FIELD_TYPE": 0,
+                "FIELD_LENGTH": 20,
+                "FIELD_PRECISION": 3,
+                "NEW_FIELD": True,
+                "FORMULA": f'"ambang_pop" - "POPGRID{yy}"',
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # 25b) Menentukan status ambang batas populasi
+        status_air = processing.run(
+            "qgis:fieldcalculator",
+            {
+                "INPUT": calc_selisih_ambang,
+                "FIELD_NAME": "STATUSAIR",
+                "FIELD_TYPE": 2,
+                "FIELD_LENGTH": 20,
+                "NEW_FIELD": True,
+                "FORMULA": """
+                    CASE
+                        WHEN "SELISIH_AB" <= 0 THEN 'Terlampaui'
+                        ELSE 'Belum Terlampaui'
+                    END
+                """,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # === Fase IKP AIR ===
+
+        # 24) Calc IKP
+        calc_IKP = processing.run(
+            "qgis:fieldcalculator",
+            {
+                "INPUT": status_air,
+                "FIELD_NAME": "IKPAIR",
+                "FIELD_TYPE": 0,  # Decimal number (real)
+                "FIELD_LENGTH": 10,
+                "FIELD_PRECISION": 3,
+                "NEW_FIELD": True,
+                "FORMULA": '("dmnd_air_total") / ("air_layak")',
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # 25) Hitung Skor Kelas IKP
+        kelas_IKP = processing.run(
+            "qgis:fieldcalculator",
+            {
+                "INPUT": calc_IKP,
+                "FIELD_NAME": "KIKPAIR",
+                "FIELD_TYPE": 2,  # String
+                "FIELD_LENGTH": 20,
+                "NEW_FIELD": True,
+                "FORMULA": """
+                    CASE
+                        WHEN "IKPAIR" <= 0.1 THEN 'Sangat Tinggi'
+                        WHEN "IKPAIR" > 0.1 AND "IKPAIR" <= 0.2 THEN 'Tinggi'
+                        WHEN "IKPAIR" > 0.2 AND "IKPAIR" <= 0.4 THEN 'Sedang'
+                        WHEN "IKPAIR" > 0.4 AND "IKPAIR" <= 0.8 THEN 'Rendah'
+                        WHEN "IKPAIR" > 0.8 THEN 'Sangat Rendah'
+                        ELSE 'Tidak Terdefinisi'
+                    END
+                """,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # 26) Hitung Skor IKP Air
+        skor_IKP = processing.run(
+            "qgis:fieldcalculator",
+            {
+                "INPUT": kelas_IKP,
+                "FIELD_NAME": "SIKPAIR",
+                "FIELD_TYPE": 1,
+                "FIELD_LENGTH": 1,
+                "NEW_FIELD": True,
+                "FORMULA": """
+                    CASE
+                        WHEN "IKPAIR" <= 0.1 THEN 5
+                        WHEN "IKPAIR" > 0.1 AND "IKPAIR" <= 0.2 THEN 4
+                        WHEN "IKPAIR" > 0.2 AND "IKPAIR" <= 0.4 THEN 3
+                        WHEN "IKPAIR" > 0.4 AND "IKPAIR" <= 0.8 THEN 2
+                        WHEN "IKPAIR" > 0.8 THEN 1
+                        ELSE NULL
+                    END
+                """,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # 27) Standarisasi nama-nama kolom output terakhir
+        refactored_final = processing.run(
+            "native:refactorfields",
+            {
+                "INPUT": skor_IKP,
+                "FIELDS_MAPPING": [
+                    {
+                        "name": "ID",
+                        "type": 10,
+                        "length": 0,
+                        "precision": 0,
+                        "expression": '"ID"',
+                        "alias": "",
+                        "comment": "",
+                        "sub_type": 0,
+                        "type_name": "text",
+                    },
+                    {
+                        "name": "PULAU",
+                        "type": 10,
+                        "length": 255,
+                        "precision": 0,
+                        "expression": '"PULAU"',
+                        "alias": "",
+                        "comment": "",
+                        "sub_type": 0,
+                        "type_name": "text",
+                    },
+                    {
+                        "name": "WADMKK",
+                        "type": 10,
+                        "length": 255,
+                        "precision": 0,
+                        "expression": '"WADMKK"',
+                        "alias": "",
+                        "comment": "",
+                        "sub_type": 0,
+                        "type_name": "text",
+                    },
+                    {
+                        "name": "PL",
+                        "type": 10,
+                        "length": 255,
+                        "precision": 0,
+                        "expression": '"PL"',
+                        "alias": "",
+                        "comment": "",
+                        "sub_type": 0,
+                        "type_name": "text",
+                    },
+                    {
+                        "name": "AIRCMR",
+                        "type": 6,
+                        "length": 0,
+                        "precision": 3,
+                        "expression": '"air_cemar"',
+                        "alias": "",
+                        "comment": "",
+                        "sub_type": 0,
+                        "type_name": "double precision",
+                    },
+                    {
+                        "name": "AIRLYK",
+                        "type": 6,
+                        "length": 10,
+                        "precision": 3,
+                        "expression": '"air_layak"',
+                        "alias": "",
+                        "comment": "",
+                        "sub_type": 0,
+                        "type_name": "double precision",
+                    },
+                    {
+                        "name": "D_LHN",
+                        "type": 6,
+                        "length": 20,
+                        "precision": 3,
+                        "expression": '"dmnd_air_lhn"',
+                        "alias": "",
+                        "comment": "",
+                        "sub_type": 0,
+                        "type_name": "double precision",
+                    },
+                    {
+                        "name": "D_POP",
+                        "type": 6,
+                        "length": 20,
+                        "precision": 3,
+                        "expression": '"dmnd_air_pop"',
+                        "alias": "",
+                        "comment": "",
+                        "sub_type": 0,
+                        "type_name": "double precision",
+                    },
+                    {
+                        "name": "D_TOT",
+                        "type": 6,
+                        "length": 20,
+                        "precision": 3,
+                        "expression": '"dmnd_air_total"',
+                        "alias": "",
+                        "comment": "",
+                        "sub_type": 0,
+                        "type_name": "double precision",
+                    },
+                    {
+                        "name": "AB_POP",
+                        "type": 6,
+                        "length": 20,
+                        "precision": 3,
+                        "expression": '"ambang_pop"',
+                        "alias": "",
+                        "comment": "",
+                        "sub_type": 0,
+                        "type_name": "double precision",
+                    },
+                    {
+                        "name": "SELISIH_AB",
+                        "type": 6,
+                        "length": 10,
+                        "precision": 3,
+                        "expression": '"SELISIH_AB"',
+                        "alias": "",
+                        "comment": "",
+                        "sub_type": 0,
+                        "type_name": "double precision",
+                    },
+                    {
+                        "name": "STATUSAIR",
+                        "type": 10,
+                        "length": 20,
+                        "precision": 0,
+                        "expression": '"STATUSAIR"',
+                        "alias": "",
+                        "comment": "",
+                        "sub_type": 0,
+                        "type_name": "text",
+                    },
+                    {
+                        "name": "IKPAIR",
+                        "type": 6,
+                        "length": 10,
+                        "precision": 3,
+                        "expression": '"IKPAIR"',
+                        "alias": "",
+                        "comment": "",
+                        "sub_type": 0,
+                        "type_name": "double precision",
+                    },
+                    {
+                        "name": "KIKPAIR",
+                        "type": 10,
+                        "length": 20,
+                        "precision": 0,
+                        "expression": '"KIKPAIR"',
+                        "alias": "",
+                        "comment": "",
+                        "sub_type": 0,
+                        "type_name": "text",
+                    },
+                    {
+                        "name": "SIKPAIR",
+                        "type": 2,
+                        "length": 1,
+                        "precision": 0,
+                        "expression": '"SIKPAIR"',
+                        "alias": "",
+                        "comment": "",
+                        "sub_type": 0,
+                        "type_name": "integer",
+                    },
+                ],
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback.pushInfo(
+                "✅ Standarisasi nama-nama kolom output final berhasil"
+            ),
+        )["OUTPUT"]
+
+        out_src = refactored_final
+        # Output sink
+        sink, dest_id = self.parameterAsSink(
+            parameters,
+            self.OUTPUT,
+            context,
+            out_src.fields(),
+            out_src.wkbType(),
+            out_src.sourceCrs(),
+        )
+
+        total = (
+            100.0 / out_src.featureCount()
+            if out_src.featureCount()
+            else 0
+        )
+        for current, feat in enumerate(out_src.getFeatures()):
+            if feedback.isCanceled():
+                break
+            sink.addFeature(feat, QgsFeatureSink.FastInsert)
+            feedback.setProgress(int(current * total))
+
+        return {self.OUTPUT: dest_id}
+
+    def name(self):
+        return "ikpair"
+
+    def displayName(self):
+        return self.tr("IKP Air")
+
+    def group(self):
+        """
+        Returns the name of the group this algorithm belongs to. This string
+        should be localised.
+        """
+        return self.tr(self.groupId())
+
+    def groupId(self):
+        return "E. Indeks Kemampuan Pemanfaatan (IKP)"
+
+    def tr(self, string):
+        return QCoreApplication.translate("Processing", string)
+
+    def icon(self):
+        return QIcon(
+            os.path.join(
+                os.path.dirname(__file__), "05 Carrying Capacity.svg"
+            )
+        )
+
+    def shortHelpString(self):
+        return """
+    This module is used to calculate the
+    Biodiversity Utilization Capacity
+    Index (IKP Kehati).
+
+    The basic workflow is as follows:
+
+    1. Prepare the Base Data:
+    grid, water supply providers (PYA),
+    river basin areas (WS),
+    land cover (PL), population data,
+    and the Pollution Index table.
+
+    2. Water Supply Processing:
+    calculate the water area and
+    proportion within each grid,
+    then aggregate by river basin (WS)
+    to obtain usable water availability
+    (air_ws).
+
+    3. Water Quality Processing:
+    join the Pollution Index data to
+    the grid, then calculate polluted
+    water (air_cemar) and usable water
+    (air_layak).
+
+    4. Water Demand Processing:
+    calculate water demand from land
+    cover (W_PL) and population
+    (BA_POP), then combine them into
+    total water demand (BA_TOTAL).
+
+    5. Water IKP Calculation:
+    calculate the IKP value for each
+    grid (IKP = BA_TOTAL / air_layak),
+    classify the results into five
+    categories (Very High–Very Low),
+    and assign a score from 1 to 5.
+
+    6. Final Output:
+    a grid layer containing the ID,
+    usable water availability
+    (air_layak), IKP value,
+    IKP class (KELAS_IKP),
+    and IKP score (SKOR_IKP).
+
+    <br>
+
+    <h4>🗂️ Input Data and Sample Data
+    Can Be Downloaded Here:</h4>
+
+    🔗 <a href="https://1drv.ms/f/c/
+    0192f2f41be57bd4/
+    IgD4wyEVQJz0TpUNKJylYMvRAaX6iNv595qMn6dOtH5onns
+    ?e=X8spJE" target="_blank">
+    [Click Here to Access the Data]</a>
+        """
+
+    def createInstance(self):
+        return IKPAirAlgorithm()
