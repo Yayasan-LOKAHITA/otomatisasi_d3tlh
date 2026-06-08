@@ -46,35 +46,53 @@ from .utils.mca_dominant_grid import UtilsMCADominantAlgorithm
 from .utils.grid_sgsri import UtilsGridSGSRIAlgorithm
 
 # Algoritma Pre-Processing
-# from .preprocessing.validate_data_quality import PreprocDataValidationAlgorithm
-# from .preprocessing.add_island_attribute import PreprocAddIslandAttributeAlgorithm
-# from .preprocessing.schema_standardization import PreprocSchemaStandardizationAlgorithm
-# from .preprocessing.road_class_standard import PreprocRoadClassStandardAlgorithm
-# from .preprocessing.landcover_klhk import PreprocLandCoverKLHKAlgorithm
+from .preprocessing.validate_data_quality import (
+    PreprocDataValidationAlgorithm,
+)
+from .preprocessing.add_island_attribute import (
+    PreprocAddIslandAttributeAlgorithm,
+)
+from .preprocessing.schema_standardization import (
+    PreprocSchemaStandardizationAlgorithm,
+)
+from .preprocessing.road_class_standard import (
+    PreprocRoadClassStandardAlgorithm,
+)
+from .preprocessing.landcover_klhk import PreprocLandCoverKLHKAlgorithm
 
 # Algoritma IJLH
-# from .jlh.jlh_pengatur_kualitas_udara import JLHAirQualityRegulationAlgorithm
-# from .jlh.jlh_penyedia_air import JLHWaterSupplyAlgorithm
-# from .jlh.jlh_penyedia_pangan import JLHFoodSupplyAlgorithm
-# from .jlh.jlh_penyerapan_dan_penyimpanan_karbon import JLHCarbonStorageAlgorithm
-# from .jlh.jlh_pendukung_habibat_dan_kehati import JLHHabitatKehatiAlgorithm
-# from .jlh.jlh_pengaturan_air import JLHWaterRegulationAlgorithm
+from .jlh.jlh_pengatur_kualitas_udara import (
+    JLHAirQualityRegulationAlgorithm,
+)
+from .jlh.jlh_penyedia_air import JLHWaterSupplyAlgorithm
+from .jlh.jlh_penyedia_pangan import JLHFoodSupplyAlgorithm
+from .jlh.jlh_penyerapan_dan_penyimpanan_karbon import (
+    JLHCarbonStorageAlgorithm,
+)
+from .jlh.jlh_pendukung_habibat_dan_kehati import (
+    JLHHabitatKehatiAlgorithm,
+)
+from .jlh.jlh_pengaturan_air import JLHWaterRegulationAlgorithm
 
 # Model
-# from .socio_ecologial.population_distribution import SocioEcoPopulationDistAlgorithm
-# from .socio_ecologial.ecological_footprint import SocioEcoEcologicalFootprintAlgorithm
+from .socio_ecologial.population_distribution import (
+    SocioEcoPopulationDistAlgorithm,
+)
+from .socio_ecologial.ecological_footprint import (
+    SocioEcoEcologicalFootprintAlgorithm,
+)
 
 # Algoritma IKP
-# from .ikp.ikp_lahan import IKPLahanAlgorithm
-# from .ikp.ikp_kehati import IKPKehatiAlgorithm
-# from .ikp.ikp_udara import IKPUdaraAlgorithm
-# from .ikp.ikp_air import IKPAirAlgorithm
+from .ikp.ikp_lahan import IKPLahanAlgorithm
+from .ikp.ikp_kehati import IKPKehatiAlgorithm
+from .ikp.ikp_udara import IKPUdaraAlgorithm
+from .ikp.ikp_air import IKPAirAlgorithm
 
 # Algoritma Integrasi
-# from .integration.ikp_integration import IntegrationIKPAlgorithm
+from .integration.ikp_integration import IntegrationIKPAlgorithm
 
 # Algoritma Simbologi
-# from .styling.simbology import ApplyStandardStylesAlgorithm
+from .styling.simbology import ApplyStandardStylesAlgorithm
 
 
 class OtomatisasiD3TLHProvider(QgsProcessingProvider):
@@ -89,37 +107,37 @@ class OtomatisasiD3TLHProvider(QgsProcessingProvider):
         # Algoritma lainnya
         self.addAlgorithm(UtilsMCADominantAlgorithm())
         self.addAlgorithm(UtilsGridSGSRIAlgorithm())
-        # self.addAlgorithm(PreprocLandCoverKLHKAlgorithm())
-        # self.addAlgorithm(PreprocRoadClassStandardAlgorithm())
+        self.addAlgorithm(PreprocLandCoverKLHKAlgorithm())
+        self.addAlgorithm(PreprocRoadClassStandardAlgorithm())
 
         # Algoritma Pre-Processing
-        # self.addAlgorithm(PreprocAddIslandAttributeAlgorithm())
-        # self.addAlgorithm(PreprocDataValidationAlgorithm())
-        # self.addAlgorithm(PreprocSchemaStandardizationAlgorithm())
+        self.addAlgorithm(PreprocAddIslandAttributeAlgorithm())
+        self.addAlgorithm(PreprocDataValidationAlgorithm())
+        self.addAlgorithm(PreprocSchemaStandardizationAlgorithm())
 
         # Algoritma IJLH
-        # self.addAlgorithm(JLHAirQualityRegulationAlgorithm())
-        # self.addAlgorithm(JLHFoodSupplyAlgorithm())
-        # self.addAlgorithm(JLHCarbonStorageAlgorithm())
-        # self.addAlgorithm(JLHHabitatKehatiAlgorithm())
-        # self.addAlgorithm(JLHWaterSupplyAlgorithm())
-        # self.addAlgorithm(JLHWaterRegulationAlgorithm())
+        self.addAlgorithm(JLHAirQualityRegulationAlgorithm())
+        self.addAlgorithm(JLHFoodSupplyAlgorithm())
+        self.addAlgorithm(JLHCarbonStorageAlgorithm())
+        self.addAlgorithm(JLHHabitatKehatiAlgorithm())
+        self.addAlgorithm(JLHWaterSupplyAlgorithm())
+        self.addAlgorithm(JLHWaterRegulationAlgorithm())
 
         # Model-Model Pendukung
-        # self.addAlgorithm(SocioEcoEcologicalFootprintAlgorithm())
-        # self.addAlgorithm(SocioEcoPopulationDistAlgorithm())
+        self.addAlgorithm(SocioEcoEcologicalFootprintAlgorithm())
+        self.addAlgorithm(SocioEcoPopulationDistAlgorithm())
 
         # Algoritma IKP
-        # self.addAlgorithm(IKPAirAlgorithm())
-        # self.addAlgorithm(IKPKehatiAlgorithm())
-        # self.addAlgorithm(IKPUdaraAlgorithm())
-        # self.addAlgorithm(IKPLahanAlgorithm())
+        self.addAlgorithm(IKPAirAlgorithm())
+        self.addAlgorithm(IKPKehatiAlgorithm())
+        self.addAlgorithm(IKPUdaraAlgorithm())
+        self.addAlgorithm(IKPLahanAlgorithm())
 
         # Algoritma Integrasi
-        # self.addAlgorithm(IntegrationIKPAlgorithm())
+        self.addAlgorithm(IntegrationIKPAlgorithm())
 
         # Algoritma Simbology
-        # self.addAlgorithm(ApplyStandardStylesAlgorithm())
+        self.addAlgorithm(ApplyStandardStylesAlgorithm())
 
     def id(self):
         """
@@ -142,7 +160,9 @@ class OtomatisasiD3TLHProvider(QgsProcessingProvider):
         icon_path = os.path.join(
             os.path.dirname(__file__), "00 Main Logo.svg"
         )
-        print(f"[OtomatisasiD3TLHProvider] Loading icon from: {icon_path}")
+        print(
+            f"[OtomatisasiD3TLHProvider] Loading icon from: {icon_path}"
+        )
         if os.path.exists(icon_path):
             return QIcon(icon_path)
         else:
