@@ -56,7 +56,7 @@ import os
 from typing import Dict, Tuple, Optional
 import zipfile
 import re
-from defusedxml import ElementTree as ET
+import xml.etree.ElementTree as ET
 from qgis.PyQt.QtGui import QIcon
 
 
@@ -71,7 +71,9 @@ def _read_shared_strings(z: zipfile.ZipFile):
             root = ET.parse(f).getroot()
     except KeyError:
         return []
-    ns = {"t": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+    ns = {
+        "t": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+    }
     res = []
     for si in root.findall("t:si", ns):
         ts = [t.text or "" for t in si.findall(".//t:t", ns)]
@@ -108,7 +110,9 @@ def _first_sheet_path(z: zipfile.ZipFile) -> str:
             target = rel.attrib.get("Target")
             break
     if not target:
-        raise QgsProcessingException("Gagal menemukan path sheet pertama.")
+        raise QgsProcessingException(
+            "Gagal menemukan path sheet pertama."
+        )
     return "xl/" + target
 
 
@@ -122,7 +126,9 @@ def _read_sheet_cells(
                 root = ET.parse(f).getroot()
     except zipfile.BadZipFile:
         raise QgsProcessingException("File bukan .xlsx valid.")
-    ns = {"t": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+    ns = {
+        "t": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+    }
     rows = {}
     for rnode in root.findall(".//t:sheetData/t:row", ns):
         r = int(rnode.attrib.get("r", "0") or "0")
@@ -142,7 +148,10 @@ def _read_sheet_cells(
                 typ = "s"
             elif t == "inlineStr" and is_node is not None:
                 txt = "".join(
-                    [(tn.text or "") for tn in is_node.findall(".//t:t", ns)]
+                    [
+                        (tn.text or "")
+                        for tn in is_node.findall(".//t:t", ns)
+                    ]
                 )
                 val = txt
                 typ = "str"
@@ -190,7 +199,17 @@ class SocioEcoEcologicalFootprintAlgorithm(QgsProcessingAlgorithm):
     # Konstanta pangan (urut 0..8)
     # 0 Padi, 1 Umbi, 2 Hewani, 3 Minyak&Lemak, 4 Biji Berminyak,
     # 5 Kacang, 6 Gula, 7 Sayur&Buah, 8 Bumbu&Minuman
-    _Kbj = [383250, 45990, 91980, 76650, 22995, 38325, 38325, 45990, 22995]
+    _Kbj = [
+        383250,
+        45990,
+        91980,
+        76650,
+        22995,
+        38325,
+        38325,
+        45990,
+        22995,
+    ]
     _Ej = [
         363.32,
         120.0,
@@ -208,9 +227,26 @@ class SocioEcoEcologicalFootprintAlgorithm(QgsProcessingAlgorithm):
     _KW_ORDERED = [
         (0, ["padi-padian", "padi padian", "total padi", "padi"]),
         (1, ["umbi-umbian", "umbi umbian", "total umbi", "umbi"]),
-        (2, ["pangan hewani", "hewani", "ternak", "daging", "telur", "susu"]),
+        (
+            2,
+            [
+                "pangan hewani",
+                "hewani",
+                "ternak",
+                "daging",
+                "telur",
+                "susu",
+            ],
+        ),
         (3, ["minyak dan lemak", "minyak & lemak"]),
-        (4, ["buah / biji berminyak", "biji berminyak", "buah berminyak"]),
+        (
+            4,
+            [
+                "buah / biji berminyak",
+                "biji berminyak",
+                "buah berminyak",
+            ],
+        ),
         (5, ["kacang-kacangan", "kacang kacangan", "total kacang"]),
         (6, ["total gula", "gula"]),
         (7, ["sayur dan buah", "sayur & buah", "sayuran dan buah"]),
@@ -285,7 +321,9 @@ class SocioEcoEcologicalFootprintAlgorithm(QgsProcessingAlgorithm):
 
     @staticmethod
     def _papan_fi_ha_per_m3(year: int) -> float:
-        return 1.0 / ((1.26 + 0.0002666667 * (year - 2015) ** 2) * 10000.0)
+        return 1.0 / (
+            (1.26 + 0.0002666667 * (year - 2015) ** 2) * 10000.0
+        )
 
     @staticmethod
     def _sandang_fij(
@@ -293,7 +331,10 @@ class SocioEcoEcologicalFootprintAlgorithm(QgsProcessingAlgorithm):
     ) -> float:
         if productivity_kg_per_ha and productivity_kg_per_ha > 0:
             return 1.0 / productivity_kg_per_ha
-        return 37.0574247098412 - 0.010487380236217 * (year - 2016) / 10000.0
+        return (
+            37.0574247098412
+            - 0.010487380236217 * (year - 2016) / 10000.0
+        )
 
     @staticmethod
     def _norm(s: str) -> str:
@@ -349,7 +390,8 @@ class SocioEcoEcologicalFootprintAlgorithm(QgsProcessingAlgorithm):
 
             if bnorm.startswith("total "):
                 if (c is not None and c > 0) and (
-                    (e is not None and e > 0) or (d is not None and d > 0)
+                    (e is not None and e > 0)
+                    or (d is not None and d > 0)
                 ):
                     prodkg = (
                         float(e)
@@ -375,7 +417,9 @@ class SocioEcoEcologicalFootprintAlgorithm(QgsProcessingAlgorithm):
                 f"BUILTUP_m2={builtup_m2cap} Kb={sandang_kb}"
             )
             for k, (lu, pr) in totals_raw.items():
-                self._log(f"[DEBUG] totals: '{k}' luas={lu} produksi_kg={pr}")
+                self._log(
+                    f"[DEBUG] totals: '{k}' luas={lu} produksi_kg={pr}"
+                )
 
         return dict(
             year=year,
@@ -414,7 +458,11 @@ class SocioEcoEcologicalFootprintAlgorithm(QgsProcessingAlgorithm):
         for idx in range(9):
             if idx in mapped:
                 luas, prodkg, label = mapped[idx]
-                prod = (prodkg / luas) if (luas > 0 and prodkg > 0) else 0.0
+                prod = (
+                    (prodkg / luas)
+                    if (luas > 0 and prodkg > 0)
+                    else 0.0
+                )
                 if prod > 0:
                     FIj = 1.0 / prod
                     src = "prod"
@@ -446,7 +494,9 @@ class SocioEcoEcologicalFootprintAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFile(
                 self.EXCEL,
-                self.tr("File Excel input (kebutuhan_lahan_input_1.xlsx)"),
+                self.tr(
+                    "File Excel input (kebutuhan_lahan_input_1.xlsx)"
+                ),
                 extension="xlsx",
             )
         )
@@ -466,12 +516,16 @@ class SocioEcoEcologicalFootprintAlgorithm(QgsProcessingAlgorithm):
 
     def processAlgorithm(self, parameters, context, feedback):
         self.feedback = feedback
-        xlsx_path = self.parameterAsFile(parameters, self.EXCEL, context)
+        xlsx_path = self.parameterAsFile(
+            parameters, self.EXCEL, context
+        )
         verbose = bool(
             self.parameterAsBool(parameters, self.VERBOSE, context)
         )
         if not xlsx_path:
-            raise QgsProcessingException("Harap pilih file Excel input.")
+            raise QgsProcessingException(
+                "Harap pilih file Excel input."
+            )
 
         inp = self._read_inputs_from_excel(xlsx_path, verbose=verbose)
         year = int(inp["year"])
@@ -481,9 +535,13 @@ class SocioEcoEcologicalFootprintAlgorithm(QgsProcessingAlgorithm):
         sandang_kb = float(inp["sandang_kb"])
 
         mapped = self._map_totals(inp["totals_raw"], verbose=verbose)
-        pangan = self._compute_pangan(mapped, year=year, verbose=verbose)
+        pangan = self._compute_pangan(
+            mapped, year=year, verbose=verbose
+        )
 
-        fij_sandang = self._sandang_fij(year, productivity_kg_per_ha=None)
+        fij_sandang = self._sandang_fij(
+            year, productivity_kg_per_ha=None
+        )
         sandang = sandang_kb * fij_sandang
         papan = self._papan_fi_ha_per_m3(year) * papan_m3
         builtup = builtup_m2 / 10000.0
@@ -550,7 +608,8 @@ class SocioEcoEcologicalFootprintAlgorithm(QgsProcessingAlgorithm):
     def icon(self):
         return QIcon(
             os.path.join(
-                os.path.dirname(__file__), "04 Demographic Modelling.svg"
+                os.path.dirname(__file__),
+                "04 Demographic Modelling.svg",
             )
         )
 
