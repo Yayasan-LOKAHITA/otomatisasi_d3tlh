@@ -56,7 +56,7 @@ import os
 from typing import Dict, Tuple, Optional
 import zipfile
 import re
-import xml.etree.ElementTree as ET
+from defusedxml import ElementTree as ET
 from qgis.PyQt.QtGui import QIcon
 
 
