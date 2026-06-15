@@ -519,19 +519,19 @@ class IKPLahanAlgorithm(QgsProcessingAlgorithm):
             context=context,
             feedback=feedback,
         )["OUTPUT"]
-        ket_pol_out = processing.run(
+        ket_pol_out_1 = processing.run(
             "native:fixgeometries",
             {"INPUT": ket_pol_out, "OUTPUT": "TEMPORARY_OUTPUT"},
             context=context,
             feedback=feedback,
         )["OUTPUT"]
-        _make_index(ket_pol_out)
+        _make_index(ket_pol_out_1)
 
         # Retain kolom untuk OUTPUT_KETER
-        ket_pol_out = processing.run(
+        ket_pol_out_2 = processing.run(
             "native:retainfields",
             {
-                "INPUT": ket_pol_out,
+                "INPUT": ket_pol_out_1,
                 "FIELDS": [
                     fld_kpgn,
                     "PL",
@@ -551,7 +551,7 @@ class IKPLahanAlgorithm(QgsProcessingAlgorithm):
         ket_val = processing.run(
             "native:extractbyexpression",
             {
-                "INPUT": ket_pol_out,
+                "INPUT": ket_pol_out_2,
                 "EXPRESSION": """
                     \"REMARK\" IN ('Ketersediaan Lahan Pangan dan Hunian',
                     'Ketersediaan Lahan Hunian')
@@ -1112,11 +1112,11 @@ class IKPLahanAlgorithm(QgsProcessingAlgorithm):
             parameters,
             self.OUTPUT_KETER,
             context,
-            ket_pol_out.fields(),
-            ket_pol_out.wkbType(),
-            ket_pol_out.sourceCrs(),
+            ket_pol_out_2.fields(),
+            ket_pol_out_2.wkbType(),
+            ket_pol_out_2.sourceCrs(),
         )
-        for f in ket_pol_out.getFeatures():
+        for f in ket_pol_out_2.getFeatures():
             sink_ket.addFeature(f)
 
         # 2) IKP Lahan (grid)
