@@ -242,17 +242,23 @@ class JLHWaterSupplyAlgorithm(QgsProcessingAlgorithm):
             csv_abs_path: str, name: str
         ) -> QgsVectorLayer:
             csv_abs_path = os.path.normpath(csv_abs_path)
+
             for delim in (";", ","):
-                uri = f"""
-                    file:///{csv_abs_path}?encoding=UTF-8&delimiter={delim}&
-                    geomType=none
-                """
-                lyr = QgsVectorLayer(uri, name, "delimitedtext")
-                if lyr.isValid():
-                    return lyr
+                uri = (
+                    f"file:///{csv_abs_path}"
+                    f"?encoding=UTF-8"
+                    f"&delimiter={delim}"
+                    f"&geomType=none"
+                )
+
+                layer = QgsVectorLayer(uri, name, "delimitedtext")
+
+                if layer.isValid() and len(layer.fields()) > 1:
+                    return layer
+
             raise QgsProcessingException(
                 self.tr(
-                    f"CSV tidak valid atau tidak ditemukan:\n{csv_abs_path}"
+                    f"CSV tidak valid/tidak ditemukan:\n{csv_abs_path}"
                 )
             )
 
