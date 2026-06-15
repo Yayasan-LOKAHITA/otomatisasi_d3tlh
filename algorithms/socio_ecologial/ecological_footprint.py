@@ -56,6 +56,7 @@ import os
 from typing import Dict, Tuple, Optional
 import zipfile
 import re
+from ... import dependencies
 from defusedxml import ElementTree as ET
 from qgis.PyQt.QtGui import QIcon
 
@@ -614,24 +615,21 @@ class SocioEcoEcologicalFootprintAlgorithm(QgsProcessingAlgorithm):
         )
 
     def shortHelpString(self):
-        return self.tr("""\
-<p><b>Modul ini digunakan untuk menghitung jejak ekologis.</b></p>
-<p>Berikut beberapa langkah dasar:</p>
-<ol>
-  <li>1. Siapkan input data statistik pada template Excel berikut:
-      <a href="https://1drv.ms/f/c/0192f2f41be57bd4/"
-        "IgBoqXHS_LkJSrHmeENI4PodAcU"
-        "QA_-LVZRzkBGzsJ5_W5I?e=xBRcYy"
-        target="_blank" rel="noopener">Template File Excel Input</a>
-  </li>
-  <li>2. Simpan file hasil akhir tabel jejak ekologis ke folder kerja atau
-    gunakan <i>temporary file</i>.</li>
-  <li>3. Output tabel jejak ekologis berisi kolom: <i>TAHUN</i>,
-    <i>POPULASI</i>, <i>PANGAN</i>, <i>SANDANG</i>, <i>PAPAN</i>,
-    <i>BUILTUP</i>, <i>EF_CAP_YEAR</i> (jejak ekologis per kapita per tahun),
-    dan <i>TOTAL_HA</i> (kebutuhan lahan dalam hektar).
-  </li>
-</ol>""")
+        return self.tr(
+            "This module calculates the Ecological Footprint (Jejak "
+            "Ekologis) of a region based on statistical data representing "
+            "population consumption and land requirements.\n\n"
+            "The ecological footprint measures the amount of biologically "
+            "productive land and water area required to support human "
+            "activities, including food consumption, clothing needs, "
+            "housing requirements, and built-up areas.\n\n"
+            "The resulting table can be used as an input for "
+            "environmental carrying capacity analysis, sustainable "
+            "development assessments, and D3TLH workflows.\n\n"
+            "<b>Complete explanation read here: "
+            "<a href='https://yayasan-lokahita.github.io/"
+            "otomatisasi_d3tlh-docs/socio/eco_footprint/'>here</a>.</b>"
+        )
 
     def createInstance(self):
         return SocioEcoEcologicalFootprintAlgorithm()

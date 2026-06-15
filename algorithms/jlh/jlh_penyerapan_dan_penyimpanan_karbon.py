@@ -620,121 +620,19 @@ class JLHCarbonStorageAlgorithm(QgsProcessingAlgorithm):
         )
 
     def shortHelpString(self):
-        return self.tr("""
-        <b>Indeks Jasa Lingkungan Hidup (IJLH) – Penyerapan dan Penyimpanan
-        Karbon (JLH_PPK)</b><br>
-        <i>Environmental Service Index – Carbon Sequestration and Storage
-        (JLH_PPK)</i>
-
-        <h3>🇮🇩 Deskripsi (Bahasa Indonesia)</h3>
-        Algoritma ini digunakan untuk menghitung <b>Indeks Jasa Lingkungan
-        Hidup Penyerapan dan Penyimpanan Karbon (JLH_PPK)</b>
-        yang menggambarkan kemampuan ekosistem dalam menyerap dan menyimpan
-        karbon dari atmosfer. Pengembangan metode ini mengacu pada
-        <b>Dokumen Petunjuk Teknis D3TLH 2024</b> dan disesuaikan dengan
-        konteks spasial di Indonesia.
-
-        <h4>🎯 Tujuan:</h4>
-        Menilai kapasitas ekosistem dalam mendukung mitigasi perubahan iklim
-        melalui:
-        <ul>
-            <li>Proses penyerapan karbon oleh vegetasi alami dan budidaya,</li>
-            <li>Penyimpanan karbon di biomassa dan tanah,</li>
-            <li>Fungsi ekologis yang mengurangi emisi gas rumah kaca.</li>
-        </ul>
-
-        <h4>🗺️ Input yang Dibutuhkan:</h4>
-        <ul>
-            <li><b>Peta Tutupan Lahan</b> – data vektor dengan kolom
-                <code>PL</code></li>
-            <li><b>Peta Ekoregion</b> – data vektor dengan kolom
-                <code>KBA_250</code> dan <code>KVA_250</code></li>
-            <li><b>Layer Grid Area Kajian</b> (opsional) – digunakan
-                jika output berbentuk grid</li>
-        </ul>
-
-        <h4>📤 Output:</h4>
-        <ul>
-            <li>Peta vektor hasil <b>Indeks JLH Penyerapan dan Penyimpanan
-                Karbon (JLH_PPK)</b></li>
-        </ul>
-
-        <h4>⚙️ Metodologi:</h4>
-        Nilai indeks dihitung melalui pendekatan <b>skoring dan pembobotan</b>
-        antara parameter penutup lahan dan ekoregion. Tutupan lahan dengan
-        biomassa tinggi (misalnya hutan dan mangrove) memiliki skor lebih
-        besar, sedangkan ekoregion yang berperan penting dalam penyerapan
-        karbon mendapat bobot tambahan. Kombinasi keduanya menghasilkan indeks
-        spasial yang menunjukkan potensi penyerapan dan penyimpanan karbon.
-
-        <h4>🧭 Contoh Langkah Penggunaan:</h4>
-        1. Pilih area kajian (nasional atau pulau). Jika per pulau, pastikan
-        ada kolom <code>PULAU</code> pada data tutupan lahan.<br>
-        2. Tentukan bentuk output (Polygon atau Grid). Jika Grid, wajib
-        menginput data Grid dari modul Utility.<br>
-        3. Masukkan data penutup lahan (<code>PL</code>) dan ekoregion
-        (<code>KBA_250</code>, <code>KVA_250</code>).<br>
-        4. (Opsional) Input data Grid jika analisis berbasis grid diperlukan.
-
-        <h4>📚 Referensi:</h4>
-        - Dokumen Petunjuk Teknis D3TLH 2024<br>
-        - Dokumen Petunjuk Teknis D3TLH 2025
-
-        <hr>
-
-        <h3>🌍 Description (English)</h3>
-        This algorithm calculates the <b>Environmental Service Index – Carbon
-        Sequestration and Storage (JLH_PPK)</b>,
-        representing the ecosystem’s ability to absorb and store atmospheric
-        carbon. The method follows the <b>D3TLH Technical Guideline 2024</b>
-        and is adapted for Indonesia’s ecological and spatial conditions.
-
-        <h4>🎯 Purpose:</h4>
-        To assess the capacity of ecosystems to support climate change
-        mitigation through:
-        <ul>
-            <li>Carbon uptake by natural and cultivated vegetation,</li>
-            <li>Carbon storage in biomass and soil,</li>
-            <li>Ecological processes that reduce greenhouse gas emissions.</li>
-        </ul>
-
-        <h4>🗺️ Required Inputs:</h4>
-        <ul>
-            <li><b>Land Cover Map</b> – vector data with <code>PL</code>
-                field</li>
-            <li><b>Ecoregion Map</b> – vector data with <code>KBA_250</code>
-                and <code>KVA_250</code> fields</li>
-            <li><b>Grid Layer</b> (optional) – used when output type
-                is grid</li>
-        </ul>
-
-        <h4>📤 Output:</h4>
-        <ul>
-            <li>Vector map of <b>JLH Carbon Sequestration and Storage Index
-                (JLH_PPK)</b></li>
-        </ul>
-
-        <h4>⚙️ Methodology:</h4>
-        The index is derived through a <b>scoring and weighting approach</b>
-        between land cover and ecoregion parameters. Land cover types with
-        high biomass (e.g., forests, mangroves) receive higher scores, while
-        ecoregions critical for carbon storage are given additional weights.
-        The combined spatial index represents the ecosystem’s potential for
-        carbon sequestration and storage.
-
-        <h4>🧭 Example Workflow:</h4>
-        1. Select the study area (national or island scale). Ensure land cover
-        data contains a <code>PULAU</code> field if using island scale.<br>
-        2. Select the output type (Polygon or Grid). If Grid, provide Grid data
-        from the Utility module.<br>
-        3. Input Land Cover (<code>PL</code>) and Ecoregion
-        (<code>KBA_250</code>, <code>KVA_250</code>) layers.<br>
-        4. Optionally input a Grid layer for grid-based analysis.
-
-        <h4>📚 References:</h4>
-        - D3TLH Technical Guideline 2024<br>
-        - D3TLH Technical Guideline 2025
-        """)
+        return self.tr(
+            "This algorithm calculates the Carbon Sequestration and "
+            "Storage Ecosystem Service Index (JLH_PPK), which represents "
+            "an ecosystem's ability to absorb, store, and retain "
+            "atmospheric carbon.\n\n"
+            "The methodology follows the D3TLH Technical Guideline 2024 "
+            "and has been adapted to Indonesia's ecological and spatial "
+            "conditions for analysis at both national and island "
+            "scales.\n\n"
+            "<b>Complete explanation read here: "
+            "<a href='https://yayasan-lokahita.github.io/"
+            "otomatisasi_d3tlh-docs/jlh/jlh_ppk/'>here</a>.</b>"
+        )
 
     def createInstance(self):
         return JLHCarbonStorageAlgorithm()

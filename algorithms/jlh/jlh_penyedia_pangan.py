@@ -736,140 +736,23 @@ class JLHFoodSupplyAlgorithm(QgsProcessingAlgorithm):
             )
         )
 
+    def shortHelString(self):
+        return self.tr('<b>Docs read <a href="#">here</a>.<b>')
+
     def shortHelpString(self):
-        return self.tr("""
-        <b>Indeks Jasa Lingkungan Hidup Penyedia Pangan (JLH_PGN)</b><br>
-        <i>Environmental Service Index Food Provision (JLH_PGN)</i>
-
-        <h3>🇮🇩 Deskripsi (Bahasa Indonesia)</h3>
-        Algoritma ini digunakan untuk menghitung <b>Indeks Jasa Lingkungan
-        Hidup Penyedia Pangan (JLH_PGN)</b> yang menggambarkan kemampuan
-        ekosistem dalam menyediakan sumber pangan baik alami maupun
-        hasil budidaya. Perhitungan mengikuti pedoman dari
-        <b>Dokumen Petunjuk Teknis D3TLH 2024</b> dan disesuaikan dengan
-        konteks ekoregion di Indonesia.
-
-        <h4>🎯 Tujuan:</h4>
-        Menilai kapasitas ekosistem dalam menyediakan jasa lingkungan berupa
-        ketersediaan pangan yang berasal dari:
-        <ul>
-            <li>Sumber alami seperti hutan, rawa, dan perairan,</li>
-            <li>
-                Sistem budidaya seperti pertanian, perkebunan, dan perikanan,
-            </li>
-            <li>Fungsi ekologis yang mendukung ketahanan pangan lokal.</li>
-        </ul>
-
-        <h4>🗺️ Input yang Dibutuhkan:</h4>
-        <ul>
-            <li>
-                <b>Peta Tutupan Lahan</b> –
-                data vektor dengan kolom <code>PL</code>
-            </li>
-            <li>
-                <b>Peta Ekoregion</b> –
-                data vektor dengan kolom
-                <code>KBA_250</code> dan <code>KVA_250</code>
-            </li>
-            <li>
-                <b>Layer Grid Area Kajian</b>
-                (opsional) – digunakan jika output berbentuk grid
-            </li>
-        </ul>
-
-        <h4>📤 Output:</h4>
-        <ul>
-            <li>
-                Peta vektor hasil <b>Indeks JLH Penyedia Pangan (JLH_PGN)</b>
-            </li>
-        </ul>
-
-        <h4>⚙️ Metodologi:</h4>
-        Nilai indeks dihitung melalui pendekatan <b>skoring dan pembobotan</b>
-        antara parameter tutupan lahan dan ekoregion.
-        Kombinasi keduanya menggambarkan kemampuan ekosistem untuk:
-        <ul>
-            <li>Menyediakan bahan pangan alami dan hasil produksi,</li>
-            <li>Mendukung produktivitas lahan pertanian dan perairan,</li>
-            <li>
-                Menjaga keseimbangan ekologi yang menunjang ketahanan pangan.
-            </li>
-        </ul>
-
-        <h4>🧭 Contoh Langkah Penggunaan:</h4>
-        1. Pilih area kajian (nasional atau pulau). Jika per pulau, pastikan
-        ada kolom <code>PULAU</code> pada data tutupan lahan.<br>
-        2. Tentukan bentuk output (Polygon atau Grid). Jika Grid, wajib
-        menginput data Grid dari modul Utility.<br>
-        3. Masukkan data penutup lahan (<code>PL</code>) dan ekoregion
-        (<code>KBA_250</code>, <code>KVA_250</code>).<br>
-        4. (Opsional) Input data Grid jika analisis berbasis grid diperlukan.
-
-        <h4>📚 Referensi:</h4>
-        - Dokumen Petunjuk Teknis D3TLH 2024<br>
-        - Dokumen Petunjuk Teknis D3TLH 2025
-
-        <hr>
-
-        <h3>🌍 Description (English)</h3>
-        This algorithm calculates the
-        <b>Environmental Service Index – Food Provision (JLH_PGN)</b>,
-        representing the ecosystem’s capacity to provide food from both
-        natural and cultivated systems. The computation follows the
-        <b>D3TLH Technical Guideline 2024</b> and is adapted for Indonesia’s
-        ecological context.
-
-        <h4>🎯 Purpose:</h4>
-        To assess the potential of ecosystems in providing food provisioning
-        services through:
-        <ul>
-            <li>Natural sources such as forests, wetlands, and inland/coastal
-                waters,</li>
-            <li>Cultivated systems such as agriculture, plantations,
-                and aquaculture,</li>
-            <li>Ecological functions that maintain local food security.</li>
-        </ul>
-
-        <h4>🗺️ Required Inputs:</h4>
-        <ul>
-            <li><b>Land Cover Map</b> – vector data with
-                <code>PL</code> field</li>
-            <li><b>Ecoregion Map</b> – vector data with
-                <code>KBA_250</code> and <code>KVA_250</code> fields</li>
-            <li><b>Grid Layer</b>
-                (optional) – used when output type is grid</li>
-        </ul>
-
-        <h4>📤 Output:</h4>
-        <ul>
-            <li>Vector map of <b>JLH Food Provision Index (JLH_PGN)</b></li>
-        </ul>
-
-        <h4>⚙️ Methodology:</h4>
-        The index is derived using a <b>scoring and weighting approach</b>
-        combining land cover and ecoregion parameters.
-        This integration reflects the ecosystem’s capacity to:
-        <ul>
-            <li>Provide natural and cultivated food sources,</li>
-            <li>Support agricultural and aquatic productivity,</li>
-            <li>
-                Maintain ecological balance that underpins food resilience.
-            </li>
-        </ul>
-
-        <h4>🧭 Example Workflow:</h4>
-        1. Select the study area (national or island scale). Ensure land cover
-        data contains a <code>PULAU</code> field if using island scale.<br>
-        2. Select the output type (Polygon or Grid). If Grid, provide Grid
-        data from the Utility module.<br>
-        3. Input Land Cover (<code>PL</code>) and Ecoregion
-        (<code>KBA_250</code>, <code>KVA_250</code>) layers.<br>
-        4. Optionally input a Grid layer for grid-based analysis.
-
-        <h4>📚 References:</h4>
-        - D3TLH Technical Guideline 2024<br>
-        - D3TLH Technical Guideline 2025
-        """)
+        return self.tr(
+            "This algorithm calculates the Food Provision Ecosystem "
+            "Service Index (JLH_PGN), which represents an ecosystem's "
+            "capacity to provide food resources from both natural "
+            "ecosystems and cultivated production systems.\n\n"
+            "The methodology follows the D3TLH Technical Guideline 2024 "
+            "and has been adapted to Indonesia's ecological and "
+            "ecoregional conditions for analysis at both national and "
+            "island scales.\n\n"
+            "<b>Complete explanation read here: "
+            "<a href='https://yayasan-lokahita.github.io/"
+            "otomatisasi_d3tlh-docs/jlh/jlh_pgn/'>here</a>.</b>"
+        )
 
     def createInstance(self):
         return JLHFoodSupplyAlgorithm()

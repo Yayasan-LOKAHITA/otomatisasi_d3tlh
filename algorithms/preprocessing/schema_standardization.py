@@ -104,35 +104,19 @@ class PreprocSchemaStandardizationAlgorithm(QgsProcessingAlgorithm):
         )
 
     def shortHelpString(self):
-        return self.tr("""\
-            🇮🇩 ID == Standarisasi kolom inti (nama & tipe data DIKUNCI
-            sesuai standar):
-
-            • LC (Penutup Lahan (PL))
-            • kwshutan (Kawasan Hutan / Forest Area)
-            • KBA_250 (Karakteristik Bentang Alam (KBA) pada Ekoregion)
-            • KVA_250 (Karakteristik Vegetasi Alami (KVA) pada Ekoregion)
-
-            Cara pakai:
-            1) Pilih satu atau lebih kolom sumber.
-            2) Jalankan → layer baru dengan kolom standar dibuat.
-
-            ──────────────
-
-            Data Schema Standardization
-
-            🌍 EN == Standardize key columns (names & types are LOCKED
-            according to the standard):
-
-            • LC (Land Cover)
-            • kwshutan (Forest Area / State-Designated Forest Area)
-            • KBA_250 (Landform Characteristic of the Ecoregion)
-            • KVA_250 (Natural Vegetation Characteristic of the Ecoregion)
-
-            How to use:
-            1) Choose one or more source fields.
-            2) Run → a new layer with standardized columns is created.
-        """)
+        return self.tr(
+            "This module standardizes key thematic attributes used in "
+            "D3TLH processing workflows by creating a consistent schema "
+            "across datasets.\n\n"
+            "The algorithm allows users to map existing fields from an "
+            "input layer to a predefined set of standardized fields. The "
+            "names and data types of these fields are fixed according to "
+            "the D3TLH standard.\n\n"
+            "All standardized fields are stored as String data types.\n\n"
+            "<b>Complete explanation read here: "
+            "<a href='https://yayasan-lokahita.github.io/"
+            "otomatisasi_d3tlh-docs/std_schema/'>here</a>.</b>"
+        )
 
     # ----- parameters -----
     def initAlgorithm(self, config=None):

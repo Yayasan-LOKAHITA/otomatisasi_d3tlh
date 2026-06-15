@@ -355,189 +355,24 @@ class IntegrationIKPAlgorithm(QgsProcessingAlgorithm):
         return QCoreApplication.translate("Processing", string)
 
     def shortHelpString(self):
-        return self.tr("""
-    <h2>Indeks D3TLH</h2>
-
-    <h2>D3TLH Index</h2>
-
-    <hr>
-
-    <h3>Deskripsi (Bahasa Indonesia)</h3>
-
-    <p>
-    Algoritma ini digunakan untuk menghitung nilai
-    <b>Indeks D3TLH</b> dengan mengintegrasikan hasil
-    perhitungan IKP Air, IKP Lahan, IKP Kehati,
-    IKP Udara, dan IPRLH.
-    </p>
-
-    <p>
-    Indeks D3TLH merupakan indeks komposit yang
-    menggambarkan kondisi daya dukung dan daya
-    tampung lingkungan hidup suatu wilayah dengan
-    menggabungkan berbagai indikator lingkungan
-    ke dalam satu nilai indeks.
-    </p>
-
-    <h4>🗺️ Input yang Dibutuhkan:</h4>
-
-    <ul>
-        <li>
-            <b>1. IKP Air</b>
-            (layer hasil perhitungan IKP Air)
-        </li>
-        <li>
-            <b>2. IKP Lahan</b>
-            (layer hasil perhitungan IKP Lahan)
-        </li>
-        <li>
-            <b>3. IKP Kehati</b>
-            (layer hasil perhitungan IKP Kehati)
-        </li>
-        <li>
-            <b>4. IKP Udara</b>
-            (layer hasil perhitungan IKP Udara)
-        </li>
-        <li>
-            <b>5. Tabel IPRLH</b>
-            (tabel nilai IPRLH sesuai wilayah analisis)
-        </li>
-    </ul>
-
-    <h4>📤 Output:</h4>
-
-    <ul>
-        <li>
-            <b>1. Layer Indeks D3TLH</b>
-        </li>
-        <li>
-            <b>2. Kolom D3TLH</b>
-            yang berisi nilai indeks untuk setiap grid
-        </li>
-    </ul>
-
-    <h4>🧭 Contoh Penggunaan:</h4>
-
-    <ol>
-        <li>
-            Pastikan seluruh perhitungan IKP Air,
-            IKP Lahan, IKP Kehati, dan IKP Udara
-            telah selesai dilakukan.
-        </li>
-        <li>
-            Siapkan tabel IPRLH yang sesuai
-            dengan wilayah analisis.
-        </li>
-        <li>
-            Masukkan seluruh layer dan tabel
-            ke parameter input.
-        </li>
-        <li>
-            Jalankan algoritma untuk menghasilkan
-            nilai Indeks D3TLH.
-        </li>
-    </ol>
-
-    <h4>📚 Referensi:</h4>
-
-    <ul>
-        <li>Dokumen Petunjuk Teknis D3TLH 2024</li>
-        <li>Dokumen Petunjuk Teknis D3TLH 2025</li>
-    </ul>
-
-    <hr>
-
-    <h3>Description (English)</h3>
-
-    <p>
-    This algorithm calculates the
-    <b>D3TLH Index</b> by integrating
-    the results of the Water IKP,
-    Land IKP, Biodiversity IKP,
-    Air IKP, and IPRLH.
-    </p>
-
-    <p>
-    The D3TLH Index is a composite index
-    representing the environmental carrying
-    capacity and environmental quality of
-    an area by combining multiple
-    environmental indicators into a single value.
-    </p>
-
-    <h4>🗺️ Required Inputs:</h4>
-
-    <ul>
-        <li>
-            <b>1. Water IKP</b>
-            (output layer from Water IKP analysis)
-        </li>
-        <li>
-            <b>2. Land IKP</b>
-            (output layer from Land IKP analysis)
-        </li>
-        <li>
-            <b>3. Biodiversity IKP</b>
-            (output layer from Biodiversity IKP analysis)
-        </li>
-        <li>
-            <b>4. Air IKP</b>
-            (output layer from Air IKP analysis)
-        </li>
-        <li>
-            <b>5. IPRLH Table</b>
-            (IPRLH values for the analysis area)
-        </li>
-    </ul>
-
-    <h4>📤 Output:</h4>
-
-    <ul>
-        <li>
-            <b>1. D3TLH Index Layer</b>
-        </li>
-        <li>
-            <b>2. D3TLH Field</b>
-            containing the index value
-            for each grid
-        </li>
-    </ul>
-
-    <h4>🧭 Example of Use:</h4>
-
-    <ol>
-        <li>
-            Complete the Water, Land,
-            Biodiversity, and Air IKP analyses.
-        </li>
-        <li>
-            Prepare the corresponding
-            IPRLH table.
-        </li>
-        <li>
-            Load all layers and tables
-            into the input parameters.
-        </li>
-        <li>
-            Run the algorithm to generate
-            the D3TLH Index.
-        </li>
-    </ol>
-
-    <h4>📚 References:</h4>
-
-    <ul>
-        <li>D3TLH Technical Guidelines 2024</li>
-        <li>D3TLH Technical Guidelines 2025</li>
-    </ul>
-
-    <hr>
-
-    <b><i>
-    Notes: Disarankan untuk tidak menyimpan output
-    secara temporary.
-    </i></b>
-    """)
+        return self.tr(
+            "This module calculates the D3TLH Index (Daya Dukung dan Daya "
+            "Tampung Lingkungan Hidup) by integrating the results of "
+            "environmental carrying capacity assessments from water, land, "
+            "biodiversity, air, and environmental quality indicators.\n\n"
+            "The D3TLH Index is a composite environmental index designed "
+            "to represent the overall condition of environmental carrying "
+            "capacity and environmental support capacity within a region. "
+            "It combines multiple environmental dimensions into a single "
+            "indicator to support environmental planning, monitoring, and "
+            "policy evaluation.\n\n"
+            "The resulting index provides a spatially explicit representation "
+            "of environmental sustainability conditions and can be used as a "
+            "primary indicator in D3TLH assessments.\n\n"
+            "<b>Complete explanation read here: "
+            "<a href='https://yayasan-lokahita.github.io/"
+            "otomatisasi_d3tlh-docs/ikp/index_d3tlh/'>here</a>.</b>"
+        )
 
     def icon(self):
         return QIcon(

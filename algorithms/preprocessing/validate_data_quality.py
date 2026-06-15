@@ -234,10 +234,16 @@ class PreprocDataValidationAlgorithm(QgsProcessingAlgorithm):
 
     def shortHelpString(self):
         return self.tr(
-            "Algoritma ini melakukan pengecekan kualitas data dengan"
-            "memperbaiki geometri pada layer Penutup Lahan dan Ekoregion. "
-            "Output berupa layer baru dengan geometri yang sudah diperbaiki,"
-            "siap untuk digunakan dalam analisis selanjutnya."
+            "This module performs basic data quality validation by "
+            "repairing invalid geometries in the input layers before they "
+            "are used in subsequent D3TLH processing workflows.\n\n"
+            "The algorithm applies the QGIS Fix Geometries tool to the "
+            "Land Cover (Penutup Lahan) and Ecoregion (Ekoregion) layers "
+            "and produces cleaned outputs that are ready for spatial "
+            "analysis.\n\n"
+            "<b>Complete explanation read here: "
+            "<a href='https://yayasan-lokahita.github.io/"
+            "otomatisasi_d3tlh-docs/chk_quality/'>here</a>.</b>"
         )
 
     def icon(self):

@@ -625,52 +625,18 @@ class JLHAirQualityRegulationAlgorithm(QgsProcessingAlgorithm):
         )
 
     def shortHelpString(self):
-        return self.tr("""
-        <b>Indeks Jasa Lingkungan Hidup Pengatur Kualitas Udara (JLH_PKU)</b>
-        <br><br>
-        Algoritma ini digunakan untuk menghitung nilai indeks jasa
-        lingkungan hidup yang berhubungan dengan kemampuan ekosistem dalam
-        memperbaiki dan menjaga kualitas udara. Metode ini disusun berdasarkan
-        dokumen Petunjuk Teknis D3TLH 2024 yang telah disesuaikan.
-
-        <h4>Tujuan:</h4>
-        Menilai kontribusi ekosistem terhadap perbaikan kualitas udara
-        melalui analisis spasial tutupan lahan dan ekoregion yang memengaruhi
-        kemampuan penyaringan dan serapan polutan udara.
-
-        <h4>Input yang dibutuhkan:</h4>
-        <ul>
-            <li>Peta Tutupan Lahan (data vector dengan kolom PL)</li>
-            <li>
-            Peta Ekoregion (data vector dengan kolom KBA_250 dan KVA_250)
-            </li>
-            <li>Data Vector Grid Area Kajian (opsional)</li>
-        </ul>
-
-        <h4>Output:</h4>
-        <ul>
-            <li>Peta Vector Indeks JLH Pengatur Kualitas Udara (JLH_PKU)</li>
-        </ul>
-
-        <h4>Metodologi:</h4>
-        Nilai indeks dihitung menggunakan pembobotan berdasarkan tipe vegetasi
-        dan zona ekoregion yang memiliki kemampuan berbeda dalam menyerap dan
-        menetralisir polutan.
-
-        <h4>Contoh Penggunaan:</h4>
-        1. Pilih area kajian (nasional atau per pulau). Jika skala pulau maka
-        data penutup lahan wajib memiliki kolom <b>PULAU</b>.<br>
-        2. Tentukan bentuk output (Poligon atau Grid). Jika Grid, wajib input
-        data Grid.<br>
-        3. Input tahun data penutup lahan.<br>
-        4. Input data Penutup Lahan (kolom PL) dan Ekoregion
-        (kolom KBA_250 dan KVA_250).<br>
-        5. Input data Grid (opsional).<br>
-
-        <h4>Referensi:</h4>
-        Dokumen Petunjuk Teknis D3TLH 2024<br>
-        Dokumen Petunjuk Teknis D3TLH 2025
-        """)
+        return self.tr(
+            "This algorithm calculates the Environmental Ecosystem Service "
+            "Index for Air Quality Regulation (JLH_PKU), which represents "
+            "the ability of ecosystems to improve and maintain air quality."
+            "\n\n"
+            "The methodology is based on the D3TLH Technical Guideline "
+            "2024 and has been adapted for spatial analysis at both "
+            "national and island scales.\n\n"
+            "<b>Complete explanation read here: "
+            "<a href='https://yayasan-lokahita.github.io/"
+            "otomatisasi_d3tlh-docs/jlh/jlh_pku/'>here</a>.</b>"
+        )
 
     def createInstance(self):
         return JLHAirQualityRegulationAlgorithm()

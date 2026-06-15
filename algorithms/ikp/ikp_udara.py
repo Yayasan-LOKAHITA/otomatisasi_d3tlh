@@ -645,173 +645,23 @@ class IKPUdaraAlgorithm(QgsProcessingAlgorithm):
         )
 
     def shortHelpString(self):
-        return self.tr("""
-    <h2>Indeks Kemampuan Pemanfaatan Udara (IKP Udara)</h2>
-
-    <h2>Air Utilization Capability Index</h2>
-
-    <hr>
-
-    <h3>Deskripsi (Bahasa Indonesia)</h3>
-
-    <p>
-    Algoritma ini digunakan untuk menghitung nilai
-    <b>Indeks Kemampuan Pemanfaatan (IKP) Udara</b>.
-    </p>
-
-    <p>
-    IKP Udara adalah kemampuan suatu wilayah untuk menyerap,
-    mengasimilasi, dan menetralkan beban pencemaran udara,
-    serta mempertahankan kualitas udara yang sehat bagi manusia
-    dan ekosistem dengan mempertimbangkan dampak perubahan iklim.
-    </p>
-
-    <h4>🗺️ Input yang Dibutuhkan:</h4>
-
-    <ul>
-        <li>
-            <b>1. Grid KPKU</b>
-            (data vektor berisi unit analisis spasial)
-        </li>
-        <li>
-            <b>2. Raster PM2.5 (Time-Averaged)</b>
-            (data raster konsentrasi polutan udara)
-        </li>
-        <li>
-            <b>3. Layer Proyeksi Suhu</b>
-            (data vektor indeks suhu udara)
-            wajib memiliki kolom <b>SKOR</b>
-        </li>
-    </ul>
-
-    <h4>🗂️ Data proyeksi suhu dapat diunduh di sini:</h4>
-
-    <a href="https://1drv.ms/f/c/0192f2f41be57bd4/IgCxwuHXDTHRQrR_-uUh04PLAQsW
-                       f6WY_xJBDuEN28FsY80?e=inIRNT"
-    target="_blank">
-    Klik untuk Akses Data
-    </a>
-
-    <h4>📤 Output:</h4>
-
-    <ul>
-        <li><b>1. IKP Udara dalam Poligon</b></li>
-        <li><b>2. IKP Udara dalam Grid</b></li>
-    </ul>
-
-    <h4>🧭 Contoh Penggunaan:</h4>
-
-    <ol>
-        <li>
-            Siapkan data raster PM2.5, layer Proyeksi Suhu,
-            dan Grid KPKU.
-        </li>
-        <li>
-            Pastikan seluruh layer memiliki sistem koordinat
-            yang sama.
-        </li>
-        <li>
-            Jalankan algoritma untuk menghasilkan peta
-            IKP Udara per grid.
-        </li>
-        <li>
-            Gunakan hasil IKP Udara untuk analisis kualitas
-            udara spasial atau integrasi dalam IKP Kehati.
-        </li>
-    </ol>
-
-    <h4>📚 Referensi:</h4>
-
-    <ul>
-        <li>Dokumen Petunjuk Teknis D3TLH 2024</li>
-        <li>Dokumen Petunjuk Teknis D3TLH 2025</li>
-    </ul>
-
-    <hr>
-
-    <h3>Description (English)</h3>
-
-    <p>
-    This algorithm is used to calculate the
-    <b>Air Utilization Capability Index (IKP Udara)</b>.
-    </p>
-
-    <p>
-    The Air IKP is the ability of an area to absorb,
-    assimilate, and neutralize air pollution loads,
-    while maintaining healthy air quality for humans
-    and ecosystems and considering climate change impacts.
-    </p>
-
-    <h4>🗺️ Required Inputs:</h4>
-
-    <ul>
-        <li>
-            <b>1. KPKU Grid</b>
-            (vector data containing spatial analysis units)
-        </li>
-        <li>
-            <b>2. PM2.5 Raster (Time-Averaged)</b>
-            (raster data of air pollutant concentration)
-        </li>
-        <li>
-            <b>3. Temperature Projection Layer</b>
-            (vector data of air temperature index)
-            must contain a <b>SKOR</b> field
-        </li>
-    </ul>
-
-    <h4>🗂️ Temperature Projection Data Download:</h4>
-
-    <a href="https://1drv.ms/f/c/0192f2f41be57bd4/IgCxwuHXDTHRQrR_-uUh04PLAQsW
-                       f6WY_xJBDuEN28FsY80?e=inIRNT"
-    target="_blank">
-    Click to Access Data
-    </a>
-
-    <h4>📤 Output:</h4>
-
-    <ul>
-        <li><b>1. Air IKP in Polygon Form</b></li>
-        <li><b>2. Air IKP per Grid</b></li>
-    </ul>
-
-    <h4>🧭 Example of Use:</h4>
-
-    <ol>
-        <li>
-            Prepare the PM2.5 raster,
-            Temperature Projection layer,
-            and KPKU Grid.
-        </li>
-        <li>
-            Ensure all layers share the same
-            coordinate reference system.
-        </li>
-        <li>
-            Run the algorithm to generate
-            the Air IKP map per grid.
-        </li>
-        <li>
-            Use the outputs for spatial air quality
-            analysis or Biodiversity IKP integration.
-        </li>
-    </ol>
-
-    <h4>📚 References:</h4>
-
-    <ul>
-        <li>D3TLH Technical Guidelines 2024</li>
-        <li>D3TLH Technical Guidelines 2025</li>
-    </ul>
-
-    <hr>
-
-    <b><i>
-    Notes: Disarankan untuk tidak menyimpan output
-    secara temporary.
-    </i></b>
-    """)
+        return self.tr(
+            "This module calculates the Air Utilization Capability Index "
+            "(IKP Udara), an indicator used to assess the capability of an "
+            "area to absorb, assimilate, and neutralize air pollution "
+            "loads while maintaining healthy air quality for humans and "
+            "ecosystems.\n\n"
+            "The methodology integrates air pollution concentration data "
+            "and climate change indicators to evaluate the environmental "
+            "capacity of an area in supporting sustainable air quality "
+            "conditions.\n\n"
+            "The resulting index can be used for environmental carrying "
+            "capacity assessments, air quality management, climate "
+            "adaptation planning, and D3TLH workflows.\n\n"
+            "<b>Complete explanation read here: "
+            "<a href='https://yayasan-lokahita.github.io/"
+            "otomatisasi_d3tlh-docs/ikp/ikp_udara/'>here</a>.</b>"
+        )
 
     def createInstance(self):
         return IKPUdaraAlgorithm()

@@ -949,81 +949,17 @@ class JLHHabitatKehatiAlgorithm(QgsProcessingAlgorithm):
         )
 
     def shortHelpString(self):
-        return self.tr("""
-            <b>Habitat and Biodiversity Supporting Ecosystem
-            Service Index (IJLH_PHK)</b>
-
-            <h3>Description</h3>
-            This algorithm is used to calculate the <b>Habitat and Biodiversity
-            Supporting Ecosystem Service Index (IJLH_PHK)</b>
-            based on specific spatial parameters in Indonesia. The methodology
-            is based on the <b>D3TLH Technical Guideline 2024</b> and has been
-            adapted to support spatial analysis at both national and
-            island scales.
-
-            <h4>🎯 Purpose:</h4>
-            To assess the level of ecosystem support for biodiversity
-            conservation through spatial analysis of land cover, vegetation
-            characteristics, and ecoregions.
-
-            <h4>🗺️ Required Inputs:</h4>
-            <ul>
-                <li><b>
-                       1. Land Cover Map</b> (vector data containing the
-                       <code>PL</code> field)</li>
-                <li><b> 2. Ecoregion Map</b>
-                       (vector data containing the
-                       <code>KBA_250</code> and <code>KVA_250</code> fields)
-                </li>
-                <li><b>3. Study Area Grid Layer</b>
-                       (optional, required when the output type is Grid)
-                </li>
-                <li><b>4. Special Criteria Data</b> 🔗
-                    <a href="https://1drv.ms/f/c/0192f2f41be57bd4/IgCw7lvsknN
-                       3QJTTjA-p8XEuAQe9-eJ6gY4RFqZVkMnLekk?e=aEwdG4"
-                       target="_blank">
-                    [Click here to access the Special Criteria dataset]</a>
-                </li>
-            </ul>
-
-            <h4>📤 Output:</h4>
-            <ul>
-                <li>Vector map of the <b>IJLH Habitat and Biodiversity Index
-                       (IJLH_PHK)</b></li>
-            </ul>
-
-            <h4>⚙️ Methodology:</h4>
-            The index is calculated using a scoring and weighting approach
-                       that combines
-            land cover and ecoregion data. Scores are classified according
-                       to ecological
-            categories and integrated to produce the final index value.
-
-            <h4>🧭 Example Workflow:</h4>
-            1. Select the study area (national or island scale). If using an
-                       island-scale study area,
-            ensure the land cover dataset contains a <code>PULAU</code>
-                       field.<br>
-            2. Select the output type (Polygon or Grid). If Grid output is
-                       selected, provide a Grid layer
-            that can be generated using the Utility module.<br>
-            3. Specify the year of the land cover dataset.<br>
-            4. Provide the Land Cover (<code>PL</code>) and Ecoregion
-                       (<code>KBA_250</code>, <code>KVA_250</code>)
-                       datasets.<br>
-            5. (Optional) Provide a Grid layer for grid-based analysis.
-
-            <h4>📚 References:</h4>
-            <ul>
-                <li>D3TLH Technical Guideline 2024</li>
-                <li>D3TLH Technical Guideline 2025</li>
-            </ul>
-
-            <hr>
-
-            <b><i>Note: It is recommended not to save the output as a
-                       temporary layer.</i></b>
-        """)
+        return self.tr(
+            "This algorithm is used to calculate the Habitat and "
+            "Biodiversity Supporting Ecosystem Service Index (IJLH_PHK) "
+            "based on specific spatial parameters in Indonesia.\n\n"
+            "The methodology is based on the D3TLH Technical Guideline "
+            "2024 and has been adapted to support spatial analysis at both "
+            "national and island scales.\n\n"
+            "<b>Complete explanation read here: "
+            "<a href='https://yayasan-lokahita.github.io/"
+            "otomatisasi_d3tlh-docs/jlh/jlh_phk/'>here</a>.</b>"
+        )
 
     def createInstance(self):
         return JLHHabitatKehatiAlgorithm()

@@ -574,7 +574,7 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
                 "FIELD_PRECISION": 3,
                 "NEW_FIELD": True,
                 "FORMULA": """
-                    CASE      
+                    CASE
                         WHEN "PL" = 'Sawah' THEN 4
                         WHEN "PL" = 'Pertanian Lahan Kering' THEN 1
                         WHEN "PL" = 'Pertanian Lahan Kering Campur' THEN 1
@@ -1027,63 +1027,23 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
         )
 
     def shortHelpString(self):
-        return """
-    This module is used to calculate the
-    Biodiversity Utilization Capacity
-    Index (IKP Kehati).
-
-    The basic workflow is as follows:
-
-    1. Prepare the Base Data:
-    grid, water supply providers (PYA),
-    river basin areas (WS),
-    land cover (PL), population data,
-    and the Pollution Index table.
-
-    2. Water Supply Processing:
-    calculate the water area and
-    proportion within each grid,
-    then aggregate by river basin (WS)
-    to obtain usable water availability
-    (air_ws).
-
-    3. Water Quality Processing:
-    join the Pollution Index data to
-    the grid, then calculate polluted
-    water (air_cemar) and usable water
-    (air_layak).
-
-    4. Water Demand Processing:
-    calculate water demand from land
-    cover (W_PL) and population
-    (BA_POP), then combine them into
-    total water demand (BA_TOTAL).
-
-    5. Water IKP Calculation:
-    calculate the IKP value for each
-    grid (IKP = BA_TOTAL / air_layak),
-    classify the results into five
-    categories (Very High–Very Low),
-    and assign a score from 1 to 5.
-
-    6. Final Output:
-    a grid layer containing the ID,
-    usable water availability
-    (air_layak), IKP value,
-    IKP class (KELAS_IKP),
-    and IKP score (SKOR_IKP).
-
-    <br>
-
-    <h4>🗂️ Input Data and Sample Data
-    Can Be Downloaded Here:</h4>
-
-    🔗 <a href="https://1drv.ms/f/c/
-    0192f2f41be57bd4/
-    IgD4wyEVQJz0TpUNKJylYMvRAaX6iNv595qMn6dOtH5onns
-    ?e=X8spJE" target="_blank">
-    [Click Here to Access the Data]</a>
-        """
+        return self.tr(
+            "This module calculates the Water Utilization Capability Index "
+            "(IKP Air), an indicator used to assess the capability of water "
+            "resources to support human activities while maintaining "
+            "environmental sustainability.\n\n"
+            "The methodology integrates water ecosystem services, river basin "
+            "water availability, water quality conditions, land-use-based "
+            "water demand, and population-based water demand. The resulting "
+            "index represents the balance between available usable water "
+            "and total water demand within each analysis grid.\n\n"
+            "The output can be used for environmental carrying capacity "
+            "assessments, water resource planning, watershed management, "
+            "and D3TLH analysis workflows.\n\n"
+            "<b>Complete explanation read here: "
+            "<a href='https://yayasan-lokahita.github.io/"
+            "otomatisasi_d3tlh-docs/ikp/ikp_air/'>here</a>.</b>"
+        )
 
     def createInstance(self):
         return IKPAirAlgorithm()

@@ -115,23 +115,18 @@ class PreprocLandCoverKLHKAlgorithm(QgsProcessingAlgorithm):
         )
 
     def shortHelpString(self) -> str:
-        return self.tr("""\
-🇮🇩 ID:
-Klasifikasikan fitur menjadi Penutup Lahan (PL) atau Kawasan Hutan (kwshutan)
-via lookup CSV YANG DIBUNDEL.
-• PL CSV (dibundel): header = CODE;PL
-• Kawasan Hutan CSV (dibundel): header = fungsikws;kwshutan
-CSV dicari otomatis di folder algoritma ini atau subfolder 'data/'. Tidak
-perlu memilih file CSV.
-
-🌍 EN:
-Classify features as Land Cover (PL) or Forest Area (kwshutan) using BUNDLED
-CSV lookups.
-• PL headers: CODE;PL
-• Forest headers: fungsikws;kwshutan
-CSV files are resolved automatically beside this script or in 'data/'.
-No CSV parameters.
-""")
+        return self.tr(
+            "This algorithm classifies features into Land Cover (PL) or "
+            "Forest Area (Kawasan Hutan) classes using internal lookup "
+            "tables bundled with the plugin.\n\n"
+            "No external CSV input is required from the user. The algorithm "
+            "automatically loads the appropriate classification database "
+            "and assigns classification labels based on the selected "
+            "identifier field.\n\n"
+            "<b>Complete explanation read here: "
+            "<a href='https://yayasan-lokahita.github.io/"
+            "otomatisasi_d3tlh-docs/class_lckws/'>here</a>.</b>"
+        )
 
     # ----- parameters -----
     def initAlgorithm(self, config=None):

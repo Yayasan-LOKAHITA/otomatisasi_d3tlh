@@ -69,9 +69,8 @@ class SocioEcoPopulationDistAlgorithm(QgsProcessingAlgorithm):
     # Batas admin (punya field nama admin & jumlah penduduk)
     BATAS_ADMIN = "BATAS_ADMIN"
 
-    ADMIN_NAME_FIELD = (
-        "ADMIN_NAME_FIELD"  # field nama admin pada BATAS_ADMIN (nama bebas)
-    )
+    # field nama admin pada BATAS_ADMIN (nama bebas)
+    ADMIN_NAME_FIELD = "ADMIN_NAME_FIELD"
     # field jumlah penduduk pada BATAS_ADMIN (nama bebas)
     ADMIN_POP_FIELD = "ADMIN_POP_FIELD"
 
@@ -101,55 +100,26 @@ class SocioEcoPopulationDistAlgorithm(QgsProcessingAlgorithm):
     def icon(self):
         return QIcon(
             os.path.join(
-                os.path.dirname(__file__), "04 Demographic Modelling.svg"
+                os.path.dirname(__file__),
+                "04 Demographic Modelling.svg",
             )
         )
 
     def shortHelpString(self):
-        return self.tr("""
-            🇮🇩 ID Modul ini digunakan untuk memodelkan distribusi penduduk
-            berdasarkan skor dan bobot parameter penutup lahan dan jaringan 
-            jalan dengan keluaran dalam format grid.
-
-            Langkah umum:
-            • Menyamakan CRS seluruh input (fix geometries & spatial index).
-            • Standarisasi kolom/field pada Batas Administrasi → WADM**
-            (PR/KK/KC/KD) dan POPM**YY (mis. 2024 → YY=24).
-            • Memasukkan kolom/field pada batas administrasi (WADM**) ke GRID
-            dengan pendekatan MCA, lalu join POPM**YY.
-            • PL: Lakukan intersect antara grid dan penutup lahan, lalu lakukan
-            perhitungan bobot (WPLYY).
-            • Jalan: Lakukan intersect antara grid dan jaringan jalan, lalu
-            lakukan perhitungan bobot (WJLNYY).
-            • Hitung WGRIDYY = WPLYY + WJLNYY, WADMYY = Σ(WGRIDYY) per WADM**,
-            dan POPGRIDYY = floor((WGRIDYY / WADMYY) * POPM**YY).
-            • Standarisasi kolom keluaran.
-            • Luaran berupa Model Distribusi Penduduk (GRID dengan 8 kolom: ID,
-            WADM**, POPM**YY, WPLYY, WJLNYY, WGRIDYY, WADMYY, POPGRIDYY).
-
-            ──────────────
-
-            🌍 EN This module models population distribution using scores and
-            weights derived from land cover and road network parameters,
-            producing an output in grid format.
-
-            General Steps:
-            • Harmonize the CRS of all input layers (fix geometries and build
-            spatial indexes).
-            • Standardize fields in the Administrative Boundaries layer to
-            WADM** (PR/KK/KC/KD) and POPM**YY (e.g., 2024 → YY=24).
-            • Transfer the administrative field (WADM**) into the GRID using
-            the MCA approach, then join POPM**YY.
-            • Land Cover (PL): Intersect the grid with the land cover layer,
-            then calculate the weight (WPLYY).
-            • Roads: Intersect the grid with the road network layer, then
-            calculate the weight (WJLNYY).
-            • Compute WGRIDYY = WPLYY + WJLNYY, WADMYY = Σ(WGRIDYY) per WADM**,
-            and POPGRIDYY = floor((WGRIDYY / WADMYY) * POPM**YY).
-            • Standardize the output fields.
-            • Output: Population Distribution Model (GRID with 8 fields: ID,
-            WADM**, POPM**YY, WPLYY, WJLNYY, WGRIDYY, WADMYY, POPGRIDYY).
-            """)
+        return self.tr(
+            "This module models population distribution using scores and "
+            "weights derived from land cover and road network parameters, "
+            "producing a gridded population distribution dataset.\n\n"
+            "The methodology allocates population counts from administrative "
+            "units into grid cells based on the relative influence of land "
+            "cover characteristics and road accessibility. The resulting "
+            "grid-based population model can be used for environmental "
+            "carrying capacity assessments, ecosystem service analysis, "
+            "and spatial planning.\n\n"
+            "<b>Complete explanation read here: "
+            "<a href='https://github.io/"
+            "otomatisasi_d3tlh-docs/socio/dist_penduduk/'>here</a>.</b>"
+        )
 
     def createInstance(self):
         return SocioEcoPopulationDistAlgorithm()
@@ -215,7 +185,9 @@ class SocioEcoPopulationDistAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterField(
                 self.ADMIN_POP_FIELD,
-                self.tr("Kolom Jumlah Penduduk pada Batas Administrasi"),
+                self.tr(
+                    "Kolom Jumlah Penduduk pada Batas Administrasi"
+                ),
                 parentLayerParameterName=self.BATAS_ADMIN,
             )
         )
@@ -309,7 +281,9 @@ class SocioEcoPopulationDistAlgorithm(QgsProcessingAlgorithm):
     def _reproject_to(self, layer, target_crs, label, feedback):
         src = layer.sourceCrs()
         if not src.isValid():
-            raise Exception(self.tr(f'CRS layer "{label}" tidak valid.'))
+            raise Exception(
+                self.tr(f'CRS layer "{label}" tidak valid.')
+            )
         if src.authid() == target_crs.authid():
             return layer
         feedback.pushInfo(
@@ -326,7 +300,9 @@ class SocioEcoPopulationDistAlgorithm(QgsProcessingAlgorithm):
 
     # ----------------------- Core -----------------------
     def processAlgorithm(self, parameters, context, feedback):
-        year_full = int(self.parameterAsInt(parameters, self.YEAR, context))
+        year_full = int(
+            self.parameterAsInt(parameters, self.YEAR, context)
+        )
         yy = f"{year_full % 100:02d}"
 
         admin_level_idx = self.parameterAsEnum(
@@ -334,7 +310,9 @@ class SocioEcoPopulationDistAlgorithm(QgsProcessingAlgorithm):
         )
         admin_level = self.ADMIN_LEVEL_LIST[admin_level_idx]
 
-        grid = self.parameterAsVectorLayer(parameters, self.GRID, context)
+        grid = self.parameterAsVectorLayer(
+            parameters, self.GRID, context
+        )
         pl = self.parameterAsVectorLayer(
             parameters, self.PENUTUP_LAHAN, context
         )
@@ -356,8 +334,12 @@ class SocioEcoPopulationDistAlgorithm(QgsProcessingAlgorithm):
         target_crs = self._pick_target_crs([grid, pl, jl, adm])
         feedback.pushInfo(f"CRS target proyeksi: {target_crs.authid()}")
         grid = self._reproject_to(grid, target_crs, "GRID", feedback)
-        pl = self._reproject_to(pl, target_crs, "Penutup Lahan", feedback)
-        jl = self._reproject_to(jl, target_crs, "Jaringan Jalan", feedback)
+        pl = self._reproject_to(
+            pl, target_crs, "Penutup Lahan", feedback
+        )
+        jl = self._reproject_to(
+            jl, target_crs, "Jaringan Jalan", feedback
+        )
         adm = self._reproject_to(
             adm, target_crs, "Batas Administrasi", feedback
         )
@@ -396,7 +378,9 @@ class SocioEcoPopulationDistAlgorithm(QgsProcessingAlgorithm):
 
         # WADM**
         if WADM in adm_fields:
-            feedback.pushInfo(f"• Kolom {WADM} sudah ada → skip rename.")
+            feedback.pushInfo(
+                f"• Kolom {WADM} sudah ada → skip rename."
+            )
         else:
             if admin_name_field not in adm_fields:
                 raise Exception(
@@ -407,13 +391,17 @@ class SocioEcoPopulationDistAlgorithm(QgsProcessingAlgorithm):
                 )
             if admin_name_field != WADM:
                 adm = self._rename_field(adm, admin_name_field, WADM)
-                feedback.pushInfo(f"• Rename {admin_name_field} → {WADM}")
+                feedback.pushInfo(
+                    f"• Rename {admin_name_field} → {WADM}"
+                )
 
         adm_fields = [f.name() for f in adm.fields()]
 
         # POPM**YY
         if POPM in adm_fields:
-            feedback.pushInfo(f"• Kolom {POPM} sudah ada → skip rename.")
+            feedback.pushInfo(
+                f"• Kolom {POPM} sudah ada → skip rename."
+            )
         else:
             if admin_pop_field not in adm_fields:
                 raise Exception(
@@ -424,7 +412,9 @@ class SocioEcoPopulationDistAlgorithm(QgsProcessingAlgorithm):
                 )
             if admin_pop_field != POPM:
                 adm = self._rename_field(adm, admin_pop_field, POPM)
-                feedback.pushInfo(f"• Rename {admin_pop_field} → {POPM}")
+                feedback.pushInfo(
+                    f"• Rename {admin_pop_field} → {POPM}"
+                )
 
         # Validasi akhir
         adm_fields = [f.name() for f in adm.fields()]
@@ -538,8 +528,12 @@ class SocioEcoPopulationDistAlgorithm(QgsProcessingAlgorithm):
         # CSV paths
         plugin_root = os.path.dirname(__file__)
         data_root = os.path.join(plugin_root, "..", "..", "data", "pop")
-        csv_pl_nonpapua = os.path.join(data_root, "bobot_pl_penduduk.csv")
-        csv_pl_papua = os.path.join(data_root, "bobot_pl_penduduk_papua.csv")
+        csv_pl_nonpapua = os.path.join(
+            data_root, "bobot_pl_penduduk.csv"
+        )
+        csv_pl_papua = os.path.join(
+            data_root, "bobot_pl_penduduk_papua.csv"
+        )
         csv_jln = os.path.join(data_root, "bobot_jln_penduduk.csv")
 
         for p, nm in [
@@ -549,7 +543,9 @@ class SocioEcoPopulationDistAlgorithm(QgsProcessingAlgorithm):
         ]:
             if not os.path.exists(p):
                 raise Exception(
-                    self.tr(f"File CSV bobot tidak ditemukan: {nm} di {p}")
+                    self.tr(
+                        f"File CSV bobot tidak ditemukan: {nm} di {p}"
+                    )
                 )
 
         skor_pl_nonpapua = self._load_csv(csv_pl_nonpapua)
@@ -593,7 +589,9 @@ class SocioEcoPopulationDistAlgorithm(QgsProcessingAlgorithm):
             },
         )["OUTPUT"]
 
-        feedback.pushInfo("Langkah 12: Join bobot PL (Papua vs non-Papua) …")
+        feedback.pushInfo(
+            "Langkah 12: Join bobot PL (Papua vs non-Papua) …"
+        )
         inter_pl_papua = processing.run(
             "qgis:extractbyexpression",
             {
@@ -626,7 +624,9 @@ class SocioEcoPopulationDistAlgorithm(QgsProcessingAlgorithm):
                 },
             )["OUTPUT"]
 
-        gp_nonpapua = join_wpl_by_key(inter_pl_nonpapua, skor_pl_nonpapua)
+        gp_nonpapua = join_wpl_by_key(
+            inter_pl_nonpapua, skor_pl_nonpapua
+        )
         gp_papua = join_wpl_by_key(inter_pl_papua, skor_pl_papua)
 
         grid_pl_wpl = processing.run(
@@ -866,7 +866,9 @@ class SocioEcoPopulationDistAlgorithm(QgsProcessingAlgorithm):
             },
         )["OUTPUT"]
 
-        feedback.pushInfo("Langkah 24–26: Hitung WGRID, WADM, POPGRID …")
+        feedback.pushInfo(
+            "Langkah 24–26: Hitung WGRID, WADM, POPGRID …"
+        )
         WGRIDYY = f"WGRID{yy}"
         grid_utama = processing.run(
             "qgis:fieldcalculator",
@@ -884,7 +886,9 @@ class SocioEcoPopulationDistAlgorithm(QgsProcessingAlgorithm):
 
         sum_WGRID = self._stats_sum_by(grid_utama, WADM, WGRIDYY)
         WADMYY = f"WADM{yy}"
-        sum_WGRID = self._rename_field(sum_WGRID, f"sum_{WGRIDYY}", WADMYY)
+        sum_WGRID = self._rename_field(
+            sum_WGRID, f"sum_{WGRIDYY}", WADMYY
+        )
 
         grid_utama = processing.run(
             "native:joinattributestable",
@@ -928,7 +932,9 @@ class SocioEcoPopulationDistAlgorithm(QgsProcessingAlgorithm):
             POPGRIDYY,
         ]
         drop_cols = [
-            f.name() for f in grid_utama.fields() if f.name() not in keep_cols
+            f.name()
+            for f in grid_utama.fields()
+            if f.name() not in keep_cols
         ]
         final_layer = processing.run(
             "qgis:deletecolumn",

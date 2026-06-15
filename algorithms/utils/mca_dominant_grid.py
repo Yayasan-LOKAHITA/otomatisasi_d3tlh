@@ -84,24 +84,14 @@ class UtilsMCADominantAlgorithm(QgsProcessingAlgorithm):
         return UtilsMCADominantAlgorithm()
 
     def shortHelpString(self):
-        # In English
         return self.tr(
             "This algorithm calculates the dominant attribute from Layer 2 "
             "for each polygon in GRID based on the largest combined area of "
-            "intersection (MCA - Maximum Combined Area).\n\n"
-            "Steps:\n"
-            "1) Intersect GRID with Layer 2 to get area per combination.\n"
-            "2) Dissolve by GRID ID and Layer 2 class to sum areas.\n"
-            "3) Calculate area in m² (using transform to EPSG:3857).\n"
-            "4) Get MAX area per GRID ID.\n"
-            "5) Join MAX back to dissolved layer.\n"
-            "6) Extract features where area = MAX (dominant class).\n"
-            "7) Join dominant class back to original GRID.\n\n"
-            "Input:\n"
-            "- GRID: Polygon layer with unique ID field (id/ID).\n"
-            "- Layer 2: Polygon layer with class field.\n\n"
-            "Output:\n"
-            "- GRID with new field showing dominant class from Layer 2."
+            "intersection (MCA – Maximum Combined Area). "
+            "\n\n"
+            "<b>Complete explanation read here : "
+            "<a href='https://yayasan-lokahita.github.io/"
+            "otomatisasi_d3tlh-docs/mca/'>here</a>.<b>"
         )
 
     def icon(self):
@@ -115,7 +105,9 @@ class UtilsMCADominantAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFeatureSource(
                 self.GRID,
-                self.tr('GRID (polygon, wajib punya field "id" atau "ID")'),
+                self.tr(
+                    'GRID (polygon, wajib punya field "id" atau "ID")'
+                ),
                 [QgsProcessing.TypeVectorPolygon],
             )
         )
@@ -166,8 +158,12 @@ class UtilsMCADominantAlgorithm(QgsProcessingAlgorithm):
 
     def processAlgorithm(self, parameters, context, feedback):
         # Ambil source & daftar field
-        grid_src = self.parameterAsSource(parameters, self.GRID, context)
-        lyr2_src = self.parameterAsSource(parameters, self.LAYER2, context)
+        grid_src = self.parameterAsSource(
+            parameters, self.GRID, context
+        )
+        lyr2_src = self.parameterAsSource(
+            parameters, self.LAYER2, context
+        )
 
         if grid_src is None or lyr2_src is None:
             raise QgsProcessingException(self.tr("Input tidak valid."))
@@ -265,7 +261,8 @@ class UtilsMCADominantAlgorithm(QgsProcessingAlgorithm):
                 "FIELD_PRECISION": 3,
                 "NEW_FIELD": True,
                 "FORMULA": (
-                    "area(transform($geometry,'EPSG:4326'," "'EPSG:3857'))"
+                    "area(transform($geometry,'EPSG:4326',"
+                    "'EPSG:3857'))"
                 ),
                 "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             },
@@ -305,7 +302,8 @@ class UtilsMCADominantAlgorithm(QgsProcessingAlgorithm):
         if not max_col:
             raise QgsProcessingException(
                 self.tr(
-                    "Tidak menemukan kolom MAX(LM2) pada " "output statistik."
+                    "Tidak menemukan kolom MAX(LM2) pada "
+                    "output statistik."
                 )
             )
 
@@ -330,7 +328,9 @@ class UtilsMCADominantAlgorithm(QgsProcessingAlgorithm):
         )["OUTPUT"]
 
         # 6) Winners: LM2 == _stat_max
-        feedback.pushInfo("6) Ambil pemenang (kelas dominan per grid) ...")
+        feedback.pushInfo(
+            "6) Ambil pemenang (kelas dominan per grid) ..."
+        )
         expr = f'"LM2" = "_stat_{max_col}"'
         winners = processing.run(
             "native:extractbyexpression",

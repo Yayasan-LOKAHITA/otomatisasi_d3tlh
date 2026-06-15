@@ -302,63 +302,17 @@ class PreprocRoadClassStandardAlgorithm(QgsProcessingAlgorithm):
         )
 
     def shortHelpString(self):
-        return self.tr("""\
-    🇮🇩 ID Modul ini digunakan untuk standarisasi kelas jalan yang akan
-    digunakan dalam pemodelan distribusi penduduk.
-
-    Alur pakai:
-    1) Pilih layer jalan dan kolom sumber klasifikasi jalan, lalu klik Run.
-    2) Muncul dialog: kiri = nilai unik dari kolom sumber, kanan = dropdown
-    KJLN standar.
-    3) Anda dapat Load JSON (prefill mapping) atau Save JSON
-    (menyimpan mapping untuk reuse).
-    4) Centang opsi "Hanya isi yang KJLN masih NULL" bila tidak ingin
-    menimpa nilai KJLN yang sudah ada.
-    5) Hasil ditulis ke kolom KJLN pada layer output (input tidak diubah).
-
-    Kelas jalan sesuai standar:
-    - Jalan Arteri
-    - Jalan Kolektor
-    - Jalan Lokal
-    - Jalan Lain
-    - Jalan Layang
-    - Jalan Sedang Dibangun
-    - Jalan Setapak
-    - Jalan Tol Dua Jalur Dengan Pemisah Fisik
-    - Jalan Tol Dua Jalur Tanpa Pemisah Fisik
-    - Jalan Tol Layang
-    - Jalan/Transportasi Darat Lainnya
-    - Pematang
-
-    ──────────────
-
-    🌍 EN This module standardizes road classes for use in population
-    distribution modeling.
-
-    Purpose & How to use:
-    1) Select the road layer and its source road-class field, then click Run.
-    2) A dialog appears: left = unique values from the source field,
-    right = fixed KJLN dropdown.
-    3) Use Load JSON to prefill mappings or Save JSON to reuse mappings later.
-    4) Check "Only fill when KJLN is NULL" to avoid overwriting existing KJLN
-    values.
-    5) The result is written to KJLN in the output layer (the input layer is
-    not modified).
-
-    Standard KJLN classes:
-    - Jalan Arteri (Arterial Road)
-    - Jalan Kolektor (Collector Road)
-    - Jalan Lokal (Local Road)
-    - Jalan Lain (Other Road)
-    - Jalan Layang (Elevated Road)
-    - Jalan Sedang Dibangun (Road Under Construction)
-    - Jalan Setapak (Footpath/Trail)
-    - Jalan Tol Dua Jalur Dengan Pemisah Fisik (Dual Carriageway with Median)
-    - Jalan Tol Dua Jalur Tanpa Pemisah Fisik (Dual Carriageway without Median)
-    - Jalan Tol Layang (Elevated Toll Road)
-    - Jalan/Transportasi Darat Lainnya (Other Land Transport)
-    - Pematang (Dike/Embankment)
-    """)
+        return self.tr(
+            "This module standardizes road classes for use in population "
+            "distribution modeling.\n\n"
+            "The algorithm maps road class values from an input road layer "
+            "to a predefined set of KJLN (Kelas Jalan) categories. The "
+            "standardized class is stored in the KJLN field of the output "
+            "layer while preserving the original input data.\n\n"
+            "<b>Complete explanation read here: "
+            "<a href='https://yayasan-lokahita.github.io/"
+            "otomatisasi_d3tlh-docs/class_road/'>here</a>.</b>"
+        )
 
     def initAlgorithm(self, config=None):
         self.addParameter(

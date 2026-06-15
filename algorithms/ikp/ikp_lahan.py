@@ -96,190 +96,23 @@ class IKPLahanAlgorithm(QgsProcessingAlgorithm):
         )
 
     def shortHelpString(self):
-        return self.tr("""
-    <h2>Indeks Kemampuan Pemanfaatan Lahan (IKP Lahan)</h2>
-
-    <h2>Land Utilization Capability Index</h2>
-
-    <hr>
-
-    <h3>Deskripsi (Bahasa Indonesia)</h3>
-
-    <p>
-    Algoritma ini digunakan untuk menghitung nilai
-    <b>Indeks Kemampuan Pemanfaatan (IKP) Lahan</b>.
-    </p>
-
-    <p>
-    IKP Lahan adalah kemampuan lahan untuk dimanfaatkan dan mendukung
-    kebutuhan dasar hidup manusia berupa pangan dan tempat tinggal
-    secara alami.
-    </p>
-
-    <h4>🗺️ Input yang Dibutuhkan:</h4>
-
-    <ul>
-        <li>
-            <b>1. Grid SGSRI</b>
-            (data vektor berisi unit analisis spasial)
-        </li>
-        <li>
-            <b>2. IJLH Penyedia Pangan</b>
-            (data vektor layanan ekosistem penyedia pangan)
-        </li>
-        <li>
-            <b>3. Penutup Lahan (PL)</b>
-            (data vektor klasifikasi penutup lahan)
-        </li>
-        <li>
-            <b>4. Kawasan Hutan</b>
-            (data vektor pembagian fungsi kawasan hutan)
-        </li>
-        <li>
-            <b>5. Grid Distribusi Penduduk</b>
-            (data vektor jumlah penduduk per grid)
-        </li>
-        <li>
-            <b>6. Nilai jejak ekologis pangan (SJEPGN)</b>
-        </li>
-        <li>
-            <b>7. Nilai jejak ekologis built-up land (SJEBUILT)</b>
-        </li>
-    </ul>
-
-    <h4>🗂️ Data Input dan Data Sampel Dapat Diunduh di Sini:</h4>
-
-    <a href="https://1drv.ms/f/c/0192f2f41be57bd4/IgCLOA9DpbH4Qrg8M6ilrxYmAYx
-                       RISdnze0v97ejJmF3eCU?e=tTRSmN"
-    target="_blank">
-    Klik untuk Akses Data
-    </a>
-
-    <h4>📤 Output:</h4>
-
-    <ul>
-        <li><b>1. IKP Lahan per Grid</b></li>
-        <li><b>2. Ketersediaan Lahan</b></li>
-    </ul>
-
-    <h4>🧭 Contoh Penggunaan:</h4>
-
-    <ol>
-        <li>
-            Siapkan data input: GRID SGSRI, IJLH Penyedia Pangan,
-            Penutup Lahan, Kawasan Hutan, dan GRID Distribusi Penduduk.
-        </li>
-        <li>
-            Tentukan tahun analisis (misalnya 2024) dan masukkan nilai
-            SJEPGN serta SJEBUILT.
-        </li>
-        <li>
-            Jalankan algoritma untuk menghitung nilai IKP Lahan dan
-            menghasilkan peta ketersediaan lahan.
-        </li>
-        <li>
-            Gunakan hasil IKP Lahan untuk analisis kapasitas ekologis,
-            perencanaan penggunaan lahan, atau integrasi IKP Kehati.
-        </li>
-    </ol>
-
-    <h4>📚 Referensi:</h4>
-
-    <ul>
-        <li>Dokumen Petunjuk Teknis D3TLH 2024</li>
-        <li>Dokumen Petunjuk Teknis D3TLH 2025</li>
-    </ul>
-
-    <hr>
-
-    <h3>Description (English)</h3>
-
-    <p>
-    This algorithm is used to calculate the
-    <b>Land Utilization Capability Index (IKP Lahan)</b>.
-    </p>
-
-    <p>
-    The Land IKP is an indicator describing the capacity of an area
-    to provide, sustain, and balance land utilization for human needs
-    and ecological functions by considering ecological capacity,
-    land cover, and population pressure.
-    </p>
-
-    <h4>🗺️ Required Inputs:</h4>
-
-    <ul>
-        <li>
-            <b>1. SGSRI Grid</b>
-            (vector data containing spatial analysis units)
-        </li>
-        <li>
-            <b>2. IJLH Food Provision</b>
-            (vector data of ecosystem services for food supply)
-        </li>
-        <li>
-            <b>3. Land Cover (PL)</b>
-            (vector data of land cover classification)
-        </li>
-        <li>
-            <b>4. Forest Area</b>
-            (vector data of forest function zoning)
-        </li>
-        <li>
-            <b>5. Population Distribution Grid</b>
-            (vector data of population count per grid)
-        </li>
-        <li>
-            <b>6. Food Ecological Footprint (SJEPGN)</b>
-        </li>
-        <li>
-            <b>7. Built-up Land Ecological Footprint (SJEBUILT)</b>
-        </li>
-    </ul>
-
-    <h4>🗂️ Input and Sample Data Download:</h4>
-
-    <a href="https://1drv.ms/f/c/0192f2f41be57bd4/IgCLOA9DpbH4Qrg8M6ilrxYmAYx
-                       RISdnze0v97ejJmF3eCU?e=tTRSmN"
-    target="_blank">
-    Click to Access Data
-    </a>
-
-    <h4>📤 Output:</h4>
-
-    <ul>
-        <li><b>1. Land IKP per Grid</b></li>
-        <li><b>2. Land Availability Map</b></li>
-    </ul>
-
-    <h4>🧭 Example of Use:</h4>
-
-    <ol>
-        <li>
-            Prepare the SGSRI Grid, IJLH Food Provision, Land Cover,
-            Forest Area, and Population Distribution Grid.
-        </li>
-        <li>
-            Specify the analysis year and input SJEPGN and SJEBUILT
-            values.
-        </li>
-        <li>
-            Run the algorithm to calculate Land IKP values and
-            generate the Land Availability Map.
-        </li>
-        <li>
-            Use the outputs for ecological capacity analysis,
-            land-use planning, or Biodiversity IKP integration.
-        </li>
-    </ol>
-
-    <h4>📚 References:</h4>
-
-    <ul>
-        <li>D3TLH Technical Guidelines 2024</li>
-        <li>D3TLH Technical Guidelines 2025</li>
-    </ul>
-    """)
+        return self.tr(
+            "This module calculates the Land Utilization Capability Index "
+            "(IKP Lahan), an indicator used to assess the capability of land "
+            "resources to support basic human needs, particularly food "
+            "production and settlement functions, while maintaining "
+            "ecological sustainability.\n\n"
+            "The methodology integrates ecosystem service provision, land "
+            "cover characteristics, forest functions, ecological footprint "
+            "indicators, and population pressure to estimate land "
+            "availability and utilization capacity.\n\n"
+            "The resulting index can be used to evaluate environmental "
+            "carrying capacity, land-use suitability, and ecological "
+            "sustainability within D3TLH assessments.\n\n"
+            "<b>Complete explanation read here: "
+            "<a href='https://yayasan-lokahita.github.io/"
+            "otomatisasi_d3tlh-docs/ikp/ikp_lahan/'>here</a>.</b>"
+        )
 
     def createInstance(self):
         return IKPLahanAlgorithm()
@@ -600,7 +433,7 @@ class IKPLahanAlgorithm(QgsProcessingAlgorithm):
         )["OUTPUT"]
 
         # REMARK rules:
-        # Ketersediaan Lahan Pangan:
+        # Ketersediaan Lahan Pangan dan Hunian:
         #   KPGN in (Sedang, Tinggi, Sangat Tinggi)
         #   PL tidak dalam ('Pertambangan','Bandara/ Pelabuhan')
         #   kwshutan dalam set diizinkan
@@ -619,7 +452,7 @@ class IKPLahanAlgorithm(QgsProcessingAlgorithm):
             f"WHEN (\"{fld_kpgn}\" IN ('Sedang','Tinggi','Sangat Tinggi') "
             "AND (PL NOT IN ('Pertambangan','Bandara/ Pelabuhan')) "
             f"AND (kwshutan IN ({allowed_kw}))) "
-            "THEN 'Ketersediaan Lahan Pangan' "
+            "THEN 'Ketersediaan Lahan Pangan dan Hunian' "
             f"WHEN (\"{fld_kpgn}\" IN ('Rendah','Sangat Rendah') "
             "AND (PL IN ('Permukiman','Lahan Terbuka',"
             "'Permukiman Transmigrasi')) "
@@ -720,7 +553,7 @@ class IKPLahanAlgorithm(QgsProcessingAlgorithm):
             {
                 "INPUT": ket_pol_out,
                 "EXPRESSION": """
-                    \"REMARK\" IN ('Ketersediaan Lahan Pangan',
+                    \"REMARK\" IN ('Ketersediaan Lahan Pangan dan Hunian',
                     'Ketersediaan Lahan Hunian')
                 """,
                 "OUTPUT": "TEMPORARY_OUTPUT",

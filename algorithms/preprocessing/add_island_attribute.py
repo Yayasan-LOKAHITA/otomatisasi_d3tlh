@@ -400,19 +400,17 @@ class PreprocAddIslandAttributeAlgorithm(QgsProcessingAlgorithm):
 
         return {self.OUTPUT: dest_id}
 
-    def shortHelpString(self) -> str:
-        return self.tr("""\
-            🇮🇩 ID == Tambahkan kolom `PULAU` secara otomatis:
-
-            Cara pakai:
-            1) Pilih layer input (EPSG:4326).
-            2) Jalankan → layer baru dengan kolom `PULAU` dihasilkan.
-
-            ──────────────
-
-            🌍 EN == Automatically add `PULAU` field:
-
-            How to use:
-            1) Select the input layer (EPSG:4326).
-            2) Run → a new layer with `PULAU` column is created.
-        """)
+    def shortHelpString(self):
+        return self.tr(
+            "This module automatically assigns an island name (PULAU) to "
+            "each feature based on its geographic location.\n\n"
+            "The algorithm uses predefined island boundary polygons "
+            "covering the major island groups of Indonesia and classifies "
+            "each feature according to the location of its centroid.\n\n"
+            "If a centroid falls outside all predefined island polygons, "
+            "the algorithm assigns the nearest island using a distance-based "
+            "fallback method.\n\n"
+            "<b>Complete explanation read here: "
+            "<a href='https://yayasan-lokahita.github.io/"
+            "otomatisasi_d3tlh-docs/add_islandatrbt/'>here</a>.</b>"
+        )

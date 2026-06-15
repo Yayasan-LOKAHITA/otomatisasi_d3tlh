@@ -123,37 +123,28 @@ class UtilsGridSGSRIAlgorithm(QgsProcessingAlgorithm):
 
     def shortHelpString(self):
         return self.tr(
-            """The Indonesian Multi-scale Grid System (IMGS) is designed as a
-            square-cell grid structure similar to a raster data format. Each
-            cell has a unique coordinate and attributes that enable the
-            continuous and structured representation of geographic phenomena.
-            IMGS adopts the Indonesian Geospatial Reference System (SRGI) 2013
-            as the national geodetic reference, with its origin located at
-            90° E longitude and 15° S latitude to align with the numbering
-            system of the Indonesian Topographic Base Map (RBI) sheets.
-
-            Available grid sizes:
-            • 1° x 1°30' (~111.0 x 166.5 km)
-            • 30' x 30' (~55.50 x 55.50 km)
-            • 15' x 15' (~27.75 x 27.75 km)
-            • 7'30" x 7'30" (~13.875 x 13.875 km)
-            • 2'30" x 2'30" (~4.625 x 4.625 km)
-            • 30" x 30" (~0.900 x 0.900 km)
-            • 5" x 5" (~0.150 x 0.150 km)
-
-            In addition, administrative boundary attributes are added from
-            village/sub-district level up to province level based on the
-            Administrative Boundary input layer.
-
-            The final IMGS output contains the following fields:
-            ID, WADMKD, WADMKC, WADMKK, and WADMPR."""
+            "The Indonesian Multi-scale Grid System (IMGS) is designed as a "
+            "square-cell grid structure similar to a raster data format. Each "
+            "cell has a unique coordinate and attributes that enable the "
+            "continuous and structured representation of geographic phenomena."
+            "\n\n"
+            "IMGS adopts the Indonesian Geospatial Reference System (SRGI) "
+            "2013 as the national geodetic reference, with its origin located "
+            "at 90° E longitude and 15° S latitude to align with the "
+            "numbering system of the Indonesian Topographic Base Map (RBI) "
+            "sheets."
+            "\n\n"
+            "<b>Complete explanation read here : "
+            "<a href='https://yayasan-lokahita.github.io/"
+            "otomatisasi_d3tlh-docs/grid/'>here</a>.<b>"
         )
 
     # parameter UI
     def initAlgorithm(self, config=None):
         self.addParameter(
             QgsProcessingParameterExtent(
-                self.P_EXTENT, self.tr("Extent pembuatan grid (EPSG:4326)")
+                self.P_EXTENT,
+                self.tr("Extent pembuatan grid (EPSG:4326)"),
             )
         )
         self.addParameter(
@@ -184,7 +175,9 @@ class UtilsGridSGSRIAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFeatureSource(
                 self.P_ADMIN_SRC,
-                self.tr("Batas administrasi atau Area of Interest (AOI)"),
+                self.tr(
+                    "Batas administrasi atau Area of Interest (AOI)"
+                ),
                 [QgsProcessing.TypeVectorPolygon],
                 optional=False,
             )
@@ -232,7 +225,9 @@ class UtilsGridSGSRIAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterBoolean(
                 self.P_CLIP_AOI,
-                self.tr("Clip hasil akhir ke Batas Administrasi atau AOI"),
+                self.tr(
+                    "Clip hasil akhir ke Batas Administrasi atau AOI"
+                ),
                 defaultValue=False,
             )
         )
@@ -317,9 +312,13 @@ class UtilsGridSGSRIAlgorithm(QgsProcessingAlgorithm):
             return kb + str(C) + str(D)
         if self._isclose(d_lat, 0.125) and self._isclose(d_lon, 0.125):
             return kb + str(C) + str(D) + str(E)
-        if self._isclose(d_lat, 1 / 24) and self._isclose(d_lon, 1 / 24):
+        if self._isclose(d_lat, 1 / 24) and self._isclose(
+            d_lon, 1 / 24
+        ):
             return kb + str(C) + str(D) + str(E) + str(F)
-        if self._isclose(d_lat, 1 / 120) and self._isclose(d_lon, 1 / 120):
+        if self._isclose(d_lat, 1 / 120) and self._isclose(
+            d_lon, 1 / 120
+        ):
             a = kb
             b = str(C)
             c = str(D)
@@ -327,7 +326,9 @@ class UtilsGridSGSRIAlgorithm(QgsProcessingAlgorithm):
             e = str(F)
             f = f"{G:02d}"
             return a + b + c + d + e + f
-        if self._isclose(d_lat, 1 / 720) and self._isclose(d_lon, 1 / 720):
+        if self._isclose(d_lat, 1 / 720) and self._isclose(
+            d_lon, 1 / 720
+        ):
             a = kb
             b = str(C)
             c = str(D)
@@ -431,7 +432,10 @@ class UtilsGridSGSRIAlgorithm(QgsProcessingAlgorithm):
 
         table_winner = processing.run(
             "qgis:dropgeometries",
-            {"INPUT": winners, "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT},
+            {
+                "INPUT": winners,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
             feedback=feedback,
         )["OUTPUT"]
 
@@ -471,8 +475,12 @@ class UtilsGridSGSRIAlgorithm(QgsProcessingAlgorithm):
 
     # main
     def processAlgorithm(self, parameters, context, feedback):
-        extent = self.parameterAsExtent(parameters, self.P_EXTENT, context)
-        size_idx = self.parameterAsEnum(parameters, self.P_GRID_SIZE, context)
+        extent = self.parameterAsExtent(
+            parameters, self.P_EXTENT, context
+        )
+        size_idx = self.parameterAsEnum(
+            parameters, self.P_GRID_SIZE, context
+        )
         crs_out = self.parameterAsCrs(parameters, self.P_CRS, context)
         if not crs_out.isValid():
             crs_out = QgsCoordinateReferenceSystem("EPSG:4326")
@@ -488,16 +496,20 @@ class UtilsGridSGSRIAlgorithm(QgsProcessingAlgorithm):
             )
 
         f_desa = (
-            self.parameterAsString(parameters, self.P_F_DESA, context) or None
+            self.parameterAsString(parameters, self.P_F_DESA, context)
+            or None
         )
         f_kec = (
-            self.parameterAsString(parameters, self.P_F_KEC, context) or None
+            self.parameterAsString(parameters, self.P_F_KEC, context)
+            or None
         )
         f_kab = (
-            self.parameterAsString(parameters, self.P_F_KAB, context) or None
+            self.parameterAsString(parameters, self.P_F_KAB, context)
+            or None
         )
         f_prov = (
-            self.parameterAsString(parameters, self.P_F_PROV, context) or None
+            self.parameterAsString(parameters, self.P_F_PROV, context)
+            or None
         )
         if not f_kab or not f_prov:
             raise QgsProcessingException(
@@ -507,7 +519,9 @@ class UtilsGridSGSRIAlgorithm(QgsProcessingAlgorithm):
                 )
             )
 
-        do_clip = self.parameterAsBool(parameters, self.P_CLIP_AOI, context)
+        do_clip = self.parameterAsBool(
+            parameters, self.P_CLIP_AOI, context
+        )
 
         wanted_fields = [
             ("WADMKD", f_desa),
@@ -575,7 +589,9 @@ class UtilsGridSGSRIAlgorithm(QgsProcessingAlgorithm):
                     ]
                 )
 
-                grid_id = self._make_hier_id_from_index(x, y, d_lat, d_lon)
+                grid_id = self._make_hier_id_from_index(
+                    x, y, d_lat, d_lon
+                )
 
                 f = QgsFeature(mem_grid.fields())
                 f.setGeometry(poly)
@@ -593,11 +609,15 @@ class UtilsGridSGSRIAlgorithm(QgsProcessingAlgorithm):
         mem_grid.updateExtents()
 
         processing.run(
-            "qgis:createspatialindex", {"INPUT": admin_vl}, feedback=feedback
+            "qgis:createspatialindex",
+            {"INPUT": admin_vl},
+            feedback=feedback,
         )
 
         processing.run(
-            "qgis:createspatialindex", {"INPUT": mem_grid}, feedback=feedback
+            "qgis:createspatialindex",
+            {"INPUT": mem_grid},
+            feedback=feedback,
         )
 
         #  AOI: Extract by Location (Intersects)

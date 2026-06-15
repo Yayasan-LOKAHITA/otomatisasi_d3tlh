@@ -1690,143 +1690,21 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
         )
 
     def shortHelpString(self):
-        return self.tr("""
-            <h2>
-                Indeks Kemampuan Pemanfaatan Keanekaragaman Hayati (IKP Kehati)
-            </h2>
-
-            <h2>Biodiversity Support Capacity Index (IKP Kehati)</h2>
-
-            <hr>
-
-            <h3>Deskripsi (Bahasa Indonesia)</h3>
-
-            <p>
-            Algoritma ini digunakan untuk menghitung nilai
-            <b>Indeks Kemampuan Pemanfaatan (IKP) Kehati</b>.
-            </p>
-
-            <p>
-            IKP Kehati adalah indikator yang menggambarkan kesehatan
-            keanekaragaman hayati dalam mendukung keberlanjutan proses
-            dan fungsi ekosistem serta memberikan layanan berupa barang
-            atau jasa lingkungan hidup bagi kehidupan manusia.
-            </p>
-
-            <h4>🗺️ Input yang Dibutuhkan:</h4>
-
-            <ul>
-                <li><b>1. IJLH PKU</b> (data vektor)</li>
-                <li><b>2. IJLH PGA</b> (data vektor)</li>
-                <li><b>3. IJLH PPK</b> (data vektor)</li>
-                <li><b>4. IJLH PYA</b> (data vektor)</li>
-                <li><b>5. Penutup Lahan (PL)</b> (data vektor)</li>
-                <li><b>6. Ekoregion</b> (data vektor)</li>
-                <li><b>7. RTE</b> (data vektor)</li>
-                <li><b>8. Habitat</b> (data vektor)</li>
-                <li><b>9. Grid Populasi</b> (data vektor)</li>
-            </ul>
-
-            <h4>
-                🗂️ Data input wilayah ekoregion, RTE, dan habitat dapat
-                diakses di sini:
-            </h4>
-
-            <a href="https://1drv.ms/f/c/0192f2f41be57bd4/IgCrBpWOqxvaTIzz8
-                       gqsefHUAX5hU69vv9VZuguUZaD0K3I?e=wLMnjS"
-            target="_blank">
-            Klik untuk Akses Data
-            </a>
-
-            <h4>📤 Output:</h4>
-
-            <ul>
-                <li><b>1. IKP Kehati dalam Poligon</b></li>
-                <li><b>2. IKP Kehati dalam Grid</b></li>
-            </ul>
-
-            <h4>🧭 Contoh Penggunaan:</h4>
-
-            <ol>
-                <li>Siapkan seluruh data masukan.</li>
-                <li>Tentukan tahun analisis (misalnya 2024).</li>
-                <li>Masukkan data sesuai kolom input yang tersedia.</li>
-                <li>Jalankan proses untuk menghasilkan peta IKP Kehati.</li>
-            </ol>
-
-            <h4>📚 Referensi:</h4>
-
-            <ul>
-                <li>Dokumen Petunjuk Teknis D3TLH 2024</li>
-                <li>Dokumen Petunjuk Teknis D3TLH 2025</li>
-            </ul>
-
-            <hr>
-
-            <h3>Description (English)</h3>
-
-            <p>
-            This algorithm is used to calculate the
-            <b>Biodiversity Utilization Capability Index (IKP Kehati)</b>.
-            </p>
-
-            <p>
-            The Biodiversity IKP is an indicator that describes the health of
-            biodiversity in supporting ecosystem processes and functions while
-            providing ecosystem goods and services essential for human life.
-            </p>
-
-            <h4>🗺️ Required Inputs:</h4>
-
-            <ul>
-                <li><b>1. IJLH PKU</b> (vector data)</li>
-                <li><b>2. IJLH PGA</b> (vector data)</li>
-                <li><b>3. IJLH PPK</b> (vector data)</li>
-                <li><b>4. IJLH PYA</b> (vector data)</li>
-                <li><b>5. Land Cover (PL)</b> (vector data)</li>
-                <li><b>6. Ecoregion</b> (vector data)</li>
-                <li><b>7. RTE</b> (vector data)</li>
-                <li><b>8. Habitat</b> (vector data)</li>
-                <li><b>9. Population Grid</b> (vector data)</li>
-            </ul>
-
-            <h4>🗂️ Ecoregion, RTE, and Habitat data download:</h4>
-
-            <a href="https://1drv.ms/f/c/0192f2f41be57bd4/IgCrBpWOqxvaTIzz8gqs
-                       efHUAX5hU69vv9VZuguUZaD0K3I?e=wLMnjS"
-            target="_blank">
-            Click to Access Data
-            </a>
-
-            <h4>📤 Output:</h4>
-
-            <ul>
-                <li><b>1. Biodiversity IKP in Polygon Form</b></li>
-                <li><b>2. Biodiversity IKP per Grid</b></li>
-            </ul>
-
-            <h4>🧭 Example of Use:</h4>
-
-            <ol>
-                <li>Prepare all required input data.</li>
-                <li>Specify the analysis year (e.g. 2024).</li>
-                <li>Load the data into the corresponding input fields.</li>
-                <li>Run the process to generate Biodiversity IKP outputs.</li>
-            </ol>
-
-            <h4>📚 References:</h4>
-
-            <ul>
-                <li>D3TLH Technical Guidelines 2024</li>
-                <li>D3TLH Technical Guidelines 2025</li>
-            </ul>
-
-            <hr>
-
-            <b><i>
-            Notes: Disarankan untuk tidak menyimpan output secara temporary.
-            </i></b>
-            """)
+        return self.tr(
+            "This module calculates the Biodiversity Utilization Capacity "
+            "Index (IKP Kehati) by evaluating the balance between water "
+            "availability and water demand within each analysis grid.\n\n"
+            "The methodology integrates river basin resources, water quality "
+            "conditions, land cover characteristics, and population pressure "
+            "to estimate the capacity of ecosystems to support biodiversity "
+            "and human activities sustainably.\n\n"
+            "The resulting index can be used to identify areas experiencing "
+            "high environmental pressure and support environmental carrying "
+            "capacity assessments, spatial planning, and D3TLH workflows.\n\n"
+            "<b>Complete explanation read here: "
+            "<a href='https://yayasan-lokahita.github.io/"
+            "otomatisasi_d3tlh-docs/ikp/ikp_kehati/'>here</a>.</b>"
+        )
 
     def createInstance(self):
         return IKPKehatiAlgorithm()

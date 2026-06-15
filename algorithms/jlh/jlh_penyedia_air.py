@@ -725,51 +725,18 @@ class JLHWaterSupplyAlgorithm(QgsProcessingAlgorithm):
         )
 
     def shortHelpString(self):
-        self.tr("""
-        <b>Indeks Jasa Lingkungan Hidup Penyedia Air (JLH_PYA)</b><br><br>
-        Algoritma ini digunakan untuk menghitung nilai indeks jasa lingkungan
-        hidup yang berhubungan dengan kemampuan ekosistem menyediakan dan
-        mempertahankan ketersediaan air. Metode ini disusun berdasarkan dokumen
-        Petunjuk Teknis D3TLH 2024 yang telah disesuaikan.
-
-        <h4>Tujuan:</h4>
-        Menilai kemampuan ekosistem dalam mendukung ketersediaan air permukaan
-        dan air tanah melalui analisis spasial terhadap tutupan lahan,
-        kemiringan lereng, dan ekoregion.
-
-        <h4>Input yang dibutuhkan:</h4>
-        <ul>
-            <li>Peta Tutupan Lahan (data vector dengan kolom PL)</li>
-            <li>
-                Peta Ekoregion (data vector dengan kolom KBA_250 dan KVA_250)
-            </li>
-            <li>Data Vector Grid Area Kajian (opsional)</li>
-        </ul>
-
-        <h4>Output:</h4>
-        <ul>
-            <li>Peta Vector Indeks JLH Penyedia Air (JLH_PYA)</li>
-        </ul>
-
-        <h4>Metodologi:</h4>
-        Nilai indeks dihitung berdasarkan kombinasi antara tipe tutupan lahan
-        dan karakteristik ekoregion yang memengaruhi kemampuan infiltrasi
-        dan retensi air.
-
-        <h4>Contoh Penggunaan:</h4>
-        1. Pilih area kajian (nasional atau per pulau). Jika skala pulau maka
-        data penutup lahan wajib memiliki kolom <b>PULAU</b>.<br>
-        2. Tentukan bentuk output (Poligon atau Grid). Jika Grid, wajib input
-        data Grid.<br>
-        3. Input tahun data penutup lahan.<br>
-        4. Input data Penutup Lahan (kolom PL) dan Ekoregion (kolom KBA_250
-        dan KVA_250).<br>
-        5. Input data Grid (opsional).<br>
-
-        <h4>Referensi:</h4>
-        Dokumen Petunjuk Teknis D3TLH 2024<br>
-        Dokumen Petunjuk Teknis D3TLH 2025
-        """)
+        return self.tr(
+            "This algorithm calculates the Water Provision Ecosystem "
+            "Service Index (JLH_PYA), which represents an ecosystem's "
+            "ability to provide, store, and maintain the availability of "
+            "surface water and groundwater resources.\n\n"
+            "The methodology is based on the D3TLH Technical Guideline "
+            "2024 and has been adapted for spatial analysis across "
+            "Indonesia at both national and island scales.\n\n"
+            "<b>Complete explanation read here: "
+            "<a href='https://yayasan-lokahita.github.io/"
+            "otomatisasi_d3tlh-docs/jlh/jlh_pya/'>here</a>.</b>"
+        )
 
     def createInstance(self):
         return JLHWaterSupplyAlgorithm()

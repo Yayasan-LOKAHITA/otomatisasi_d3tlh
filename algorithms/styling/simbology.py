@@ -118,39 +118,22 @@ class ApplyStandardStylesAlgorithm(QgsProcessingAlgorithm):
         )
 
     def shortHelpString(self):
-        return self.tr("""
-            🇮🇩 ID  Modul ini menerapkan simbologi standar secara in-place
-            (langsung pada layer terpilih) untuk JLH dan IKP. Kategori yang
-            digunakan: Sangat Rendah, Rendah, Sedang, Tinggi, Sangat Tinggi
-            (khusus IKP Lahan juga Tidak Dihitung).
-
-            Alur pakai:
-            1) Pilih Layer target.
-            2) Pilih Tema (JLH/IKP) sesuai field pada data.
-            3) (Opsional) Isi Tahun: untuk tema JLH
-            membentuk nama kolom seperti "..._YY" (mis. 2024 → "..._24").
-            4) (Opsional) Isi Nama kolom kategori bila ingin menimpa deteksi
-            otomatis.
-            5) Klik Run dan simbologi kategori diterapkan ke layer yang sama
-            (tidak membuat layer baru).
-
-            ──────────────
-
-            🌍 EN  This module applies standard symbology in-place
-            to the selected layer for JLH and IKP. The categories
-            used are: Very Low, Low, Medium, High, and Very High
-            (for IKP Land, Not Computed is also available).
-
-            Usage:
-            1) Select the target Layer.
-            2) Choose the Theme (JLH/IKP) that matches your data field.
-            3) (Optional) Set the Year. For JLH themes, this builds field names
-            such as "..._YY" (e.g., 2024 → "..._24").
-            4) (Optional) Specify a Category field name to override automatic
-            detection.
-            5) Click Run. A categorized renderer is applied to the same layer
-            (no new layer is created).
-            """)
+        return self.tr(
+            "This module applies standardized cartographic symbology to "
+            "JLH (Jasa Lingkungan Hidup) and IKP (Indeks Kemampuan "
+            "Pemanfaatan) datasets directly within the selected layer.\n\n"
+            "The algorithm automatically identifies the appropriate "
+            "classification field and applies a categorized renderer "
+            "using the standard D3TLH visualization scheme. No new layer "
+            "is created; the symbology is applied directly to the "
+            "existing layer.\n\n"
+            "The resulting map follows the standard D3TLH classification "
+            "and color convention, ensuring consistency across environmental "
+            "assessments and reporting products.\n\n"
+            "<b>Complete explanation read here: "
+            "<a href='https://yayasan-lokahita.github.io/"
+            "otomatisasi_d3tlh-docs/simbology/'>here</a>.</b>"
+        )
 
     def createInstance(self):
         return ApplyStandardStylesAlgorithm()
@@ -184,7 +167,9 @@ class ApplyStandardStylesAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterString(
                 self.P_FIELD,
-                self.tr("Nama kolom kategori (kosongkan untuk autodetect)"),
+                self.tr(
+                    "Nama kolom kategori (kosongkan untuk autodetect)"
+                ),
                 defaultValue="",
                 optional=True,
             )
@@ -240,7 +225,9 @@ class ApplyStandardStylesAlgorithm(QgsProcessingAlgorithm):
             self._cat(layer, "Tinggi", 85, 150, 0),  # Medium Green
             self._cat(layer, "Sedang", 170, 200, 0),  # Yellow-Green
             self._cat(layer, "Rendah", 220, 220, 0),  # Golden Yellow
-            self._cat(layer, "Sangat Rendah", 255, 255, 0),  # Bright Yellow
+            self._cat(
+                layer, "Sangat Rendah", 255, 255, 0
+            ),  # Bright Yellow
         ]
 
     # IKP Lahan (oranye-coklat) + Tidak Dihitung (abu-abu)
@@ -255,7 +242,9 @@ class ApplyStandardStylesAlgorithm(QgsProcessingAlgorithm):
         # Tambah kategori "Tidak Dihitung"
         base = QgsSymbol.defaultSymbol(layer.geometryType())
         sym = base.clone()
-        sym.setColor(QColor(222, 222, 222))  # ~RGB(239.27,239.27,239.27)
+        sym.setColor(
+            QColor(222, 222, 222)
+        )  # ~RGB(239.27,239.27,239.27)
         self._no_outline(sym)
         cats.append(
             QgsRendererCategory("Tidak Dihitung", sym, "Tidak Dihitung")
@@ -348,7 +337,9 @@ class ApplyStandardStylesAlgorithm(QgsProcessingAlgorithm):
         if layer is None:
             raise QgsProcessingException(self.tr("Layer tidak valid."))
 
-        theme_index = self.parameterAsEnum(parameters, self.P_THEME, context)
+        theme_index = self.parameterAsEnum(
+            parameters, self.P_THEME, context
+        )
         year_opt = (
             self.parameterAsInt(parameters, self.P_YEAR, context)
             if parameters.get(self.P_YEAR) is not None
@@ -356,10 +347,13 @@ class ApplyStandardStylesAlgorithm(QgsProcessingAlgorithm):
         )
 
         field_name = (
-            self.parameterAsString(parameters, self.P_FIELD, context) or ""
+            self.parameterAsString(parameters, self.P_FIELD, context)
+            or ""
         ).strip()
         if not field_name:
-            field_name = self._autodetect_field(layer, theme_index, year_opt)
+            field_name = self._autodetect_field(
+                layer, theme_index, year_opt
+            )
 
         categories = self._palette_for(theme_index, layer)
 
