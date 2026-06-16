@@ -257,24 +257,44 @@ class IKPAirAlgorithm(QgsProcessingAlgorithm):
             feedback=feedback,
         )["OUTPUT"]
 
-        # 4) Menghitung nilai IJLH per grid (Menghitung JLH PYA Proporsional)
-        inter_grid_with_ijlh = processing.run(
-            "native:fieldcalculator",
-            {
-                "INPUT": inter_grid_with_area,
-                "FIELD_NAME": "ije_pa",
-                "FIELD_TYPE": 0,  # Decimal number (real)
-                "FIELD_LENGTH": 10,
-                "FIELD_PRECISION": 3,
-                "NEW_FIELD": True,
-                # Assuming the original area is in square meters # OPEN !
-                "FORMULA": f'("luas_obj"/"Luas") * '
-                f'("{self.JLH}_{yy}_KK" - 1)/4',
-                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
-            },
-            context=context,
-            feedback=feedback,
-        )["OUTPUT"]
+        fields = [f.name() for f in inter_grid_with_area.fields()]
+
+        if (f"{self.JLH}_{yy}_KK") in fields:
+            inter_grid_with_ijlh = processing.run(
+                "native:fieldcalculator",
+                {
+                    "INPUT": inter_grid_with_area,
+                    "FIELD_NAME": "ije_pa",
+                    "FIELD_TYPE": 0,  # Decimal number (real)
+                    "FIELD_LENGTH": 10,
+                    "FIELD_PRECISION": 3,
+                    "NEW_FIELD": True,
+                    # Assuming the original area is in square meters # OPEN !
+                    "FORMULA": f'("luas_obj"/"Luas") * '
+                    f'("{self.JLH}_{yy}_KK" - 1)/4',
+                    "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+                },
+                context=context,
+                feedback=feedback,
+            )["OUTPUT"]
+        else:
+            inter_grid_with_ijlh = processing.run(
+                "native:fieldcalculator",
+                {
+                    "INPUT": inter_grid_with_area,
+                    "FIELD_NAME": "ije_pa",
+                    "FIELD_TYPE": 0,  # Decimal number (real)
+                    "FIELD_LENGTH": 10,
+                    "FIELD_PRECISION": 3,
+                    "NEW_FIELD": True,
+                    # Assuming the original area is in square meters # OPEN !
+                    "FORMULA": f'("luas_obj"/"Luas") * '
+                    f'("{self.JLH}_{yy}" - 1)/4',
+                    "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+                },
+                context=context,
+                feedback=feedback,
+            )["OUTPUT"]
 
         # 5) Summarized ije_pa (ije/grid) per Nama WS
         ije_by_ws = processing.run(
