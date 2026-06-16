@@ -410,7 +410,7 @@ class JLHCarbonStorageAlgorithm(QgsProcessingAlgorithm):
 
         # 6) Bentuk output
         if bentuk_output == "Poligon":
-            out_src = src_idx
+            out_src2 = src_idx
         else:
             inter_grid = processing.run(
                 "qgis:intersection",
@@ -519,7 +519,7 @@ class JLHCarbonStorageAlgorithm(QgsProcessingAlgorithm):
                 context=context,
                 feedback=feedback,
             )["OUTPUT"]
-            out_src = processing.run(
+            out_src2 = processing.run(
                 "qgis:renametablefield",
                 {
                     "INPUT": grid_join,
@@ -532,10 +532,10 @@ class JLHCarbonStorageAlgorithm(QgsProcessingAlgorithm):
             )["OUTPUT"]
 
         # 8) Kolom kategori
-        out_src = processing.run(
+        out_src1 = processing.run(
             "qgis:fieldcalculator",
             {
-                "INPUT": out_src,
+                "INPUT": out_src2,
                 "FIELD_NAME": f"Kategori_JLH_{self.JLH}",
                 "FIELD_TYPE": 2,
                 "FIELD_LENGTH": 20,
@@ -566,13 +566,13 @@ class JLHCarbonStorageAlgorithm(QgsProcessingAlgorithm):
             jlh=self.JLH,
             tahun=tahun,
             bentuk_output=self.BENTUK_OUTPUT,
-            layer=out_src,
+            layer=out_src1,
         )
 
         out_src = processing.run(
             "qgis:refactorfields",
             {
-                "INPUT": out_src,
+                "INPUT": out_src1,
                 "FIELDS_MAPPING": final_field_mappings,
                 "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             },

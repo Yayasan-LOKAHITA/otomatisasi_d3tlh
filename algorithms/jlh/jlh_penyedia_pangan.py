@@ -261,7 +261,15 @@ class JLHFoodSupplyAlgorithm(QgsProcessingAlgorithm):
                 "Bali-Nusra": "skor_pl_pgn_balinusra.csv",
                 "Maluku": "skor_pl_pgn_maluku.csv",
             }
-            return base[island_name]
+            try:
+                return base[island_name]
+            except KeyError:
+                valid = ", ".join(base.keys())
+                raise ValueError(
+                    f"Invalid island name '{island_name}'. "
+                    f"Expected one of: {valid}."
+                    "Please run : 'Penambahan Atribut Pulau' before this!"
+                )
 
         # 1) Intersection PL × Ekoregion (bawa PULAU, PL, KBA_250, KVA_250)
         inter = processing.run(
@@ -337,15 +345,25 @@ class JLHFoodSupplyAlgorithm(QgsProcessingAlgorithm):
 
                 # Tentukan path file
                 if skor_jlh == "Kabupaten/Kota":
-                    csv_path = os.path.join(
-                        data_root_kabkota, pl_filename(pulau)
-                    )
-                    name = f"skor_pl_{self.JLH.lower()}_{pulau_lower}"
+                    try:
+                        csv_path = os.path.join(
+                            data_root_kabkota, pl_filename(pulau)
+                        )
+                        name = (
+                            f"skor_pl_{self.JLH.lower()}_{pulau_lower}"
+                        )
+                    except ValueError as e:
+                        raise QgsProcessingException(str(e))
                 elif skor_jlh == "Nasional":
-                    csv_path = os.path.join(
-                        data_root, pl_filename(pulau)
-                    )
-                    name = f"skor_pl_{self.JLH.lower()}_{pulau_lower}"
+                    try:
+                        csv_path = os.path.join(
+                            data_root, pl_filename(pulau)
+                        )
+                        name = (
+                            f"skor_pl_{self.JLH.lower()}_{pulau_lower}"
+                        )
+                    except ValueError as e:
+                        raise QgsProcessingException(str(e))
                 else:
                     raise ValueError(
                         f"Tipe skor tidak dikenali: {skor_jlh}"

@@ -520,7 +520,7 @@ class JLHHabitatKehatiAlgorithm(QgsProcessingAlgorithm):
                 feedback=feedback,
             )["OUTPUT"]
 
-            out_src = source_final
+            out_src3 = source_final
             feedback.pushInfo(
                 "✅ Semua kriteria override (KK, Savana, Tubuh Air) "
                 "berhasil diterapkan"
@@ -647,7 +647,7 @@ class JLHHabitatKehatiAlgorithm(QgsProcessingAlgorithm):
                 context=context,
                 feedback=feedback,
             )["OUTPUT"]
-            out_src = processing.run(
+            out_srct3 = processing.run(
                 "qgis:renametablefield",
                 {
                     "INPUT": grid_join,
@@ -661,14 +661,14 @@ class JLHHabitatKehatiAlgorithm(QgsProcessingAlgorithm):
 
             feedback.pushInfo(
                 f"✅ Pembentukan grid JLH Kehati berhasil, total fitur: "
-                f"{out_src.featureCount()}"
+                f"{out_srct3.featureCount()}"
             )
 
             # KRITERIA KHUSUS
             select_src = processing.run(
                 "qgis:extractbylocation",
                 {
-                    "INPUT": out_src,
+                    "INPUT": out_srct3,
                     "PREDICATE": [0],  # intersect
                     "INTERSECT": kk,
                     "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
@@ -693,10 +693,10 @@ class JLHHabitatKehatiAlgorithm(QgsProcessingAlgorithm):
                 feedback=feedback,
             )["OUTPUT"]
             # gabungkan kembali dengan fitur yang tidak terpilih
-            out_src = processing.run(
+            out_srct2 = processing.run(
                 "qgis:joinattributestable",
                 {
-                    "INPUT": out_src,
+                    "INPUT": out_srct3,
                     "FIELD": "ID",
                     "INPUT_2": select_src,
                     "FIELD_2": "ID",
@@ -711,10 +711,10 @@ class JLHHabitatKehatiAlgorithm(QgsProcessingAlgorithm):
                 feedback=feedback,
             )["OUTPUT"]
             # apply override skor JLH
-            out_src = processing.run(
+            out_srct1 = processing.run(
                 "qgis:fieldcalculator",
                 {
-                    "INPUT": out_src,
+                    "INPUT": out_srct2,
                     "FIELD_NAME": f"JLH_{self.JLH}_KK",
                     "FIELD_TYPE": 0,
                     "FIELD_LENGTH": 20,
@@ -737,10 +737,10 @@ class JLHHabitatKehatiAlgorithm(QgsProcessingAlgorithm):
             # Apply kriteria khusus lainnya (Savana, Tubuh Air)
 
             # join mca_pl ke out_src
-            out_src = processing.run(
+            out_srct = processing.run(
                 "qgis:joinattributestable",
                 {
-                    "INPUT": out_src,
+                    "INPUT": out_srct1,
                     "FIELD": "ID",
                     "INPUT_2": mca_pl,
                     "FIELD_2": "ID",
@@ -765,7 +765,7 @@ class JLHHabitatKehatiAlgorithm(QgsProcessingAlgorithm):
             END
             """
             override_params = {
-                "INPUT": out_src,
+                "INPUT": out_srct,
                 "FIELD_NAME": f"JLH_{self.JLH}_KK",
                 "FIELD_TYPE": 0,
                 "FIELD_LENGTH": 20,
@@ -774,7 +774,7 @@ class JLHHabitatKehatiAlgorithm(QgsProcessingAlgorithm):
                 "FORMULA": override_formula,
                 "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             }
-            out_src = processing.run(
+            out_src3 = processing.run(
                 "qgis:fieldcalculator",
                 override_params,
                 context=context,
@@ -787,10 +787,10 @@ class JLHHabitatKehatiAlgorithm(QgsProcessingAlgorithm):
             )
 
         # 8) Kolom kategori
-        out_src = processing.run(
+        out_src2 = processing.run(
             "qgis:fieldcalculator",
             {
-                "INPUT": out_src,
+                "INPUT": out_src3,
                 "FIELD_NAME": f"Kategori_JLH_{self.JLH}",
                 "FIELD_TYPE": 2,
                 "FIELD_LENGTH": 20,
@@ -823,10 +823,10 @@ class JLHHabitatKehatiAlgorithm(QgsProcessingAlgorithm):
             ),
         )["OUTPUT"]
 
-        out_src = processing.run(
+        out_src1 = processing.run(
             "qgis:fieldcalculator",
             {
-                "INPUT": out_src,
+                "INPUT": out_src2,
                 "FIELD_NAME": f"Kategori_JLH_{self.JLH}_KK",
                 "FIELD_TYPE": 2,
                 "FIELD_LENGTH": 20,
@@ -868,13 +868,13 @@ class JLHHabitatKehatiAlgorithm(QgsProcessingAlgorithm):
             jlh=self.JLH,
             tahun=tahun,
             bentuk_output=self.BENTUK_OUTPUT,
-            layer=out_src,
+            layer=out_src1,
         )
 
         out_src = processing.run(
             "qgis:refactorfields",
             {
-                "INPUT": out_src,
+                "INPUT": out_src1,
                 "FIELDS_MAPPING": final_field_mappings,
                 "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             },
