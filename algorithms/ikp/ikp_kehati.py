@@ -584,33 +584,41 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
 
         # 5. Perhitungan Indeks Sebaran Karst dan Gambut
         # 5a. Extract sebaran karst dan gambut dari data Ekoregion
+        karst_gambut_values = [
+            ("Dataran organik bermaterial " "gambut"),
+            (
+                "Dataran solusional karst "
+                "bermaterial batuan sedimen "
+                "karbonat"
+            ),
+            (
+                "Dataran solusional karst "
+                "berombak-bergelombang "
+                "bermaterial batuan sedimen "
+                "karbonat"
+            ),
+            (
+                "Pegunungan solusional karst "
+                "bermaterial batuan sedimen "
+                "karbonat"
+            ),
+            (
+                "Perbukitan solusional karst "
+                "bermaterial batuan sedimen "
+                "karbonat"
+            ),
+        ]
+
+        expr = (
+            '"KBA_250" IN ('
+            + ",".join(f"'{v}'" for v in karst_gambut_values)
+            + ")"
+        )
         sebaran_karst_gambut = processing.run(
             "native:extractbyexpression",
             {
                 "INPUT": ekoregion,
-                "EXPRESSION": """
-                    "KBA_250" IN (
-                        'Dataran organik bermaterial '
-                        'gambut',
-
-                        'Dataran solusional karst '
-                        'bermaterial batuan sedimen '
-                        'karbonat',
-
-                        'Dataran solusional karst '
-                        'berombak-bergelombang '
-                        'bermaterial batuan sedimen '
-                        'karbonat',
-
-                        'Pegunungan solusional karst '
-                        'bermaterial batuan sedimen '
-                        'karbonat',
-
-                        'Perbukitan solusional karst '
-                        'bermaterial batuan sedimen '
-                        'karbonat'
-                    )
-                """,
+                "EXPRESSION": expr,
                 "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             },
             context=context,
