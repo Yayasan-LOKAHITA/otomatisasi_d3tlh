@@ -340,7 +340,7 @@ class IKPLahanAlgorithm(QgsProcessingAlgorithm):
             {
                 "INPUT": pl_sub,
                 "EXPRESSION": """
-                    PL NOT IN ('Pertambangan','Bandara/ Pelabuhan')
+                    PL NOT IN ('Pertambangan','Bandara/Pelabuhan')
                 """,
                 "OUTPUT": "TEMPORARY_OUTPUT",
             },
@@ -435,7 +435,7 @@ class IKPLahanAlgorithm(QgsProcessingAlgorithm):
         # REMARK rules:
         # Ketersediaan Lahan Pangan dan Hunian:
         #   KPGN in (Sedang, Tinggi, Sangat Tinggi)
-        #   PL tidak dalam ('Pertambangan','Bandara/ Pelabuhan')
+        #   PL tidak dalam ('Pertambangan','Bandara/Pelabuhan')
         #   kwshutan dalam set diizinkan
         # Ketersediaan Lahan Hunian:
         #   KPGN in (Rendah, Sangat Rendah)
@@ -450,7 +450,7 @@ class IKPLahanAlgorithm(QgsProcessingAlgorithm):
         expr_remark = (
             "CASE "
             f"WHEN (\"{fld_kpgn}\" IN ('Sedang','Tinggi','Sangat Tinggi') "
-            "AND (PL NOT IN ('Pertambangan','Bandara/ Pelabuhan')) "
+            "AND (PL NOT IN ('Pertambangan','Bandara/Pelabuhan')) "
             f"AND (kwshutan IN ({allowed_kw}))) "
             "THEN 'Ketersediaan Lahan Pangan dan Hunian' "
             f"WHEN (\"{fld_kpgn}\" IN ('Rendah','Sangat Rendah') "
