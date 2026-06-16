@@ -738,23 +738,22 @@ class SocioEcoPopulationDistAlgorithm(QgsProcessingAlgorithm):
 
         # CSV bobot jalan + normalisasi kunci
         # (lower+trim+spasi ganda→satu spasi)
-        skor_jln = self._load_csv(csv_jln)
+        skor_jlncsv = self._load_csv(csv_jln)
         skor_jln = processing.run(
             "qgis:fieldcalculator",
             {
-                "INPUT": skor_jln,
+                "INPUT": skor_jlncsv,
                 "FIELD_NAME": "KJLN_KEY",
                 "FIELD_TYPE": 2,
                 "FIELD_LENGTH": 80,
                 "NEW_FIELD": True,
-                "FORMULA": (
-                    "regexp_replace(lower(trim(\"KJLN\")), '\\\\s+', ' ')",
-                ),
+                "FORMULA": r'regexp_replace(lower(trim("KJLN")), "\s+", " ")',
                 "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             },
+            feedback=feedback,
         )["OUTPUT"]
 
-        grid_jl = processing.run(
+        grid_jl2 = processing.run(
             "qgis:fieldcalculator",
             {
                 "INPUT": grid_jl,
@@ -763,18 +762,21 @@ class SocioEcoPopulationDistAlgorithm(QgsProcessingAlgorithm):
                 "FIELD_LENGTH": 80,
                 "NEW_FIELD": True,
                 "FORMULA": (
-                    "regexp_replace(lower(trim("
-                    "to_string(\"KJLN\"))), '\\\\s+', ' ')",
+                    r"regexp_replace("
+                    r'lower(trim(to_string("KJLN"))), '
+                    r'"\s+", '
+                    r'" ")'
                 ),
                 "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             },
+            feedback=feedback,
         )["OUTPUT"]
 
         feedback.pushInfo("Langkah 19: Join bobot WJLN dari CSV …")
         grid_jl_wjln = processing.run(
             "native:joinattributestable",
             {
-                "INPUT": grid_jl,
+                "INPUT": grid_jl2,
                 "FIELD": "KJLN_KEY",
                 "INPUT_2": skor_jln,
                 "FIELD_2": "KJLN_KEY",
