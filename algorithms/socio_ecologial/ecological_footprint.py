@@ -38,6 +38,9 @@ __copyright__ = (
 
 __revision__ = "$Format:%H$"
 
+from qgis.PyQt.QtGui import QIcon
+from qgis.PyQt.QtWidgets import QMessageBox
+from qgis.core import QgsMessageLog, Qgis
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
 from qgis.core import (
     QgsFeature,
@@ -56,9 +59,30 @@ import os
 from typing import Dict, Tuple, Optional
 import zipfile
 import re
-from ... import dependencies
-from defusedxml import ElementTree as ET
-from qgis.PyQt.QtGui import QIcon
+
+global iface
+
+try:
+    from defusedxml import ElementTree as ET
+except ImportError as e:
+
+    msg = (
+        "Missing required dependency: defusedxml\n\n"
+        "This plugin requires it to run XML security features.\n\n"
+        "Install it using OSGeo4W Shell:\n"
+        "python -m pip install defusedxml"
+    )
+
+    # 1. Popup message (user sees immediately)
+    QMessageBox.warning(None, "Plugin Dependency Missing", msg)
+
+    # 2. Log in QGIS message panel
+    QgsMessageLog.logMessage(msg, "MyPlugin", Qgis.Warning)
+
+    ET = None
+
+# from ... import dependencies
+# from defusedxml import ElementTree as ET
 
 
 def _colrow(cell_ref: str):

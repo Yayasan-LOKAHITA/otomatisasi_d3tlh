@@ -1504,7 +1504,7 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
         )["OUTPUT"]
 
         # Gridding IKP
-        grid_ikp_kehati = processing.run(
+        grid_ikp_kehati4 = processing.run(
             "d3tlh:mcagrid",
             {
                 "GRID": grid,
@@ -1516,10 +1516,10 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
             feedback=feedback,
         )["OUTPUT"]
 
-        grid_ikp_kehati = processing.run(
+        grid_ikp_kehati3 = processing.run(
             "native:deleteduplicategeometries",
             {
-                "INPUT": grid_ikp_kehati,
+                "INPUT": grid_ikp_kehati4,
                 "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             },
         )["OUTPUT"]
@@ -1528,13 +1528,13 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
             ikp_type=self.IKP,
             bentuk_output="Grid",
             tahun=pl_year,
-            layer=grid_ikp_kehati,
+            layer=grid_ikp_kehati3,
         )
 
-        grid_ikp_kehati = processing.run(
+        grid_ikp_kehati2 = processing.run(
             "qgis:refactorfields",
             {
-                "INPUT": grid_ikp_kehati,
+                "INPUT": grid_ikp_kehati3,
                 "FIELDS_MAPPING": final_field_mappings,
                 "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
             },
@@ -1542,10 +1542,10 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
             feedback=feedback,
         )["OUTPUT"]
 
-        grid_ikp_kehati = processing.run(
+        grid_ikp_kehati1 = processing.run(
             "native:fieldcalculator",
             {
-                "INPUT": grid_ikp_kehati,
+                "INPUT": grid_ikp_kehati2,
                 "FIELD_NAME": "SIKPKHT",
                 "FIELD_TYPE": 1,
                 "NEW_FIELD": True,
@@ -1568,7 +1568,7 @@ class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
         grid_ikp_kehati = processing.run(
             "native:fieldcalculator",
             {
-                "INPUT": grid_ikp_kehati,
+                "INPUT": grid_ikp_kehati1,
                 "FIELD_NAME": "KIKPKHT",
                 "FIELD_TYPE": 2,
                 "NEW_FIELD": True,
