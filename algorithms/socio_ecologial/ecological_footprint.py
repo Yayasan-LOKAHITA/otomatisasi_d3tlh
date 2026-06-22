@@ -81,9 +81,6 @@ except ImportError as e:
 
     ET = None
 
-# from ... import dependencies
-# from defusedxml import ElementTree as ET
-
 
 def _colrow(cell_ref: str):
     m = re.match(r"^([A-Z]+)(\d+)$", cell_ref)
