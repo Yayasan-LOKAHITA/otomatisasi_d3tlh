@@ -178,7 +178,7 @@ class PreprocAddIslandAttributeAlgorithm(QgsProcessingAlgorithm):
             "114.56590696000 -8.80045045000, "
             "111.70642992000 -8.43450438000))"
         ],
-        "Bali–Nusra": [
+        "Bali-Nusra": [
             "POLYGON(("
             "122.87830459000 -11.01137395000, "
             "121.25490289000 -10.83922245000, "
@@ -267,7 +267,7 @@ class PreprocAddIslandAttributeAlgorithm(QgsProcessingAlgorithm):
     SEEDS = {
         "Sumatera": (101.0, 0.5),
         "Jawa": (110.0, -7.0),
-        "Bali–Nusra": (120.0, -8.8),
+        "Bali-Nusra": (120.0, -8.8),
         "Kalimantan": (114.0, 0.5),
         "Sulawesi": (121.0, -2.0),
         "Maluku": (128.8, -2.8),
