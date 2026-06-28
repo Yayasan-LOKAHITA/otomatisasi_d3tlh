@@ -80,7 +80,7 @@ class JLHWaterSupplyAlgorithm(QgsProcessingAlgorithm):
         "Sumatera",
         "Kalimantan",
         "Sulawesi",
-        "Bali–Nusra",
+        "Bali-Nusra",
         "Maluku",
         "Papua",
     ]

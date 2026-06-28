@@ -82,7 +82,7 @@ class JLHHabitatKehatiAlgorithm(QgsProcessingAlgorithm):
         "Sumatera",
         "Kalimantan",
         "Sulawesi",
-        "Bali–Nusra",
+        "Bali-Nusra",
         "Maluku",
         "Papua",
     ]
@@ -280,13 +280,13 @@ class JLHHabitatKehatiAlgorithm(QgsProcessingAlgorithm):
                 "Kalimantan": f"skor_pl_{self.JLH.lower()}_kalimantan.csv",
                 "Sulawesi": f"skor_pl_{self.JLH.lower()}_sulawesi.csv",
                 "Papua": f"skor_pl_{self.JLH.lower()}_papua.csv",
-                "Bali–Nusra": f"skor_pl_{self.JLH.lower()}_balinusra.csv",
+                "Bali-Nusra": f"skor_pl_{self.JLH.lower()}_balinusra.csv",
                 "Maluku": f"skor_pl_{self.JLH.lower()}_maluku.csv",
             }
             return base[island_name]
 
         def sanitize_suffix(s: str) -> str:
-            # buat nama kolom aman, contoh "Bali–Nusra" -> "BaliNusra"
+            # buat nama kolom aman, contoh "Bali-Nusra" -> "BaliNusra"
             return re.sub(r"[^A-Za-z0-9]+", "", s)
 
         def has_field(layer: QgsVectorLayer, name: str) -> bool:
