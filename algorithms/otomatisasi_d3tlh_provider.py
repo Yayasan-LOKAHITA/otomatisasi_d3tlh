@@ -91,6 +91,9 @@ from .ikp.ikp_air import IKPAirAlgorithm
 # Algoritma Integrasi
 from .integration.ikp_integration import IntegrationIKPAlgorithm
 
+# Algoritma Efisiensi Potensi SDA
+from .efisiensi_sda.efisiensi_potensi_sda import EfisiensiPotensiSdaAlgorithm
+
 # Algoritma Simbologi
 from .styling.simbology import ApplyStandardStylesAlgorithm
 
@@ -135,6 +138,9 @@ class OtomatisasiD3TLHProvider(QgsProcessingProvider):
 
         # Algoritma Integrasi
         self.addAlgorithm(IntegrationIKPAlgorithm())
+
+        # Algoritma Efisiensi Potensi SDA
+        self.addAlgorithm(EfisiensiPotensiSdaAlgorithm())
 
         # Algoritma Simbology
         self.addAlgorithm(ApplyStandardStylesAlgorithm())

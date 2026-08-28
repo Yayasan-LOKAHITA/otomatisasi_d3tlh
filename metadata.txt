@@ -1,7 +1,7 @@
 [general]
 name=Otomatisasi D3TLH
 qgisMinimumVersion=3.0
-version=1.3.2
+version=1.3.3
 author=Fadillah Azhar Deaudin Kurniawan, Sitarani Safitri, Dini Aprilia Norvyani, Suchi Rahmadani, Fariz Rizaldy Wibowo
 email=tech@yayasanlokahita.org
 description=Automated D3TLH analysis and environmental carrying capacity assessment tools for QGIS.
