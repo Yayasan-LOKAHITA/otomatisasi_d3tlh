@@ -1,0 +1,134 @@
+﻿SUMBER_KLASIFIKASI,KODE_UNSUR,PL_SNI_50_25K,PL_KABKOTA,PL_250K
+SNI 7645-2014,1.1.1.1.1,Perairan laut dangkal,Perairan Laut,Tubuh Air
+SNI 7645-2014,1.1.1.1.2,Perairan laut dalam,Perairan Laut,Tubuh Air
+SNI 7645-2014,1.1.1.2.0,Danau/telaga alami,Tubuh Air Alami,Tubuh Air
+SNI 7645-2014,1.1.1.3.0,Rawa pedalaman,Rawa,Rawa
+SNI 7645-2014,1.1.1.4.3,Rawa pesisir bervegetasi,Rawa,Rawa
+SNI 7645-2014,1.1.1.4.4,Rawa pesisir tak bervegetasi,Rawa,Rawa
+SNI 7645-2014,1.1.1.5.0,Sungai (tidak dirinci),Sungai,Tubuh Air
+SNI 7645-2014,1.1.1.6.0,Tubuh air lain (tidak dirinci),Tubuh Air Alami,Tubuh Air
+SNI 7645-2014,1.1.2.1.1,Hamparan lahar/lava,Lahan Terbuka Berbatu,Lahan Terbuka
+SNI 7645-2014,1.1.2.1.2,Hamparan batuan/pasir lain,Lahan Terbuka Berbatu,Lahan Terbuka
+SNI 7645-2014,1.1.2.3.1,Hamparan pasir pantai volkanik,Lahan Terbuka Berpasir,Lahan Terbuka
+SNI 7645-2014,1.1.2.3.2,Hamparan pasir pantai non-volkanik,Lahan Terbuka Berpasir,Lahan Terbuka
+SNI 7645-2014,1.1.2.3.0,Rataan lumpur (tidak dirinci),Lahan Terbuka Berlumpur,Lahan Terbuka
+SNI 7645-2014,1.1.2.4.0,Lahan terbuka lain,Lahan Terbuka,Lahan Terbuka
+SNI 7645-2014,1.2.1.1.1,Waduk pengendali banjir,Tubuh Air Buatan,Tubuh Air
+SNI 7645-2014,1.2.1.1.2,Waduk irigasi,Tubuh Air Buatan,Tubuh Air
+SNI 7645-2014,1.2.1.1.3,Waduk multiguna,Tubuh Air Buatan,Tubuh Air
+SNI 7645-2014,1.2.1.1.4,Danau wisata air,Tubuh Air Buatan,Tubuh Air
+SNI 7645-2014,1.2.1.1.5,Danau buatan lainnya,Tubuh Air Buatan,Tubuh Air
+SNI 7645-2014,1.2.1.2.1,Tambak ikan/udang,Tambak,Tambak
+SNI 7645-2014,1.2.1.2.2,Tambak garam,Lahan Terbuka,Lahan Terbuka
+SNI 7645-2014,1.2.1.2.3,Tambak polikultur,Tambak,Tambak
+SNI 7645-2014,1.2.1.3.0,Kolam ikan air tawar,Tambak,Tambak
+SNI 7645-2014,1.2.1.3.1,Embung,Embung,Tubuh Air
+SNI 7645-2014,1.2.1.3.2,Kolam air tawar lain,Tubuh Air Buatan,Tubuh Air
+SNI 7645-2014,1.2.1.4.0,Saluran air (tidak dirinci),Saluran Air (Tidak Dirinci),Tubuh Air
+SNI 7645-2014,1.2.1.4.1,Kolam oksidasi dan pengelolaan limbah,Kolam Oksidasi dan Pengelolaan Limbah,Tubuh Air
+SNI 7645-2014,1.2.1.4.2,Tampungan air lain,Tubuh Air Buatan,Tubuh Air
+"SNI 7645-2014,1.2.2.1.1,""Penggalian pasir, tanah dan batu (sirtu)"",Lahan Terbuka Berbatu,Lahan Terbuka"
+SNI 7645-2014,1.2.2.1.2,Penambangan terbuka bukan sirtu,Pertambangan,Pertambangan
+SNI 7645-2014,1.2.2.1.3,Penambangan terbuka lain,Pertambangan,Pertambangan
+SNI 7645-2014,1.2.2.1.4,Tempat penimbunan dan pembuangan sampah,Lahan Terbuka,Lahan Terbuka
+SNI 7645-2014,1.2.2.2.1,Landas pacu (runway) dan taxiway,Bandara/Pelabuhan,Bandara/Pelabuhan
+SNI 7645-2014,1.2.2.2.2,Area parkir,Lahan Terbuka Diperkeras,Lahan Terbuka
+SNI 7645-2014,1.2.2.2.3,Lapangan diperkeras,Lahan Terbuka Diperkeras,Lahan Terbuka
+SNI 7645-2014,1.2.2.2.4,Jaringan rel kereta,Lahan Terbuka Diperkeras,Lahan Terbuka
+SNI 7645-2014,1.2.2.2.5,Jaringan jalan aspal/beton/tanah,Lahan Terbuka Diperkeras,Lahan Terbuka
+SNI 7645-2014,1.2.2.2.6,Permukaan diperkeras lain,Lahan Terbuka Diperkeras,Lahan Terbuka
+SNI 7645-2014,1.2.3.1.1,Bangunan permukiman kota,Permukiman Perkotaan,Permukiman
+SNI 7645-2014,1.2.3.1.2,Bangunan permukiman desa (berasosiasi dengan vegetasi pekarangan),Permukiman Perdesaan,Permukiman
+"SNI 7645-2014,1.2.3.2.1,""Bangunan industri, perdagangan dan perkantoran "",Industri,Permukiman"
+SNI 7645-2014,1.2.3.2.2,Stasiun,Bandara/Pelabuhan,Bandara/Pelabuhan
+SNI 7645-2014,1.2.3.2.3,Terminal bus,Bandara/Pelabuhan,Bandara/Pelabuhan
+SNI 7645-2014,1.2.3.2.4,Terminal bandara,Bandara/Pelabuhan,Bandara/Pelabuhan
+SNI 7645-2014,1.2.3.2.5,Stadion dan sarana olah raga,Permukiman,Permukiman
+SNI 7645-2014,1.2.3.2.6,Pelabuhan,Bandara/Pelabuhan,Bandara/Pelabuhan
+SNI 7645-2014,1.2.3.2.7,Bangunan non-permukiman lain,Permukiman,Permukiman
+SNI 7645-2014,2.1.1.1.1,Hutan lahan tinggi primer kerapatan tinggi,Hutan Lahan Kering Primer,Hutan Lahan Kering Primer
+SNI 7645-2014,2.1.1.1.2,Hutan lahan tinggi primer kerapatan sedang,Hutan Lahan Kering Primer,Hutan Lahan Kering Primer
+SNI 7645-2014,2.1.1.1.3,Hutan lahan tinggi primer kerapatan rendah,Hutan Lahan Kering Primer,Hutan Lahan Kering Primer
+SNI 7645-2014,2.1.1.1.4,Hutan lahan tinggi sekunder kerapatan tinggi,Hutan Lahan Kering Sekunder,Hutan Lahan Kering Sekunder
+SNI 7645-2014,2.1.1.1.5,Hutan lahan tinggi sekunder kerapatan sedang,Hutan Lahan Kering Sekunder,Hutan Lahan Kering Sekunder
+SNI 7645-2014,2.1.1.1.6,Hutan lahan tinggi sekunder kerapatan rendah,Hutan Lahan Kering Sekunder,Hutan Lahan Kering Sekunder
+SNI 7645-2014,2.1.1.2.1,Hutan lahan rendah primer kerapatan tinggi,Hutan Lahan Kering Primer,Hutan Lahan Kering Primer
+SNI 7645-2014,2.1.1.2.2,Hutan lahan rendah primer kerapatan sedang,Hutan Lahan Kering Primer,Hutan Lahan Kering Primer
+SNI 7645-2014,2.1.1.2.3,Hutan lahan rendah primer kerapatan rendah,Hutan Lahan Kering Primer,Hutan Lahan Kering Primer
+SNI 7645-2014,2.1.1.2.4,Hutan lahan rendah sekunder kerapatan tinggi,Hutan Lahan Kering Sekunder,Hutan Lahan Kering Sekunder
+SNI 7645-2014,2.1.1.2.5,Hutan lahan rendah sekunder kerapatan sedang,Hutan Lahan Kering Sekunder,Hutan Lahan Kering Sekunder
+SNI 7645-2014,2.1.1.2.6,Hutan lahan rendah sekunder kerapatan rendah,Hutan Lahan Kering Sekunder,Hutan Lahan Kering Sekunder
+SNI 7645-2014,2.1.1.3.1,Hutan rawa/gambut primer kerapatan tinggi,Hutan Rawa Primer,Hutan Rawa Primer
+SNI 7645-2014,2.1.1.3.2,Hutan rawa/gambut primer kerapatan sedang,Hutan Rawa Primer,Hutan Rawa Primer
+SNI 7645-2014,2.1.1.3.3,Hutan rawa/gambut primer kerapatan rendah,Hutan Rawa Primer,Hutan Rawa Primer
+SNI 7645-2014,2.1.1.3.4,Hutan rawa/gambut sekunder kerapatan tinggi,Hutan Rawa Sekunder,Hutan Rawa Sekunder
+SNI 7645-2014,2.1.1.3.5,Hutan rawa/gambut sekunder kerapatan sedang,Hutan Rawa Sekunder,Hutan Rawa Sekunder
+SNI 7645-2014,2.1.1.3.6,Hutan rawa/gambut sekunder kerapatan rendah,Hutan Rawa Sekunder,Hutan Rawa Sekunder
+SNI 7645-2014,2.1.1.5.1,Hutan mangrove primer kerapatan tinggi,Hutan Mangrove Primer,Hutan Mangrove Primer
+SNI 7645-2014,2.1.1.5.2,Hutan mangrove primer kerapatan sedang,Hutan Mangrove Primer,Hutan Mangrove Primer
+SNI 7645-2014,2.1.1.5.3,Hutan mangrove primer kerapatan rendah,Hutan Mangrove Primer,Hutan Mangrove Primer
+SNI 7645-2014,2.1.1.6.1,Hutan mangrove sekunder kerapatan tinggi,Hutan Mangrove Sekunder,Hutan Mangrove Sekunder
+SNI 7645-2014,2.1.1.6.2,Hutan mangrove sekunder kerapatan sedang,Hutan Mangrove Sekunder,Hutan Mangrove Sekunder
+SNI 7645-2014,2.1.1.6.3,Hutan mangrove sekunder kerapatan rendah,Hutan Mangrove Sekunder,Hutan Mangrove Sekunder
+SNI 7645-2014,2.1.1.6.0,Sabana,Savana,Savana/Padang Rumput
+SNI 7645-2014,2.1.1.7.1,Semak belukar,Semak Belukar,Semak Belukar
+SNI 7645-2014,2.1.1.7.2,Semak,Semak Belukar,Semak Belukar
+SNI 7645-2014,2.1.1.8.1,Padang rumput,Padang Rumput,Savana/Padang Rumput
+SNI 7645-2014,2.1.1.8.2,Padang alang-alang,Padang Rumput,Savana/Padang Rumput
+SNI 7645-2014,2.1.1.8.3,Herba,Semak Belukar,Semak Belukar
+SNI 7645-2014,2.1.1.8.4,Vegetasi herba lain,Semak Belukar,Semak Belukar
+SNI 7645-2014,2.1.1.10.0,Liputan vegetasi alami/semi-alami lain (tidak dirinci),Semak Belukar,Semak Belukar
+SNI 7645-2014,2.2.1.1.1,Hutan jati,Hutan Tanaman,Hutan Tanaman
+SNI 7645-2014,2.2.1.1.2,Hutan mahoni,Hutan Tanaman,Hutan Tanaman
+SNI 7645-2014,2.2.1.1.3,Hutan sanakeling,Hutan Tanaman,Hutan Tanaman
+SNI 7645-2014,2.2.1.1.4,Hutan akasia,Hutan Tanaman,Hutan Tanaman
+SNI 7645-2014,2.2.1.1.5,Hutan sengon,Hutan Tanaman,Hutan Tanaman
+SNI 7645-2014,2.2.1.1.6,Hutan pinus,Hutan Tanaman,Hutan Tanaman
+SNI 7645-2014,2.2.1.1.7,Hutan kayu putih,Hutan Tanaman,Hutan Tanaman
+SNI 7645-2014,2.2.1.1.8,Hutan tanaman (industri) lain,Hutan Tanaman,Hutan Tanaman
+SNI 7645-2014,2.2.1.2.1,Perkebunan karet,Perkebunan Pohon,Perkebunan
+SNI 7645-2014,2.2.1.2.2,Perkebunan kopi,Perkebunan Perdu,Perkebunan
+SNI 7645-2014,2.2.1.2.3,Perkebunan kakao,Perkebunan Perdu,Perkebunan
+SNI 7645-2014,2.2.1.2.4,Perkebunan teh,Perkebunan Semak,Perkebunan
+SNI 7645-2014,2.2.1.2.5,Perkebunan kelapa,Perkebunan Pohon,Perkebunan
+SNI 7645-2014,2.2.1.2.6,Perkebunan kelapa sawit,Perkebunan Palma,Perkebunan
+SNI 7645-2014,2.2.1.2.7,Perkebunan lain,Perkebunan,Perkebunan
+SNI 7645-2014,2.2.1.3.1,Perkebunan tebu,Perkebunan Terna,Perkebunan
+SNI 7645-2014,2.2.1.3.2,Perkebunan tembakau,Perkebunan Terna,Perkebunan
+SNI 7645-2014,2.2.1.3.3,Perkebunan salak,Perkebunan Semak,Perkebunan
+SNI 7645-2014,2.2.1.3.4,Perkebunan tanaman semusim lain,Pertanian Lahan Kering,Perkebunan
+SNI 7645-2014,2.2.1.3.1,Hutan rakyat,Hutan Lahan Kering Sekunder,Hutan Lahan Kering Sekunder
+SNI 7645-2014,2.2.1.3.2,Kebun buah,Perkebunan,Perkebunan
+SNI 7645-2014,2.2.1.3.3,Kebun campuran,Pertanian Lahan Kering,Pertanian Lahan Kering
+SNI 7645-2014,2.2.1.4.1,Ladang/tegalan dengan palawija,Pertanian Lahan Kering,Pertanian Lahan Kering
+SNI 7645-2014,2.2.1.4.2,Ladang/tegalan hortikultura,Pertanian Lahan Kering,Pertanian Lahan Kering
+SNI 7645-2014,2.2.1.4.3,Tanaman semusim lahan kering lain,Pertanian Lahan Kering,Pertanian Lahan Kering
+SNI 7645-2014,2.2.1.5.1,Sawah dengan padi terus menerus,Sawah,Sawah
+SNI 7645-2014,2.2.1.5.2,Sawah dengan padi diselingi tanaman lain/bera,Sawah,Sawah
+SNI 7645-2014,2.2.1.5.3,Tanaman semusim lahan basah lain,Sawah,Sawah
+SNI 7645-2014,2.2.1.6.1,Pekarangan,Permukiman Perdesaan,Permukiman
+SNI 7645-2014,2.2.1.6.2,Padang golf,Padang Rumput,Savana/Padang Rumput
+"SNI 7645-2014,2.2.1.6.3,""Hutan kota, jalur hijau dan taman kota"",RTH Perkotaan,Hutan Tanaman"
+SNI 7645-2014,2.2.1.7.1,Padang rumput peternakan ekstensif,Padang Rumput,Savana/Padang Rumput
+SNI 7645-2014,2.2.1.7.2,Tanaman obat,Pertanian Lahan Kering,Pertanian Lahan Kering
+SNI 7645-2014,2.2.1.7.3,Tanaman budidaya lain,Pertanian Lahan Kering,Pertanian Lahan Kering
+SNI 7645-2014,2.2.2.0.0,Perladangan berpindah,Pertanian Lahan Kering Campur,Pertanian Lahan Kering Campur Semak
+SNI 6502.2-2010,c.1,Sawah irigasi,Sawah,Sawah
+SNI 6502.2-2010,c.2,Sawah tadah hujan,Pertanian Lahan Kering,Pertanian Lahan Kering
+SNI 6502.2-2010,c.3,Kebun/perkebunan,Perkebunan,Perkebunan
+SNI 6502.2-2010,c.4,Hutan,Hutan Kota,Hutan Lahan Kering Primer
+SNI 6502.2-2010,c.5,Semak belukar,Semak Belukar,Semak Belukar
+SNI 6502.2-2010,c.6,Tegal/ladang,Pertanian Lahan Kering,Pertanian Lahan Kering
+SNI 6502.2-2010,c.7,Rumput/tanah kosong,Padang Rumput,Savana/Padang Rumput
+SNI 6502.2-2010,c.8,Hutan rawa,Hutan Rawa Primer,Hutan Rawa Primer
+SNI 6502.2-2010,d.10,Pasir pasut,Lahan Terbuka Berpasir,Lahan Terbuka
+SNI 6502.2-2010,d.11,Pasir,Lahan Terbuka Berpasir,Lahan Terbuka
+SNI 6502.2-2010,g.3,Beting karang,Perairan Laut,Tubuh Air
+SNI 6502.2-2010,g.5,Danau,Tubuh Air Alami,Tubuh Air
+SNI 6502.2-2010,g.12,Rawa,Rawa,Rawa
+SNI 6502.2-2010,g.13,Empang/tambak,Tambak,Tambak
+SNI 6502.2-2010,g.14,Penggaraman,Lahan Terbuka,Lahan Terbuka
+NA,NA,Kolam bekas tambang,Kolam Bekas Tambang,Tubuh Air
+KLHK,3000,Savana/Padang Rumput,Savana/Padang Rumput,Savana/Padang Rumput 
+KLHK,20071,Semak Belukar Rawa,Semak Belukar Rawa,Semak Belukar Rawa 
+KLHK,20095,Transmigrasi,Transmigrasi,Transmigrasi

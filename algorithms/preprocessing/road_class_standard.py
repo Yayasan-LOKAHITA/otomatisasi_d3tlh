@@ -1,0 +1,463 @@
+# -*- coding: utf-8 -*-
+
+"""
+/***************************************************************************
+ OtomatisasiD3TLH
+ Plugin yang membantu pengolahan D3TLH secara otomatis
+                              -------------------
+        begin                : 2025-08-15
+        copyright            : (C) 2025 by Direktorat PDLKWS -
+                               Deputi TLSDAB - Kementerian Lingkungan
+                               Hidup/BPLH Republik Indonesia
+        supported by         : Yayasan Lokus Bijak Hijau Lestari (LOKAHITA)
+        email                : tech@yayasanlokahita.org
+ ***************************************************************************/
+
+/***************************************************************************
+ *                                                                         *
+ *   This program is free software; you can redistribute it and/or modify  *
+ *   it under the terms of the GNU General Public License as published by  *
+ *   the Free Software Foundation; either version 2 of the License, or     *
+ *   (at your option) any later version.                                   *
+ *                                                                         *
+ ***************************************************************************/
+"""
+
+__author__ = (
+    "Fadillah Azhar Deaudin Kurniawan, "
+    "Sitarani Safitri, Dini Aprilia Norvyani, "
+    "Suchi Rahmadani, Fariz Rizaldy Wibowo"
+)
+__date__ = "2025-08-15"
+__copyright__ = (
+    "(C) 2025 by Direktorat PDLKWS - Deputi TLSDAB - "
+    "Kementerian Lingkungan Hidup/BPLH Republik Indonesia"
+)
+
+
+# This will get replaced with a git SHA1 when you do a git archive
+
+__revision__ = "$Format:%H$"
+
+from qgis.PyQt.QtCore import (
+    QCoreApplication,
+    QVariant,
+    Qt,
+    QObject,
+    pyqtSlot,
+    QMetaObject,
+)
+from qgis.PyQt.QtWidgets import (
+    QDialog,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QDialogButtonBox,
+    QComboBox,
+    QFileDialog,
+)
+from qgis.core import (
+    QgsProcessing,
+    QgsProcessingAlgorithm,
+    QgsProcessingParameterFeatureSource,
+    QgsProcessingParameterField,
+    QgsProcessingParameterBoolean,
+    QgsProcessingParameterFeatureSink,
+    QgsFields,
+    QgsField,
+    QgsFeatureSink,
+    QgsFeature,
+    QgsProcessingException,
+)
+import os
+import json
+import re
+import unicodedata
+from qgis.PyQt.QtGui import QIcon
+
+
+def _tr(s):
+    return QCoreApplication.translate("Processing", s)
+
+
+KJLN_STANDAR = [
+    "Jalan Arteri",
+    "Jalan Kolektor",
+    "Jalan Lokal",
+    "Jalan Lain",
+    "Jalan Layang",
+    "Jalan Sedang Dibangun",
+    "Jalan Setapak",
+    "Jalan Tol Dua Jalur Dengan Pemisah Fisik",
+    "Jalan Tol Dua Jalur Tanpa Pemisah Fisik",
+    "Jalan Tol Layang",
+    "Jalan/Transportasi Darat Lainnya",
+    "Pematang",
+]
+
+
+def _norm(s: str) -> str:
+    if s is None:
+        return ""
+    s = str(s)
+    s = unicodedata.normalize("NFKD", s)
+    s = "".join(ch for ch in s if not unicodedata.combining(ch))
+    s = s.strip().lower()
+    s = re.sub(r"[^a-z0-9 ]+", " ", s)
+    s = re.sub(r"\s+", " ", s)
+    return s
+
+
+# ---------------- Dialog ----------------
+class MappingDialog(QDialog):
+    def __init__(self, unique_values, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(_tr("Pemetaan Kelas Jalan"))
+        self.resize(860, 560)
+
+        layout = QVBoxLayout(self)
+
+        # Top bar: Save/Load + status
+        top = QHBoxLayout()
+        self.btnLoad = QPushButton("Load JSON…")
+        self.btnSave = QPushButton("Save JSON…")
+        self.lblInfo = QLabel("")
+        self.lblInfo.setStyleSheet("color: #666;")
+        top.addWidget(self.btnLoad)
+        top.addWidget(self.btnSave)
+        top.addStretch(1)
+        top.addWidget(self.lblInfo)
+        layout.addLayout(top)
+
+        # Table
+        self.table = QTableWidget(len(unique_values), 2, self)
+        self.table.setHorizontalHeaderLabels(
+            [
+                _tr("Nilai Sumber (kolom kelas jalan Anda)"),
+                _tr("Kelas Jalan Standar (KJLN)"),
+            ]
+        )
+        self.table.horizontalHeader().setStretchLastSection(True)
+        layout.addWidget(self.table, 1)
+
+        for r, src in enumerate(unique_values):
+            item = QTableWidgetItem(
+                "" if src is None else str(src).strip()
+            )
+            item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+            self.table.setItem(r, 0, item)
+
+            combo = QComboBox(self.table)
+            combo.setEditable(False)
+            combo.addItem("")  # kosong = skip
+            combo.addItems(KJLN_STANDAR)  # fixed options
+            self.table.setCellWidget(r, 1, combo)
+
+        # Buttons
+        btns = QDialogButtonBox(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self
+        )
+        btns.accepted.connect(self.accept)
+        btns.rejected.connect(self.reject)
+        layout.addWidget(btns)
+
+        # Signals
+        self.btnLoad.clicked.connect(self._load_json)
+        self.btnSave.clicked.connect(self._save_json)
+
+    # ---- Save/Load helpers ----
+    def _current_mapping_norm(self):
+        """dict: _norm(src) -> KJLN or None"""
+        mp = {}
+        for r in range(self.table.rowCount()):
+            src_raw = self.table.item(r, 0).text().strip()
+            val = self.table.cellWidget(r, 1).currentText().strip()
+            mp[_norm(src_raw)] = val if val else None
+        return mp
+
+    def _apply_mapping_norm(self, mapping_norm):
+        """prefill combos from mapping (keys are normalized)"""
+        filled = 0
+        for r in range(self.table.rowCount()):
+            src_raw = self.table.item(r, 0).text().strip()
+            key = _norm(src_raw)
+            val = mapping_norm.get(key)
+            if val and val in KJLN_STANDAR:
+                combo = self.table.cellWidget(r, 1)
+                combo.setCurrentText(val)
+                filled += 1
+        self.lblInfo.setText(_tr(f"Loaded: {filled} baris terisi."))
+
+    def _load_json(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, _tr("Pilih file mapping JSON"), "", "JSON (*.json)"
+        )
+        if not path:
+            return
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            mapping_norm = data.get(
+                "mapping_norm", data if isinstance(data, dict) else {}
+            )
+            # bersihkan nilai yang bukan string
+            mapping_norm = {
+                str(k): (v if (v in KJLN_STANDAR) else None)
+                for k, v in mapping_norm.items()
+            }
+            self._apply_mapping_norm(mapping_norm)
+            self.lblInfo.setText(_tr(f"Muat: {os.path.basename(path)}"))
+        except Exception as e:
+            self.lblInfo.setText(_tr(f"Gagal load: {e}"))
+
+    def _save_json(self):
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            _tr("Simpan mapping JSON"),
+            "mapping_kjln.json",
+            "JSON (*.json)",
+        )
+        if not path:
+            return
+        try:
+            payload = {
+                "type": "kjln_mapping",
+                "version": 1,
+                "mapping_norm": self._current_mapping_norm(),
+            }
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(payload, f, ensure_ascii=False, indent=2)
+            self.lblInfo.setText(
+                _tr(f"Tersimpan: {os.path.basename(path)}")
+            )
+        except Exception as e:
+            self.lblInfo.setText(_tr(f"Gagal simpan: {e}"))
+
+    def mapping_dict(self):
+        """Return dict normalized: _norm(src_text) -> mapped_kjln (or None)"""
+        return self._current_mapping_norm()
+
+
+# Helper agar dialog dipanggil di GUI thread (hindari freeze)
+class _DialogRunner(QObject):
+    def __init__(self, uniques):
+        super().__init__()
+        self.uniques = uniques
+        self.mapping = {}
+        self.ok = False
+
+    @pyqtSlot()
+    def run(self):
+        dlg = MappingDialog(self.uniques, parent=None)
+        if dlg.exec_() == QDialog.Accepted:
+            self.mapping = dlg.mapping_dict()
+            self.ok = True
+        else:
+            self.ok = False
+
+
+def _ask_mapping_on_main_thread(unique_values):
+    runner = _DialogRunner(unique_values)
+    runner.moveToThread(QCoreApplication.instance().thread())
+    QMetaObject.invokeMethod(runner, "run", Qt.BlockingQueuedConnection)
+    if not runner.ok:
+        raise QgsProcessingException(_tr("Dibatalkan oleh pengguna."))
+    return runner.mapping
+
+
+# ---------------- Algorithm ----------------
+class PreprocRoadClassStandardAlgorithm(QgsProcessingAlgorithm):
+    P_ROADS = "P_ROADS"
+    P_FIELD = "P_FIELD"
+    P_SHOWUI = "P_SHOWUI"
+    P_ONLY_NULL = "P_ONLY_NULL"
+    P_OUTPUT = "P_OUTPUT"
+
+    def tr(self, s):
+        return QCoreApplication.translate("Processing", s)
+
+    def name(self):
+        return "standarisasijalan"
+
+    def displayName(self):
+        return self.tr("Standarisasi Kelas Jalan")
+
+    def groupId(self):
+        return "B. Preprocessing"
+
+    def group(self):
+        return self.tr(self.groupId())
+
+    def createInstance(self):
+        return PreprocRoadClassStandardAlgorithm()
+
+    def icon(self):
+        return QIcon(
+            os.path.join(
+                os.path.dirname(__file__), "02 Pre-processing.svg"
+            )
+        )
+
+    def shortHelpString(self):
+        return self.tr(
+            "This module standardizes road classes for use in population "
+            "distribution modeling.\n\n"
+            "The algorithm maps road class values from an input road layer "
+            "to a predefined set of KJLN (Kelas Jalan) categories. The "
+            "standardized class is stored in the KJLN field of the output "
+            "layer while preserving the original input data.\n\n"
+            "<b>Complete explanation read here: "
+            "<a href='https://yayasan-lokahita.github.io/"
+            "otomatisasi_d3tlh-docs/class_road/'>here</a>.</b>"
+        )
+
+    def initAlgorithm(self, config=None):
+        self.addParameter(
+            QgsProcessingParameterFeatureSource(
+                self.P_ROADS,
+                self.tr("Layer Jalan (line/polygon)"),
+                [
+                    QgsProcessing.TypeVectorLine,
+                    QgsProcessing.TypeVectorPolygon,
+                ],
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterField(
+                self.P_FIELD,
+                self.tr("Kolom klasifikasi jalan (sumber)"),
+                parentLayerParameterName=self.P_ROADS,
+                type=QgsProcessingParameterField.String,
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterBoolean(
+                self.P_SHOWUI,
+                self.tr("Tampilkan dialog pemetaan interaktif"),
+                defaultValue=True,
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterBoolean(
+                self.P_ONLY_NULL,
+                self.tr("Hanya isi yang KJLN masih NULL"),
+                defaultValue=True,
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterFeatureSink(
+                self.P_OUTPUT, self.tr("KJLN")
+            )
+        )
+
+    def processAlgorithm(self, parameters, context, feedback):
+        roads = self.parameterAsSource(
+            parameters, self.P_ROADS, context
+        )
+        fld = self.parameterAsString(parameters, self.P_FIELD, context)
+        showui = self.parameterAsBool(
+            parameters, self.P_SHOWUI, context
+        )
+        only_null = self.parameterAsBool(
+            parameters, self.P_ONLY_NULL, context
+        )
+
+        if fld not in [f.name() for f in roads.fields()]:
+            raise QgsProcessingException(
+                self.tr("Kolom sumber tidak ditemukan di layer jalan.")
+            )
+
+        # 1) nilai unik (dedup berdasar _norm)
+        uniques_display, seen_norm = [], set()
+        for f in roads.getFeatures():
+            raw = "" if f[fld] is None else str(f[fld]).strip()
+            key = _norm(raw)
+            if key not in seen_norm:
+                seen_norm.add(key)
+                uniques_display.append(raw)
+
+        # 2) dialog → mapping normalized
+        mapping_norm = {}
+        if showui:
+            feedback.pushInfo(self.tr("Membuka dialog pemetaan KJLN…"))
+            mapping_norm = _ask_mapping_on_main_thread(uniques_display)
+
+        if not mapping_norm:
+            # fallback kosong (biar tidak menimpa apa-apa)
+            mapping_norm = {}
+
+        # 3) siapkan field KJLN
+        out_fields = QgsFields(roads.fields())
+        low_out = [f.name().lower() for f in out_fields]
+        if "kjln" in low_out:
+            idx_k_out = low_out.index("kjln")
+        else:
+            out_fields.append(
+                QgsField("KJLN", QVariant.String, "", 80, 0)
+            )
+            idx_k_out = len(out_fields) - 1
+
+        # index KJLN pada source (jika ada) untuk cek only_null
+        low_src = [f.name().lower() for f in roads.fields()]
+        idx_k_src = low_src.index("kjln") if "kjln" in low_src else -1
+
+        sink, out_id = self.parameterAsSink(
+            parameters,
+            self.P_OUTPUT,
+            context,
+            out_fields,
+            roads.wkbType(),
+            roads.sourceCrs(),
+        )
+
+        # 4) tulis fitur
+        total = max(1, roads.featureCount())
+        changed = 0
+        for i, feat in enumerate(roads.getFeatures()):
+            if feedback.isCanceled():
+                break
+
+            # nilai existing KJLN di source (jika ada)
+            existing_kj = None
+            if idx_k_src >= 0:
+                existing_kj = feat.attributes()[idx_k_src]
+                if isinstance(existing_kj, str):
+                    existing_kj = existing_kj.strip()
+                if existing_kj == "":
+                    existing_kj = None
+
+            # calon nilai baru dari mapping
+            raw = "" if feat[fld] is None else str(feat[fld]).strip()
+            mapped = mapping_norm.get(_norm(raw))
+
+            # terapkan aturan only_null
+            if only_null and (existing_kj is not None):
+                new_kj = existing_kj
+            else:
+                new_kj = mapped if (mapped is not None) else existing_kj
+
+            attrs = list(feat.attributes())
+            if len(attrs) < len(out_fields):
+                attrs += [None] * (len(out_fields) - len(attrs))
+
+            # hitung perubahan
+            if (idx_k_src < 0 and new_kj is not None) or (
+                idx_k_src >= 0 and new_kj != existing_kj
+            ):
+                changed += 1
+
+            attrs[idx_k_out] = new_kj
+
+            nf = QgsFeature(out_fields)
+            nf.setGeometry(feat.geometry())
+            nf.setAttributes(attrs)
+            sink.addFeature(nf, QgsFeatureSink.FastInsert)
+
+            if i % 1000 == 0:
+                feedback.setProgress(int(100 * i / total))
+
+        feedback.pushInfo(self.tr(f"Baris diubah/diisi: {changed}"))
+        return {self.P_OUTPUT: out_id}

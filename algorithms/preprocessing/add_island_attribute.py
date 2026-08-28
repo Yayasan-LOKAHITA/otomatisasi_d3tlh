@@ -1,0 +1,416 @@
+# -*- coding: utf-8 -*-
+
+"""
+/***************************************************************************
+ OtomatisasiD3TLH
+ Plugin yang membantu pengolahan D3TLH secara otomatis
+                              -------------------
+        begin                : 2025-08-15
+        copyright            : (C) 2025 by Direktorat PDLKWS -
+                               Deputi TLSDAB - Kementerian Lingkungan
+                               Hidup/BPLH Republik Indonesia
+        supported by         : Yayasan Lokus Bijak Hijau Lestari (LOKAHITA)
+        email                : tech@yayasanlokahita.org
+ ***************************************************************************/
+
+/***************************************************************************
+ *                                                                         *
+ *   This program is free software; you can redistribute it and/or modify  *
+ *   it under the terms of the GNU General Public License as published by  *
+ *   the Free Software Foundation; either version 2 of the License, or     *
+ *   (at your option) any later version.                                   *
+ *                                                                         *
+ ***************************************************************************/
+"""
+
+__author__ = (
+    "Fadillah Azhar Deaudin Kurniawan, "
+    "Sitarani Safitri, Dini Aprilia Norvyani, "
+    "Suchi Rahmadani, Fariz Rizaldy Wibowo"
+)
+__date__ = "2025-08-15"
+__copyright__ = (
+    "(C) 2025 by Direktorat PDLKWS - Deputi TLSDAB - "
+    "Kementerian Lingkungan Hidup/BPLH Republik Indonesia"
+)
+
+# This will get replaced with a git SHA1 when you do a git archive
+__revision__ = "$Format:%H$"
+
+from math import radians, sin, cos, sqrt, atan2
+from qgis.PyQt.QtCore import QCoreApplication, QVariant
+from qgis.core import (
+    QgsProcessing,
+    QgsFeature,
+    QgsFields,
+    QgsField,
+    QgsFeatureSink,
+    QgsProcessingAlgorithm,
+    QgsProcessingParameterVectorLayer,
+    QgsProcessingParameterBoolean,
+    QgsProcessingParameterFeatureSink,
+    QgsVectorLayer,
+    QgsGeometry,
+    QgsPointXY,
+)
+import processing
+import os
+from qgis.PyQt.QtGui import QIcon
+
+
+class PreprocAddIslandAttributeAlgorithm(QgsProcessingAlgorithm):
+    """
+    01. Pra Pengolahan – Tambah Kolom PULAU (Hull Polygons + Nearest)
+    - Reproject ke EPSG:4326
+    - Klasifikasi centroid dengan poligon "hull" per pulau (tanpa layer
+    eksternal)
+    - Fallback: pulau terdekat (haversine) bila tidak masuk poligon mana pun
+    """
+
+    INPUT = "INPUT"
+    OVERWRITE = "OVERWRITE"
+    DEBUG = "DEBUG"
+    OUTPUT = "OUTPUT"
+
+    # -------- boilerplate --------
+    def tr(self, s: str) -> str:
+        return QCoreApplication.translate("Processing", s)
+
+    def createInstance(self):
+        return PreprocAddIslandAttributeAlgorithm()
+
+    def name(self) -> str:
+        return "add_pulau_field"
+
+    def displayName(self) -> str:
+        return self.tr("Penambahan Atribut Pulau")
+
+    def groupId(self) -> str:
+        return "B. Preprocessing"
+
+    def group(self) -> str:
+        return self.tr(self.groupId())
+
+    def icon(self):
+        return QIcon(
+            os.path.join(
+                os.path.dirname(__file__), "02 Pre-processing.svg"
+            )
+        )
+
+    # -------- params --------
+    def initAlgorithm(self, config=None):
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.INPUT,
+                self.tr("Layer input"),
+                [QgsProcessing.TypeVectorAnyGeometry],
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterBoolean(
+                self.OVERWRITE,
+                self.tr("Timpa nilai PULAU yang sudah ada (jika ada)"),
+                False,
+            )
+        )
+        # self.addParameter(QgsProcessingParameterBoolean(
+        #     self.DEBUG, self.tr('Tambahkan kolom debug (lon_dbg, lat_dbg,
+        #     method_dbg, dist_km)'), False
+        # ))
+        self.addParameter(
+            QgsProcessingParameterFeatureSink(
+                self.OUTPUT, self.tr("Layer dengan kolom PULAU")
+            )
+        )
+
+    # -------- helpers --------
+    def _haversine_km(self, lon1, lat1, lon2, lat2):
+        R = 6371.0088
+        dlon = radians(lon2 - lon1)
+        dlat = radians(lat2 - lat1)
+        a = (
+            sin(dlat / 2) ** 2
+            + cos(radians(lat1))
+            * cos(radians(lat2))
+            * sin(dlon / 2) ** 2
+        )
+        c = 2 * atan2(sqrt(a), sqrt(1 - a))
+        return R * c
+
+    # --------- HULLS (WKT) ---------
+    # Poligon tiap pulau berdasarkan daftar koordinat vertex dari Sita
+    # (lon lat)
+    # Sudah ditutup (titik awal = titik akhir).
+    HULLS_WKTS = {
+        "Sumatera": [
+            "POLYGON(("
+            "105.44761699000 -6.18818158000, "
+            "102.26544499000 -5.53162804000, "
+            "98.67142962000 -1.76701277000, "
+            "95.29055443000 2.89219813000, "
+            "94.81195237000 6.11723819000, "
+            "108.11766228000 4.88040597000, "
+            "109.22476586000 2.65658664000, "
+            "109.11983709000 2.05054452000, "
+            "108.31728154000 -0.78739089000, "
+            "108.87182603000 -2.50673451000, "
+            "108.46168954000 -3.32523477000, "
+            "108.06218767000 -3.78919987000, "
+            "106.29531167000 -5.00352637000, "
+            "105.78948477000 -5.89100889000, "
+            "105.44761699000 -6.18818158000))"
+        ],
+        "Jawa": [
+            "POLYGON(("
+            "111.70642992000 -8.43450438000, "
+            "106.29409040000 -7.56846926000, "
+            "105.22909049000 -6.84803523000, "
+            "105.07288452000 -6.62789135000, "
+            "105.83887000000 -5.90598000000, "
+            "106.43175146000 -5.17581712000, "
+            "114.60958963000 -5.04301077000, "
+            "116.33963249000 -6.94606611000, "
+            "115.36734624000 -7.83891372000, "
+            "114.43775881000 -8.05880742000, "
+            "114.41218580000 -8.19141100000, "
+            "114.67462114000 -8.66902781000, "
+            "114.56590696000 -8.80045045000, "
+            "111.70642992000 -8.43450438000))"
+        ],
+        "Bali-Nusra": [
+            "POLYGON(("
+            "122.87830459000 -11.01137395000, "
+            "121.25490289000 -10.83922245000, "
+            "115.08172442000 -8.84247716000, "
+            "114.56137119000 -8.39444421000, "
+            "114.45130325000 -8.23727485000, "
+            "114.43003482000 -8.17874457000, "
+            "114.42957937000 -8.12149888000, "
+            "114.43427197000 -8.09183165000, "
+            "115.18422450000 -8.05020621000, "
+            "123.61337511000 -7.73613510000, "
+            "125.12995956000 -8.13691345000, "
+            "125.27546994000 -9.15668664000, "
+            "124.80418788000 -10.13774590000, "
+            "122.87830459000 -11.01137395000))"
+        ],
+        "Kalimantan": [
+            "POLYGON(("
+            "115.63523598000 -5.05622169000, "
+            "110.19236282000 -3.32992649000, "
+            "108.67884195000 -1.72102709000, "
+            "108.59844426000 0.12534338000, "
+            "108.66831304000 0.79879980000, "
+            "109.03421760000 1.51686603000, "
+            "109.44526962000 2.25256293000, "
+            "115.81651170000 4.49099614000, "
+            "116.57259597000 4.55477670000, "
+            "117.24751725000 4.37400981000, "
+            "117.92591042000 4.18937116000, "
+            "119.12105547000 1.78596158000, "
+            "119.05019181000 0.98223039000, "
+            "116.85575922000 -2.12021690000, "
+            "117.00493903000 -3.95255810000, "
+            "115.63523598000 -5.05622169000))"
+        ],
+        "Maluku": [
+            "POLYGON(("
+            "130.77738710000 -8.68768994000, "
+            "125.48501979000 -8.11239977000, "
+            "124.30505962000 -2.00794334000, "
+            "124.28316206000 -1.75609607000, "
+            "126.26749109000 1.37156086000, "
+            "128.51819969000 2.92905161000, "
+            "130.27395735000 0.96393524000, "
+            "129.72744165000 -0.24078366000, "
+            "128.69256636000 -1.91717433000, "
+            "132.45713220000 -4.37657394000, "
+            "134.68600030000 -5.23463377000, "
+            "135.35158144000 -6.31750063000, "
+            "134.17166786000 -7.72422619000, "
+            "130.77738710000 -8.68768994000))"
+        ],
+        "Papua": [
+            "POLYGON(("
+            "137.62705797000 -8.46460151000, "
+            "135.77651803000 -5.64588429000, "
+            "133.17841973000 -4.37439382000, "
+            "129.64627407000 -1.83896340000, "
+            "129.27766375000 -1.17797402000, "
+            "129.99154668000 0.17973932000, "
+            "131.24067593000 1.09240574000, "
+            "134.29860840000 0.95752613000, "
+            "141.01634867000 -2.59540710000, "
+            "141.02004179000 -6.89234221000, "
+            "141.01990704000 -9.12583781000, "
+            "137.62705797000 -8.46460151000))"
+        ],
+        "Sulawesi": [
+            "POLYGON(("
+            "117.16739636000 -7.84255628000, "
+            "117.04332222000 -7.42778380000, "
+            "116.97522161000 -5.04666376000, "
+            "117.03165400000 -2.26774075000, "
+            "119.79060474000 0.58161562000, "
+            "120.24137068000 0.98483173000, "
+            "126.57680270000 5.69770930000, "
+            "127.20926767000 4.78208658000, "
+            "124.16242079000 -2.43976857000, "
+            "124.62144139000 -6.12531354000, "
+            "121.79964674000 -7.64814055000, "
+            "117.16739636000 -7.84255628000))"
+        ],
+    }
+
+    # Seed points (lon, lat) untuk fallback nearest
+    SEEDS = {
+        "Sumatera": (101.0, 0.5),
+        "Jawa": (110.0, -7.0),
+        "Bali-Nusra": (120.0, -8.8),
+        "Kalimantan": (114.0, 0.5),
+        "Sulawesi": (121.0, -2.0),
+        "Maluku": (128.8, -2.8),
+        "Papua": (135.0, -4.0),
+    }
+
+    # -------- core --------
+    def processAlgorithm(self, parameters, context, feedback):
+        src: QgsVectorLayer = self.parameterAsVectorLayer(
+            parameters, self.INPUT, context
+        )
+        overwrite: bool = self.parameterAsBoolean(
+            parameters, self.OVERWRITE, context
+        )
+        debug: bool = self.parameterAsBoolean(
+            parameters, self.DEBUG, context
+        )
+
+        # 0) Reproject -> EPSG:4326
+        src4326 = processing.run(
+            "native:reprojectlayer",
+            {
+                "INPUT": src,
+                "TARGET_CRS": "EPSG:4326",
+                "OPERATION": "",
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # 1) Build hull geometries (tanpa buffer)
+        hulls = {}
+        for name, wkt_list in self.HULLS_WKTS.items():
+            geoms = [QgsGeometry.fromWkt(w) for w in wkt_list]
+            hulls[name] = geoms
+
+        # 2) Sink schema = original + PULAU (+ debug)
+        base_fields = src4326.fields()
+        fields = QgsFields(base_fields)
+
+        src_has_pulau = base_fields.indexFromName("PULAU") != -1
+        if not src_has_pulau:
+            fields.append(QgsField("PULAU", QVariant.String, len=20))
+        idx_pulau = fields.indexFromName("PULAU")
+
+        idx_lon = idx_lat = idx_method = idx_dist = None
+        if debug:
+            if fields.indexFromName("lon_dbg") == -1:
+                fields.append(QgsField("lon_dbg", QVariant.Double))
+            if fields.indexFromName("lat_dbg") == -1:
+                fields.append(QgsField("lat_dbg", QVariant.Double))
+            if fields.indexFromName("method_dbg") == -1:
+                fields.append(
+                    QgsField("method_dbg", QVariant.String, len=12)
+                )
+            if fields.indexFromName("dist_km") == -1:
+                fields.append(QgsField("dist_km", QVariant.Double))
+            idx_lon = fields.indexFromName("lon_dbg")
+            idx_lat = fields.indexFromName("lat_dbg")
+            idx_method = fields.indexFromName("method_dbg")
+            idx_dist = fields.indexFromName("dist_km")
+
+        sink, dest_id = self.parameterAsSink(
+            parameters,
+            self.OUTPUT,
+            context,
+            fields,
+            src4326.wkbType(),
+            src4326.sourceCrs(),
+        )
+
+        # 3) Loop fitur
+        total = max(1, src4326.featureCount())
+        step = 100.0 / total
+
+        for i, f in enumerate(src4326.getFeatures()):
+            if feedback.isCanceled():
+                break
+
+            cpt = f.geometry().centroid().asPoint()
+            lon, lat = cpt.x(), cpt.y()
+            p = QgsGeometry.fromPointXY(QgsPointXY(lon, lat))
+
+            # 3a) test hulls
+            cls = None
+            for name, geoms in hulls.items():
+                if any(g.contains(p) or g.intersects(p) for g in geoms):
+                    cls = name
+                    method = "hull"
+                    dist_km = None
+                    break
+
+            # 3b) fallback nearest
+            if cls is None:
+                best_name, best_d = None, 1e18
+                for name, (sx, sy) in self.SEEDS.items():
+                    d = self._haversine_km(lon, lat, sx, sy)
+                    if d < best_d:
+                        best_name, best_d = name, d
+                cls = best_name
+                method = "nearest"
+                dist_km = best_d
+
+            # 3c) tulis atribut
+            newf = QgsFeature(fields)
+            newf.setGeometry(f.geometry())
+
+            new_attrs = [None] * fields.count()
+            base_attr = f.attributes()
+            for j in range(base_fields.count()):
+                new_attrs[j] = base_attr[j]
+
+            src_val = f.attribute("PULAU") if src_has_pulau else None
+            if overwrite or (src_val in (None, "")):
+                new_attrs[idx_pulau] = cls
+            else:
+                new_attrs[idx_pulau] = src_val
+
+            if debug:
+                new_attrs[idx_lon] = float(lon)
+                new_attrs[idx_lat] = float(lat)
+                new_attrs[idx_method] = method
+                if dist_km is not None:
+                    new_attrs[idx_dist] = float(f"{dist_km:.3f}")
+
+            newf.setAttributes(new_attrs)
+            sink.addFeature(newf, QgsFeatureSink.FastInsert)
+            feedback.setProgress(int((i + 1) * step))
+
+        return {self.OUTPUT: dest_id}
+
+    def shortHelpString(self):
+        return self.tr(
+            "This module automatically assigns an island name (PULAU) to "
+            "each feature based on its geographic location.\n\n"
+            "The algorithm uses predefined island boundary polygons "
+            "covering the major island groups of Indonesia and classifies "
+            "each feature according to the location of its centroid.\n\n"
+            "If a centroid falls outside all predefined island polygons, "
+            "the algorithm assigns the nearest island using a distance-based "
+            "fallback method.\n\n"
+            "<b>Complete explanation read here: "
+            "<a href='https://yayasan-lokahita.github.io/"
+            "otomatisasi_d3tlh-docs/add_islandatrbt/'>here</a>.</b>"
+        )

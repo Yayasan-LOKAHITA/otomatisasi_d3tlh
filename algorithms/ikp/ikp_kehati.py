@@ -1,0 +1,1718 @@
+# -*- coding: utf-8 -*-
+
+"""
+/***************************************************************************
+ OtomatisasiD3TLH
+ Plugin yang membantu pengolahan D3TLH secara otomatis
+                              -------------------
+        begin                : 2025-08-15
+        copyright            : (C) 2025 by Direktorat PDLKWS -
+                               Deputi TLSDAB - Kementerian Lingkungan
+                               Hidup/BPLH Republik Indonesia
+        supported by         : Yayasan Lokus Bijak Hijau Lestari (LOKAHITA)
+        email                : tech@yayasanlokahita.org
+ ***************************************************************************/
+
+/***************************************************************************
+ *                                                                         *
+ *   This program is free software; you can redistribute it and/or modify  *
+ *   it under the terms of the GNU General Public License as published by  *
+ *   the Free Software Foundation; either version 2 of the License, or     *
+ *   (at your option) any later version.                                   *
+ *                                                                         *
+ ***************************************************************************/
+"""
+
+__author__ = (
+    "Fadillah Azhar Deaudin Kurniawan, "
+    "Sitarani Safitri, Dini Aprilia Norvyani, "
+    "Suchi Rahmadani, Fariz Rizaldy Wibowo"
+)
+__date__ = "2025-08-15"
+__copyright__ = (
+    "(C) 2025 by Direktorat PDLKWS - Deputi TLSDAB - "
+    "Kementerian Lingkungan Hidup/BPLH Republik Indonesia"
+)
+
+# This will get replaced with a git SHA1 when you do a git archive
+
+__revision__ = "$Format:%H$"
+
+from qgis.PyQt.QtCore import QCoreApplication
+from qgis.core import (
+    QgsProcessing,
+    QgsFeatureSink,
+    QgsProcessingAlgorithm,
+    QgsProcessingParameterFeatureSink,
+    QgsProcessingParameterVectorLayer,
+    QgsProcessingParameterString,
+    QgsCoordinateReferenceSystem,
+    QgsProcessingException,
+)
+
+import processing
+import os
+import re
+from ..core.field_mappings import build_field_mappings_ikp
+from qgis.PyQt.QtGui import QIcon
+
+
+class IKPKehatiAlgorithm(QgsProcessingAlgorithm):
+    # IKP
+    IKP = "KEHATI"
+    # Parameters BCPI
+    GRID_PGA = "GRID_PGA"
+    GRID_PPK = "GRID_PPK"
+    GRID_PGN = "GRID_PGN"
+    GRID_PHK = "GRID_PHK"
+    # Parameters BI
+    EKOREGION = "EKOREGION"
+    TAHUN = "TAHUN"
+    PL = "PL"
+    GRID = "GRID"
+    HABITAT = "HABITAT"
+    RTE = "RTE"
+
+    # Output
+    OUTPUT = "OUTPUT"
+    OUTPUT_GRID = "OUTPUT_GRID"
+
+    def initAlgorithm(self, config):
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.GRID,
+                self.tr('Data Grid [Dengan Kolom "ID" dan "WADMKK"]'),
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.GRID_PGA,
+                self.tr(
+                    'Grid JLH Pengaturan Air [Dengan Kolom "PGA_YY_KK", YY '
+                    "adalah dua digit terakhir tahun.]"
+                ),
+                [QgsProcessing.TypeVectorAnyGeometry],
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.GRID_PHK,
+                self.tr(
+                    'Grid JLH Kehati [Dengan Kolom "PHK_YY_KK", YY adalah dua '
+                    "digit terakhir tahun.]"
+                ),
+                [QgsProcessing.TypeVectorAnyGeometry],
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.GRID_PPK,
+                self.tr(
+                    'Grid JLH Karbon [Dengan Kolom "PPK_YY", YY adalah dua '
+                    "digit terakhir tahun.]"
+                ),
+                [QgsProcessing.TypeVectorAnyGeometry],
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.GRID_PGN,
+                self.tr(
+                    'Grid JLH Penyedia Pangan [Dengan Kolom "PGN_YY", YY '
+                    "adalah dua digit terakhir tahun.]"
+                ),
+                [QgsProcessing.TypeVectorAnyGeometry],
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterString(
+                self.TAHUN,
+                self.tr("Tahun Data Penutup Lahan [Contoh: 2024]"),
+                defaultValue=2024,
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.PL,
+                self.tr('Data Penutup Lahan [Dengan Kolom "PL"]'),
+                [QgsProcessing.TypeVectorAnyGeometry],
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.EKOREGION,
+                self.tr(
+                    "Data Unit Ekoregion "
+                    '[Dengan kolom "KBA_250" dan "KVA_250"]'
+                ),
+                [QgsProcessing.TypeVectorAnyGeometry],
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.HABITAT,
+                self.tr(
+                    'Data Tipe Habitat IUCN [Dengan nama kolom "KLS_HAB_KK"]'
+                ),
+                [QgsProcessing.TypeVectorAnyGeometry],
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.RTE,
+                self.tr('Data RTE IUCN [Dengan nama kolom "KLS_RTE"]'),
+                [QgsProcessing.TypeVectorAnyGeometry],
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterFeatureSink(
+                self.OUTPUT,
+                self.tr('IKP Kehati Poligon [kolom "IKPKHT"]'),
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterFeatureSink(
+                self.OUTPUT_GRID,
+                self.tr('IKP Kehati Grid [kolom "IKPKHT"]'),
+            )
+        )
+
+    def processAlgorithm(self, parameters, context, feedback):
+        # 1. Mendefinisikan Data Input yang Dibutuhkan
+        # Parameters BCPI
+        grid_pga = self.parameterAsVectorLayer(
+            parameters, self.GRID_PGA, context
+        )
+        grid_ppk = self.parameterAsVectorLayer(
+            parameters, self.GRID_PPK, context
+        )
+        grid_pgn = self.parameterAsVectorLayer(
+            parameters, self.GRID_PGN, context
+        )
+        grid_phk = self.parameterAsVectorLayer(
+            parameters, self.GRID_PHK, context
+        )
+
+        # Parameters BI
+        # Tahun Penutup Lahan
+        pl_year = self.parameterAsString(
+            parameters, self.TAHUN, context
+        )
+        year = pl_year[-2:]
+        pl = self.parameterAsVectorLayer(parameters, self.PL, context)
+        ekoregion = self.parameterAsVectorLayer(
+            parameters, self.EKOREGION, context
+        )
+        habitat = self.parameterAsVectorLayer(
+            parameters, self.HABITAT, context
+        )
+        rte = self.parameterAsVectorLayer(parameters, self.RTE, context)
+        grid = self.parameterAsVectorLayer(
+            parameters, self.GRID, context
+        )
+
+        # Create spatia indexing
+        def _make_index(layer):
+            try:
+                processing.run(
+                    "native:createspatialindex",
+                    {"INPUT": layer},
+                    context=context,
+                    feedback=feedback,
+                )
+            except Exception:
+                pass
+
+        # Extent GRID (untuk subset cepat)
+        extent_poly = processing.run(
+            "native:polygonfromlayerextent",
+            {"INPUT": grid, "OUTPUT": "TEMPORARY_OUTPUT"},
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # Subset tanpa memotong
+        grid_pga = processing.run(
+            "native:extractbylocation",
+            {
+                "INPUT": grid_pga,
+                "PREDICATE": [0],
+                "INTERSECT": extent_poly,
+                "OUTPUT": "TEMPORARY_OUTPUT",
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+        grid_pgn = processing.run(
+            "native:extractbylocation",
+            {
+                "INPUT": grid_pgn,
+                "PREDICATE": [0],
+                "INTERSECT": extent_poly,
+                "OUTPUT": "TEMPORARY_OUTPUT",
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+        grid_phk = processing.run(
+            "native:extractbylocation",
+            {
+                "INPUT": grid_phk,
+                "PREDICATE": [0],
+                "INTERSECT": extent_poly,
+                "OUTPUT": "TEMPORARY_OUTPUT",
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+        grid_ppk = processing.run(
+            "native:extractbylocation",
+            {
+                "INPUT": grid_ppk,
+                "PREDICATE": [0],
+                "INTERSECT": extent_poly,
+                "OUTPUT": "TEMPORARY_OUTPUT",
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+        pl = processing.run(
+            "native:extractbylocation",
+            {
+                "INPUT": pl,
+                "PREDICATE": [0],
+                "INTERSECT": extent_poly,
+                "OUTPUT": "TEMPORARY_OUTPUT",
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+        ekoregion = processing.run(
+            "native:extractbylocation",
+            {
+                "INPUT": ekoregion,
+                "PREDICATE": [0],
+                "INTERSECT": extent_poly,
+                "OUTPUT": "TEMPORARY_OUTPUT",
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+        rte = processing.run(
+            "native:extractbylocation",
+            {
+                "INPUT": rte,
+                "PREDICATE": [0],
+                "INTERSECT": extent_poly,
+                "OUTPUT": "TEMPORARY_OUTPUT",
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+        habitat = processing.run(
+            "native:extractbylocation",
+            {
+                "INPUT": habitat,
+                "PREDICATE": [0],
+                "INTERSECT": extent_poly,
+                "OUTPUT": "TEMPORARY_OUTPUT",
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # Fix Geometries
+        grid_pga = processing.run(
+            "native:fixgeometries",
+            {"INPUT": grid_pga, "OUTPUT": "TEMPORARY_OUTPUT"},
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+        grid_ppk = processing.run(
+            "native:fixgeometries",
+            {"INPUT": grid_ppk, "OUTPUT": "TEMPORARY_OUTPUT"},
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+        grid_pgn = processing.run(
+            "native:fixgeometries",
+            {"INPUT": grid_pgn, "OUTPUT": "TEMPORARY_OUTPUT"},
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+        grid_phk = processing.run(
+            "native:fixgeometries",
+            {"INPUT": grid_phk, "OUTPUT": "TEMPORARY_OUTPUT"},
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+        pl = processing.run(
+            "native:fixgeometries",
+            {"INPUT": pl, "OUTPUT": "TEMPORARY_OUTPUT"},
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+        ekoregion = processing.run(
+            "native:fixgeometries",
+            {"INPUT": ekoregion, "OUTPUT": "TEMPORARY_OUTPUT"},
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+        rte = processing.run(
+            "native:fixgeometries",
+            {"INPUT": rte, "OUTPUT": "TEMPORARY_OUTPUT"},
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+        habitat = processing.run(
+            "native:fixgeometries",
+            {"INPUT": habitat, "OUTPUT": "TEMPORARY_OUTPUT"},
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        _make_index(grid_pga)
+        _make_index(grid_pgn)
+        _make_index(grid_phk)
+        _make_index(grid_ppk)
+        _make_index(pl)
+        _make_index(ekoregion)
+        _make_index(rte)
+        _make_index(habitat)
+
+        # 2. Checking Kesesuaian Tahun Data IJLH
+        # Define layer–prefix pairs
+        layer_prefix_map = {
+            "PGA": grid_pga,
+            "PPK": grid_ppk,
+            "PGN": grid_pgn,
+            "PHK": grid_phk,
+        }
+
+        suffix_years = {}
+
+        for prefix, layer in layer_prefix_map.items():
+            if layer is None:
+                raise QgsProcessingException(
+                    f"⚠️ Layer for {prefix} is missing!"
+                )
+
+            # Find the first field that matches e.g. PGA_24
+            pattern = re.compile(rf"^{prefix}_(\d+)$")
+            suffix = None
+
+            for field in layer.fields():
+                match = pattern.match(field.name())
+                if match:
+                    suffix = match.group(1)
+                    break  # stop after first match since only one is expected
+
+            if suffix:
+                suffix_years[prefix] = suffix
+                feedback.pushInfo(
+                    f"{prefix}: Found suffix year → {suffix}"
+                )
+            else:
+                raise QgsProcessingException(
+                    f"❌ No valid field found in {layer.name()} "
+                    f"matching '{prefix}_YY'"
+                )
+
+        # Compare suffix years across all JLH layers
+        unique_suffixes = set(suffix_years.values())
+        if len(unique_suffixes) == 1:
+            feedback.pushInfo(
+                f"✅ Tahun Data JLH PGA, PPK, PGN, dan PHK Sudah Sesuai: "
+                f"{unique_suffixes.pop()}"
+            )
+        else:
+            msg = f"❌ Tahun Data JLH Berbeda: {suffix_years}"
+            feedback.reportError(msg)
+            raise QgsProcessingException(msg)
+
+        # 3. Checking kesesuaian Tahun Data IJLH dan PL
+        suffix_years["PL"] = year
+        unique_suffixes_pl = set(suffix_years.values())
+        if len(unique_suffixes_pl) == 1:
+            feedback.pushInfo(
+                f"✅ Tahun Data IJLH dan PL Sudah Sesuai: "
+                f"{unique_suffixes_pl.pop()}"
+            )
+        else:
+            msg = f"❌ Tahun Data JLH dan PL Berbeda: {suffix_years}"
+            feedback.reportError(msg)
+            raise QgsProcessingException(msg)
+
+        # 4. Perhitungan BCPI
+        # 4a. Join PPK_YY, PGN_YY, PHK_YY ke GRID_PGA_YY
+        grid_bcpi1 = processing.run(
+            "qgis:joinattributestable",
+            {
+                "INPUT": grid_pga,
+                "FIELD": "ID",
+                "INPUT_2": grid_ppk,
+                "FIELD_2": "ID",
+                "FIELDS_TO_COPY": [f"PPK_{year}"],
+                "METHOD": 0,
+                "DISCARD_NONMATCHING": False,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        grid_bcpi2 = processing.run(
+            "qgis:joinattributestable",
+            {
+                "INPUT": grid_bcpi1,
+                "FIELD": "ID",
+                "INPUT_2": grid_pgn,
+                "FIELD_2": "ID",
+                "FIELDS_TO_COPY": [f"PGN_{year}"],
+                "METHOD": 0,
+                "DISCARD_NONMATCHING": False,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        grid_bcpi3 = processing.run(
+            "qgis:joinattributestable",
+            {
+                "INPUT": grid_bcpi2,
+                "FIELD": "ID",
+                "INPUT_2": grid_phk,
+                "FIELD_2": "ID",
+                "FIELDS_TO_COPY": [f"PHK_{year}_KK"],
+                "METHOD": 0,
+                "DISCARD_NONMATCHING": False,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # 4b. Hitung BCPI
+        grid_bcpi_calc = processing.run(
+            "qgis:fieldcalculator",
+            {
+                "INPUT": grid_bcpi3,
+                "FIELD_NAME": "BCPI",
+                "FIELD_TYPE": 0,  # Decimal number (real)
+                "FIELD_LENGTH": 10,
+                "FIELD_PRECISION": 2,
+                "NEW_FIELD": True,
+                "FORMULA": f"""
+                    ( "PGA_{year}_KK" + "PPK_{year}" +
+                    "PGN_{year}" + "PHK_{year}_KK" ) / 4
+                """,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # 4c. Klasifikasi BCPI ke 5 Kelas
+        grid_bcpi_klas = processing.run(
+            "qgis:fieldcalculator",
+            {
+                "INPUT": grid_bcpi_calc,
+                "FIELD_NAME": "KLS_BCPI",
+                "FIELD_TYPE": 2,  # Text (string),
+                "FIELD_LENGTH": 20,
+                "NEW_FIELD": True,
+                "FORMULA": """
+                CASE
+                    WHEN "BCPI" <= 1.8 THEN 'Sangat Rendah'
+                    WHEN "BCPI" > 1.8 AND "BCPI" <= 2.6 THEN 'Rendah'
+                    WHEN "BCPI" > 2.6 AND "BCPI" <= 3.4 THEN 'Sedang'
+                    WHEN "BCPI" > 3.4 AND "BCPI" <= 4.2 THEN 'Tinggi'
+                    WHEN "BCPI" > 4.2 THEN 'Sangat Tinggi'
+                    ELSE 0
+                END
+                """,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # 4d. Reproject BCPI terklasifikasi
+        grid_bcpi_reproject = processing.run(
+            "native:reprojectlayer",
+            {
+                "INPUT": grid_bcpi_klas,
+                "TARGET_CRS": QgsCoordinateReferenceSystem("EPSG:3395"),
+                "CONVERT_CURVED_GEOMETRIES": False,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # 4e. Perbaiki geometri BCPI terklasifikasi
+        grid_bcpi = processing.run(
+            "native:fixgeometries",
+            {
+                "INPUT": grid_bcpi_reproject,
+                "METHOD": 1,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+        _make_index(grid_bcpi)
+
+        feedback.pushInfo(
+            "✅ Perhitungan BCPI selesai. Output : "
+            "Grid dengan kolom BCPI dan KLS_BCPI"
+        )
+
+        # === HITUNG BI ===
+
+        # 5. Perhitungan Indeks Sebaran Karst dan Gambut
+        # 5a. Extract sebaran karst dan gambut dari data Ekoregion
+        karst_gambut_values = [
+            ("Dataran organik bermaterial " "gambut"),
+            (
+                "Dataran solusional karst "
+                "bermaterial batuan sedimen "
+                "karbonat"
+            ),
+            (
+                "Dataran solusional karst "
+                "berombak-bergelombang "
+                "bermaterial batuan sedimen "
+                "karbonat"
+            ),
+            (
+                "Pegunungan solusional karst "
+                "bermaterial batuan sedimen "
+                "karbonat"
+            ),
+            (
+                "Perbukitan solusional karst "
+                "bermaterial batuan sedimen "
+                "karbonat"
+            ),
+        ]
+
+        expr = (
+            '"KBA_250" IN ('
+            + ",".join(f"'{v}'" for v in karst_gambut_values)
+            + ")"
+        )
+        sebaran_karst_gambut = processing.run(
+            "native:extractbyexpression",
+            {
+                "INPUT": ekoregion,
+                "EXPRESSION": expr,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+        _make_index(sebaran_karst_gambut)
+
+        # 5b. intersect sebaran karst dan gambut dengan PL
+        intersect_karst_gambut = processing.run(
+            "qgis:intersection",
+            {
+                "INPUT": sebaran_karst_gambut,
+                "OVERLAY": pl,
+                "INPUT_FIELDS": [],
+                "OVERLAY_FIELDS": ["PL"],
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+        _make_index(intersect_karst_gambut)
+
+        # 5c. Perhitungan indeks sebaran karst dan gambut
+        ikg_calc = processing.run(
+            "qgis:fieldcalculator",
+            {
+                "INPUT": intersect_karst_gambut,
+                "FIELD_NAME": "KLS_KG",
+                "FIELD_TYPE": 1,  # Whole number (integer)
+                "NEW_FIELD": True,
+                "FORMULA": """
+                    CASE
+
+                        WHEN "PL" IN (
+                            'Permukiman',
+                            'Permukiman Transmigrasi',
+                            'Bandara/Pelabuhan',
+                            'Tanah Terbuka',
+                            'Pertambangan'
+                        )
+                        THEN 1
+
+                        WHEN "PL" IN (
+                            'Pertanian Lahan Kering',
+                            'Pertanian Lahan Kering Campur',
+                            'Perkebunan',
+                            'Sawah',
+                            'Tambak'
+                        )
+                        THEN 2
+
+                        WHEN "PL" IN (
+                            'Hutan Tanaman',
+                            'Rawa',
+                            'Semak Belukar',
+                            'Semak Belukar Rawa'
+                        )
+                        THEN 3
+
+                        WHEN "PL" IN (
+                            'Hutan Rawa Primer',
+                            'Hutan Rawa Sekunder'
+                        )
+                        THEN 4
+
+                        WHEN "PL" IN (
+                            'Hutan Lahan Kering Primer',
+                            'Hutan Lahan Kering Sekunder',
+                            'Hutan Mangrove Primer',
+                            'Hutan Mangrove Sekunder',
+                            'Savana/Padang Rumput',
+                            'Tubuh Air'
+                        )
+                        THEN 5
+
+                        ELSE 0
+
+                    END
+                """,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+        _make_index(ikg_calc)
+
+        # 5d. Reproject data indeks sebaran karst dan gambut
+        ikg_reproject = processing.run(
+            "native:reprojectlayer",
+            {
+                "INPUT": ikg_calc,
+                "TARGET_CRS": QgsCoordinateReferenceSystem("EPSG:3395"),
+                "CONVERT_CURVED_GEOMETRIES": False,
+                "OPERATION": (
+                    "+proj=pipeline "
+                    "+step +proj=unitconvert "
+                    "+xy_in=deg +xy_out=rad "
+                    "+step +proj=merc "
+                    "+lon_0=0 +k=1 "
+                    "+x_0=0 +y_0=0 "
+                    "+ellps=WGS84"
+                ),
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+        _make_index(ikg_reproject)
+
+        # 5e. Fix geometry data indeks sebaran karst dan gambut
+        ikg = processing.run(
+            "native:fixgeometries",
+            {
+                "INPUT": ikg_reproject,
+                "METHOD": 1,
+                "OUTPUT": "TEMPORARY_OUTPUT",
+            },
+        )["OUTPUT"]
+        _make_index(ikg)
+
+        feedback.pushInfo(
+            "✅ Perhitungan Indeks Sebaran Karst dan Gambut selesai. "
+            "Output data Poligon dengan Kolom KLS_KG"
+        )
+
+        # 6. Perhitungan Indikator Keragaman Habitat
+        # (Indikator Keragaman Tipe Habitat)
+
+        # 6a. Reproject data indikator keberagaman habitat
+        habitat_reproject = processing.run(
+            "native:reprojectlayer",
+            {
+                "INPUT": habitat,
+                "TARGET_CRS": QgsCoordinateReferenceSystem("EPSG:3395"),
+                "CONVERT_CURVED_GEOMETRIES": False,
+                "OPERATION": "+proj=pipeline "
+                "+step +proj=unitconvert "
+                "+xy_in=deg +xy_out=rad "
+                "+step +proj=merc "
+                "+lon_0=0 +k=1 "
+                "+x_0=0 +y_0=0 "
+                "+ellps=WGS84",
+                "OUTPUT": "TEMPORARY_OUTPUT",
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+        _make_index(habitat_reproject)
+
+        # 6b. Fix geometry data indikator keberagaman habitat
+        habitat_fix = processing.run(
+            "native:fixgeometries",
+            {
+                "INPUT": habitat_reproject,
+                "METHOD": 1,
+                "OUTPUT": "TEMPORARY_OUTPUT",
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+        _make_index(habitat_fix)
+
+        # 6c. Buffer Habitat (Sebagai Penjaggan Sebelum Intersect)
+        habitat = processing.run(
+            "native:buffer",
+            {
+                "INPUT": habitat_fix,
+                "DISTANCE": 1,
+                "SEGMENTS": 5,
+                "END_CAP_STYLE": 0,
+                "JOIN_STYLE": 0,
+                "MITER_LIMIT": 2,
+                "DISSOLVE": False,
+                "SEPARATE_DISJOINT": True,
+                "OUTPUT": "TEMPORARY_OUTPUT",
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+        _make_index(habitat)
+
+        feedback.pushInfo(
+            "✅ Perhitungan Indeks Keberagaman Habitat selesai. "
+            "Output poligon dengan atribut KLS_HAB"
+        )
+
+        # 7. Perhitungan Indeks RTE
+        rte_reproject = processing.run(
+            "native:reprojectlayer",
+            {
+                "INPUT": rte,
+                "TARGET_CRS": QgsCoordinateReferenceSystem("EPSG:3395"),
+                "CONVERT_CURVED_GEOMETRIES": False,
+                "OPERATION": "+proj=pipeline +step "
+                "+proj=unitconvert +xy_in=deg "
+                "+xy_out=rad +step +proj=merc "
+                "+lon_0=0 +k=1 +x_0=0 +y_0=0 +ellps=WGS84",
+                "OUTPUT": "TEMPORARY_OUTPUT",
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+        _make_index(rte_reproject)
+
+        # 2a. FIX GEOMETRI RTE
+        rte_fix = processing.run(
+            "native:fixgeometries",
+            {
+                "INPUT": rte_reproject,
+                "METHOD": 1,
+                "OUTPUT": "TEMPORARY_OUTPUT",
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+        _make_index(rte_fix)
+
+        # 3b. Buffer RTE
+        rte = processing.run(
+            "native:buffer",
+            {
+                "INPUT": rte_fix,
+                "DISTANCE": 1,
+                "SEGMENTS": 5,
+                "END_CAP_STYLE": 0,
+                "JOIN_STYLE": 0,
+                "MITER_LIMIT": 2,
+                "DISSOLVE": False,
+                "SEPARATE_DISJOINT": True,
+                "OUTPUT": "TEMPORARY_OUTPUT",
+            },
+        )["OUTPUT"]
+
+        feedback.pushInfo(
+            "✅ Perhitungan Indeks RTE selesai. Output poligon "
+            "dengan atribut RTE"
+        )
+
+        # 8. PERHITUNGAN INDEKS KONEKTIVITAS HUTAN
+
+        # 8a. Ambil Feature PL = Hutan Lahan Kering Primer,
+        # Hutan Lahan Kering Sekunder, Hutan Mangrove Primer,
+        # Hutan Mangrove Sekunder, Hutan Rawa Primer, Hutan Rawa Sekunder, dan
+        # Hutan Tanaman
+        hutan_raw = processing.run(
+            "native:extractbyexpression",
+            {
+                "INPUT": pl,
+                "EXPRESSION": """
+                "PL" IN (
+                    'Hutan Lahan Kering Primer',
+                    'Hutan Lahan Kering Sekunder',
+                    'Hutan Mangrove Primer',
+                    'Hutan Mangrove Sekunder',
+                    'Hutan Rawa Primer',
+                    'Hutan Rawa Sekunder',
+                    'Hutan Tanaman'
+                )""",
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # 8b. Multipart to singlepart hutan
+        hutan_single = processing.run(
+            "native:multiparttosingleparts",
+            {
+                "INPUT": hutan_raw,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+        _make_index(rte_fix)
+
+        # 8c. Reproject dahulu ke EPSG:3395
+        hutan_reproject = processing.run(
+            "native:reprojectlayer",
+            {
+                "INPUT": hutan_single,
+                "TARGET_CRS": "EPSG:3395",
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+        _make_index(hutan_reproject)
+
+        # 8d. Buffer Hutan 10 meter dengan dissolve namun
+        # tetap separate features
+        hutan_buffer = processing.run(
+            "native:buffer",
+            {
+                "INPUT": hutan_reproject,
+                "DISTANCE": 100,
+                "SEGMENTS": 5,
+                "END_CAP_STYLE": 0,
+                "JOIN_STYLE": 0,
+                "MITER_LIMIT": 2,
+                "DISSOLVE": True,
+                "SEPARATE_DISJOINT": True,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+        _make_index(hutan_buffer)
+
+        # 8e. Buat kolom identitas untuk setiap feature buffer hutan
+        hutan_buffer_id = processing.run(
+            "qgis:fieldcalculator",
+            {
+                "INPUT": hutan_buffer,
+                "FIELD_NAME": "ID_BUF",
+                "FIELD_TYPE": 1,  # Whole number (integer)
+                "NEW_FIELD": True,
+                "FORMULA": "@row_number",
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # 8f. Dissolve data Hutan Asli (hutan_raw)
+        hutan_dissolve = processing.run(
+            "native:dissolve",
+            {
+                "INPUT": hutan_reproject,
+                "FIELD": [],
+                "SEPARATE_DISJOINT": True,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+        _make_index(hutan_dissolve)
+
+        # 8g. Hituang luas untuk data Hutan Asli (hutan_dissolve)
+        hutan_area = processing.run(
+            "qgis:fieldcalculator",
+            {
+                "INPUT": hutan_dissolve,
+                "FIELD_NAME": "LUAS_HUTAN",
+                "FIELD_TYPE": 0,  # Decimal number (real)
+                "FIELD_PRECISION": 2,
+                "NEW_FIELD": True,
+                "FORMULA": "$area",
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # 8h. Buat kolom luas square pada hutan asli
+        hutan = processing.run(
+            "qgis:fieldcalculator",
+            {
+                "INPUT": hutan_area,
+                "FIELD_NAME": "LUAS_SQ_HUTAN",
+                "FIELD_TYPE": 0,  # Decimal number (real)
+                "FIELD_PRECISION": 3,
+                "NEW_FIELD": True,
+                "FORMULA": "$area * $area",
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # 8i. Join by location antara hutan_buffer_id dengan hutan asli untuk
+        # mendapatkan luas hutan asli dalam setiap buffer
+        hutan_buffer_join = processing.run(
+            "qgis:joinattributesbylocation",
+            {
+                "INPUT": hutan,
+                "JOIN": hutan_buffer_id,
+                "PREDICATE": [0],  # intersects
+                "JOIN_FIELDS": ["ID_BUF"],
+                "METHOD": 0,
+                "DISCARD_NONMATCHING": False,
+                "PREFIX": "",
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # 8j. aggregate EMS (area total is sum of LUAS_HUTAN per ID_BUF)
+        area_ems = processing.run(
+            "native:aggregate",
+            {
+                "INPUT": hutan_buffer_join,
+                "GROUP_BY": "ID_BUF",
+                "AGGREGATES": [
+                    {
+                        "aggregate": "first_value",
+                        "delimiter": ",",
+                        "input": "ID_BUF",
+                        "length": 0,
+                        "name": "ID_BUF",
+                        "type": 2,
+                    },
+                    {
+                        "aggregate": "sum",
+                        "delimiter": ",",
+                        "input": "LUAS_HUTAN",
+                        "length": 0,
+                        "name": "SUM_AREA",
+                        "precision": 2,
+                        "type": 6,
+                    },
+                    {
+                        "aggregate": "sum",
+                        "delimiter": ",",
+                        "input": "LUAS_SQ_HUTAN",
+                        "length": 0,
+                        "name": "SUM_SQ_AREA",
+                        "precision": 2,
+                        "type": 6,
+                    },
+                ],
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+        _make_index(area_ems)
+
+        # 8k. Field calculate EMS and Coherency
+        ems_coherency = processing.run(
+            "qgis:fieldcalculator",
+            {
+                "INPUT": area_ems,
+                "FIELD_NAME": "EMS",
+                "FIELD_TYPE": 0,  # Decimal number (real)
+                "FIELD_PRECISION": 2,
+                "NEW_FIELD": True,
+                "FORMULA": '("SUM_SQ_AREA" / "SUM_AREA")',
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        ems_final = processing.run(
+            "qgis:fieldcalculator",
+            {
+                "INPUT": ems_coherency,
+                "FIELD_NAME": "EMS_COH",
+                "FIELD_TYPE": 0,  # Decimal number (real)
+                "FIELD_PRECISION": 2,
+                "NEW_FIELD": True,
+                "FORMULA": '("EMS" / "SUM_AREA")*100',
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # 8l. Classify Konektivitas Hutan
+        konektivitas_hutan = processing.run(
+            "qgis:fieldcalculator",
+            {
+                "INPUT": ems_final,
+                "FIELD_NAME": "KLS_KONEK",
+                "FIELD_TYPE": 1,  # Text (string)
+                "FIELD_LENGTH": 20,
+                "NEW_FIELD": True,
+                "FORMULA": """
+                    CASE
+                        WHEN "EMS_COH" <= 20 THEN 1
+                        WHEN "EMS_COH" > 20 AND "EMS_COH" <= 39 THEN 2
+                        WHEN "EMS_COH" > 39 AND "EMS_COH" <= 59 THEN 3
+                        WHEN "EMS_COH" > 59 AND "EMS_COH" <= 79 THEN 4
+                        WHEN "EMS_COH" > 79 THEN 5
+                        ELSE 0
+                    END
+                """,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        konektivitas_hutan = processing.run(
+            "native:reprojectlayer",
+            {
+                "INPUT": konektivitas_hutan,
+                "TARGET_CRS": QgsCoordinateReferenceSystem("EPSG:3395"),
+                "CONVERT_CURVED_GEOMETRIES": False,
+                "OPERATION": "+proj=pipeline +step "
+                "+proj=unitconvert +xy_in=deg "
+                "+xy_out=rad +step +proj=merc "
+                "+lon_0=0 +k=1 +x_0=0 +y_0=0 +ellps=WGS84",
+                "OUTPUT": "TEMPORARY_OUTPUT",
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+        _make_index(konektivitas_hutan)
+
+        konektivitas_hutan = processing.run(
+            "native:fixgeometries",
+            {
+                "INPUT": konektivitas_hutan,
+                "METHOD": 1,
+                "OUTPUT": "TEMPORARY_OUTPUT",
+            },
+        )["OUTPUT"]
+        _make_index(konektivitas_hutan)
+
+        konektivitas_hutan = processing.run(
+            "native:buffer",
+            {
+                "INPUT": konektivitas_hutan,
+                "DISTANCE": 2,
+                "SEGMENTS": 5,
+                "END_CAP_STYLE": 0,
+                "JOIN_STYLE": 0,
+                "MITER_LIMIT": 2,
+                "DISSOLVE": False,
+                "SEPARATE_DISJOINT": True,
+                "OUTPUT": "TEMPORARY_OUTPUT",
+            },
+        )["OUTPUT"]
+        _make_index(konektivitas_hutan)
+
+        feedback.pushInfo(
+            "✅ Perhitungan Indeks Konektivitas Hutan selesai."
+        )
+
+        # 9. Menghitung BI dari KLS_KG, RTE, KLS_HAB, KLS_KONEK
+        # 9a. Intersect IKG, habitat, rte, dan konevektivitas hutan
+        _make_index(ikg)
+        _make_index(habitat)
+        intersect_bi = processing.run(
+            "native:union",
+            {
+                "INPUT": ikg,
+                "OVERLAY": habitat,
+                "INPUT_FIELDS": ["KLS_KG"],
+                "OVERLAY_FIELDS": ["KLS_HAB"],
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+        _make_index(intersect_bi)
+
+        intersect_bi_del = processing.run(
+            "native:deleteduplicategeometries",
+            {
+                "INPUT": intersect_bi,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+        )["OUTPUT"]
+
+        intersect_bi_fix = processing.run(
+            "native:fixgeometries",
+            {
+                "INPUT": intersect_bi_del,
+                "METHOD": 1,
+                "OUTPUT": "TEMPORARY_OUTPUT",
+            },
+        )["OUTPUT"]
+        _make_index(intersect_bi_fix)
+
+        intersect_bi2 = processing.run(
+            "native:union",
+            {
+                "INPUT": intersect_bi_fix,
+                "OVERLAY": konektivitas_hutan,
+                "INPUT_FIELDS": ["KLS_KG", "KLS_HAB"],
+                "OVERLAY_FIELDS": ["KLS_KONEK"],
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+        _make_index(intersect_bi2)
+
+        intersect_bi2_del = processing.run(
+            "native:deleteduplicategeometries",
+            {
+                "INPUT": intersect_bi2,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+        )["OUTPUT"]
+
+        intersect_bi2_fix = processing.run(
+            "native:fixgeometries",
+            {
+                "INPUT": intersect_bi2_del,
+                "METHOD": 1,
+                "OUTPUT": "TEMPORARY_OUTPUT",
+            },
+        )["OUTPUT"]
+        _make_index(intersect_bi2_fix)
+
+        intersect_bi3 = processing.run(
+            "native:union",
+            {
+                "INPUT": intersect_bi2_fix,
+                "OVERLAY": rte,
+                "INPUT_FIELDS": ["KLS_KG", "KLS_HAB", "KLS_KONEK"],
+                "OVERLAY_FIELDS": ["KLS_RTE"],
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+        _make_index(intersect_bi3)
+
+        intersect_bi3_del = processing.run(
+            "native:deleteduplicategeometries",
+            {
+                "INPUT": intersect_bi3,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+        )["OUTPUT"]
+
+        intersect_bi3_fix = processing.run(
+            "native:fixgeometries",
+            {
+                "INPUT": intersect_bi3_del,
+                "METHOD": 1,
+                "OUTPUT": "TEMPORARY_OUTPUT",
+            },
+        )["OUTPUT"]
+        _make_index(intersect_bi3_fix)
+
+        # Fill all Null with 0
+        intersect_bi3_fix = processing.run(
+            "qgis:fieldcalculator",
+            {
+                "INPUT": intersect_bi3_fix,
+                "FIELD_NAME": "KLS_KG",
+                "NEW_FIELD": False,
+                "FORMULA": 'if("KLS_KG" is NULL, 0, "KLS_KG")',
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        intersect_bi3_fix = processing.run(
+            "qgis:fieldcalculator",
+            {
+                "INPUT": intersect_bi3_fix,
+                "FIELD_NAME": "KLS_HAB_KK",
+                "FIELD_TYPE": 6,
+                "NEW_FIELD": False,
+                "FORMULA": 'if("KLS_HAB_KK" is NULL, 0, "KLS_HAB_KK")',
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        intersect_bi3_fix = processing.run(
+            "qgis:fieldcalculator",
+            {
+                "INPUT": intersect_bi3_fix,
+                "FIELD_NAME": "KLS_KONEK",
+                "FIELD_TYPE": 6,
+                "NEW_FIELD": False,
+                "FORMULA": 'if("KLS_KONEK" is NULL, 0, "KLS_KONEK")',
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        intersect_bi3_fix = processing.run(
+            "qgis:fieldcalculator",
+            {
+                "INPUT": intersect_bi3_fix,
+                "FIELD_NAME": "KLS_RTE",
+                "FIELD_TYPE": 6,
+                "NEW_FIELD": False,
+                "FORMULA": 'if("KLS_RTE" is NULL, 0, "KLS_RTE")',
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # Hitung BI
+        bi = processing.run(
+            "qgis:fieldcalculator",
+            {
+                "INPUT": intersect_bi3_fix,
+                "FIELD_NAME": "BI",
+                "FIELD_TYPE": 0,  # Decimal number (real)
+                "FIELD_PRECISION": 2,
+                "NEW_FIELD": True,
+                "FORMULA": """
+                    ( "KLS_KG" + "KLS_RTE" + "KLS_HAB_KK" + "KLS_KONEK" ) / 4
+                """,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # Menghitung kelas bi
+        bi = processing.run(
+            "native:fieldcalculator",
+            {
+                "INPUT": bi,
+                "FIELD_NAME": "KLS_BI",
+                "FIELD_TYPE": 1,
+                "NEW_FIELD": True,
+                "FORMULA": """
+                    CASE
+                        WHEN "BI" <=1 THEN 1
+                        WHEN "BI" > 1 AND "BI" <=2 THEN 2
+                        WHEN "BI" > 2 AND "BI" <=3 THEN 3
+                        WHEN "BI" > 3 AND "BI" <=4 THEN 4
+                        WHEN "BI" > 4 THEN 5
+                    END
+                """,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        bi = processing.run(
+            "qgis:refactorfields",
+            {
+                # your input layer (can be a QgsVectorLayer or file path)
+                "INPUT": bi,
+                "FIELDS_MAPPING": [
+                    {
+                        "name": "PROVINSI",
+                        "type": 10,
+                        "expression": '"Provinsi"',
+                    },
+                    {
+                        "name": "KLS_KG",
+                        "type": 6,
+                        "expression": '"KLS_KG"',
+                    },
+                    {
+                        "name": "KLS_RTE",
+                        "type": 6,
+                        "expression": '"KLS_RTE"',
+                    },
+                    {
+                        "name": "KLS_HAB_KK",
+                        "type": 6,
+                        "expression": '"KLS_HAB_KK"',
+                    },
+                    {
+                        "name": "KLS_KONEK",
+                        "type": 6,
+                        "expression": '"KLS_KONEK"',
+                    },
+                    {"name": "BI", "type": 6, "expression": '"BI"'},
+                    {
+                        "name": "KLS_BI",
+                        "type": 6,
+                        "expression": '"KLS_BI"',
+                    },
+                ],
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+        )["OUTPUT"]
+        _make_index(bi)
+
+        feedback.pushInfo("✅ Perhitungan BI selesai.")
+
+        # Hitung IKP Kehati (Tidak Perlu Dirubah)
+        # Gabungkan BCPI dan BI dengan union
+        ikp_kehati = processing.run(
+            "native:intersection",
+            {
+                "INPUT": grid_bcpi,
+                "OVERLAY": bi,
+                "INPUT_FIELDS": [
+                    "ID",
+                    f"PPK_{year}",
+                    f"PGN_{year}",
+                    f"PGA_{year}_KK",
+                    f"PHK_{year}_KK",
+                    "BCPI",
+                    "KLS_BCPI",
+                ],
+                "OVERLAY_FIELDS": [
+                    "KLS_KG",
+                    "KLS_HAB_KK",
+                    "KLS_RTE",
+                    "KLS_KONEK",
+                    "BI",
+                    "KLS_BI",
+                ],
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+                "GRID_SIZE": 0.1,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        ikp_kehati = processing.run(
+            "qgis:fieldcalculator",
+            {
+                "INPUT": ikp_kehati,
+                "FIELD_NAME": "IKPKHT",
+                "FIELD_TYPE": 0,  # Decimal number (real)
+                "FIELD_PRECISION": 2,
+                "NEW_FIELD": True,
+                "FORMULA": '( "BCPI" + "BI" ) / 2',
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # Menghitung skor ikp_kehati
+        kls_ikp_kehati = processing.run(
+            "native:fieldcalculator",
+            {
+                "INPUT": ikp_kehati,
+                "FIELD_NAME": "SIKPKHT",
+                "FIELD_TYPE": 1,
+                "NEW_FIELD": True,
+                "FORMULA": """
+                    CASE
+                        WHEN "IKPKHT" <=1 THEN 1
+                        WHEN "IKPKHT" > 1 AND "IKPKHT" <=2 THEN 2
+                        WHEN "IKPKHT" > 2 AND "IKPKHT" <=3 THEN 3
+                        WHEN "IKPKHT" > 3 AND "IKPKHT" <=4 THEN 4
+                        WHEN "IKPKHT" > 4 THEN 5
+                    END
+                """,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # Menghitung kelas ikp_kehati
+        kls_ikp_kehati = processing.run(
+            "native:fieldcalculator",
+            {
+                "INPUT": kls_ikp_kehati,
+                "FIELD_NAME": "KIKPKHT",
+                "FIELD_TYPE": 2,
+                "NEW_FIELD": True,
+                "FORMULA": """
+                    CASE
+                        WHEN "SIKPKHT" = 1 THEN 'Sangat Rendah'
+                        WHEN "SIKPKHT" = 2 THEN 'Rendah'
+                        WHEN "SIKPKHT" = 3 THEN 'Sedang'
+                        WHEN "SIKPKHT" = 4 THEN 'Tinggi'
+                        WHEN "SIKPKHT" = 5 THEN 'Sangat Tinggi'
+                    END
+                """,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        final_field_mappings = build_field_mappings_ikp(
+            ikp_type=self.IKP,
+            bentuk_output="Poligon",
+            tahun=pl_year,
+            layer=kls_ikp_kehati,
+        )
+
+        kls_ikp_kehati = processing.run(
+            "qgis:refactorfields",
+            {
+                "INPUT": kls_ikp_kehati,
+                "FIELDS_MAPPING": final_field_mappings,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # Gridding IKP
+        grid_ikp_kehati4 = processing.run(
+            "d3tlh:mcagrid",
+            {
+                "GRID": grid,
+                "LAYER2": kls_ikp_kehati,
+                "LAYER2_FIELD": "IKPKHT",
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        grid_ikp_kehati3 = processing.run(
+            "native:deleteduplicategeometries",
+            {
+                "INPUT": grid_ikp_kehati4,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+        )["OUTPUT"]
+
+        final_field_mappings = build_field_mappings_ikp(
+            ikp_type=self.IKP,
+            bentuk_output="Grid",
+            tahun=pl_year,
+            layer=grid_ikp_kehati3,
+        )
+
+        grid_ikp_kehati2 = processing.run(
+            "qgis:refactorfields",
+            {
+                "INPUT": grid_ikp_kehati3,
+                "FIELDS_MAPPING": final_field_mappings,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        grid_ikp_kehati1 = processing.run(
+            "native:fieldcalculator",
+            {
+                "INPUT": grid_ikp_kehati2,
+                "FIELD_NAME": "SIKPKHT",
+                "FIELD_TYPE": 1,
+                "NEW_FIELD": True,
+                "FORMULA": """
+                    CASE
+                        WHEN "IKPKHT" <= 1.4 THEN 1
+                        WHEN "IKPKHT" > 1.4 AND "IKPKHT" <=2.3 THEN 2
+                        WHEN "IKPKHT" > 2.3 AND "IKPKHT" <=3.2 THEN 3
+                        WHEN "IKPKHT" > 3.2 AND "IKPKHT" <=4.1 THEN 4
+                        WHEN "IKPKHT" > 4.1 THEN 5
+                    END
+                """,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        # Menghitung kelas ikp_kehati
+        grid_ikp_kehati = processing.run(
+            "native:fieldcalculator",
+            {
+                "INPUT": grid_ikp_kehati1,
+                "FIELD_NAME": "KIKPKHT",
+                "FIELD_TYPE": 2,
+                "NEW_FIELD": True,
+                "FORMULA": """
+                    CASE
+                        WHEN "SIKPKHT" = 1 THEN 'Sangat Rendah'
+                        WHEN "SIKPKHT" = 2 THEN 'Rendah'
+                        WHEN "SIKPKHT" = 3 THEN 'Sedang'
+                        WHEN "SIKPKHT" = 4 THEN 'Tinggi'
+                        WHEN "SIKPKHT" = 5 THEN 'Sangat Tinggi'
+                    END
+                """,
+                "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+            },
+            context=context,
+            feedback=feedback,
+        )["OUTPUT"]
+
+        feedback.pushInfo(
+            "✅ Standarisasi nama-nama kolom output berhasil"
+        )
+
+        feedback.pushInfo("✅ Perhitungan IKP Kehati selesai.")
+
+        # Output Grid IKP Lahan
+        source = kls_ikp_kehati
+        sink, dest_id = self.parameterAsSink(
+            parameters,
+            self.OUTPUT,
+            context,
+            source.fields(),
+            source.wkbType(),
+            source.sourceCrs(),
+        )
+
+        total = (
+            100.0 / source.featureCount()
+            if source.featureCount()
+            else 0
+        )
+        features = source.getFeatures()
+
+        for current, feature in enumerate(features):
+            # Stop the algorithm if cancel button has been clicked
+            if feedback.isCanceled():
+                break
+
+            # Add a feature in the sink
+            sink.addFeature(feature, QgsFeatureSink.FastInsert)
+
+            # Update the progress bar
+            feedback.setProgress(int(current * total))
+
+        # Output Grid Version
+        source_grid = grid_ikp_kehati
+        sink2, dest_id2 = self.parameterAsSink(
+            parameters,
+            self.OUTPUT_GRID,
+            context,
+            source_grid.fields(),
+            source_grid.wkbType(),
+            source_grid.sourceCrs(),
+        )
+
+        total = (
+            100.0 / source_grid.featureCount()
+            if source_grid.featureCount()
+            else 0
+        )
+        features = source_grid.getFeatures()
+
+        for current, feature in enumerate(features):
+            # Stop the algorithm if cancel button has been clicked
+            if feedback.isCanceled():
+                break
+
+            # Add a feature in the sink
+            sink2.addFeature(feature, QgsFeatureSink.FastInsert)
+
+            # Update the progress bar
+            feedback.setProgress(int(current * total))
+
+        return {self.OUTPUT: dest_id, self.OUTPUT_GRID: dest_id2}
+
+    def name(self):
+        """
+        Returns the algorithm name, used for identifying the algorithm. This
+        string should be fixed for the algorithm, and must not be localised.
+        The name should be unique within each provider. Names should contain
+        lowercase alphanumeric characters only and no spaces or other
+        formatting characters.
+        """
+        return "ikpkehati"
+
+    def displayName(self):
+        """
+        Returns the translated algorithm name, which should be used for any
+        user-visible display of the algorithm name.
+        """
+        return self.tr("IKP Kehati")
+
+    def group(self):
+        """
+        Returns the name of the group this algorithm belongs to. This string
+        should be localised.
+        """
+        return self.tr(self.groupId())
+
+    def groupId(self):
+        """
+        Returns the unique ID of the group this algorithm belongs to. This
+        string should be fixed for the algorithm, and must not be localised.
+        The group id should be unique within each provider. Group id should
+        contain lowercase alphanumeric characters only and no spaces or other
+        formatting characters.
+        """
+        return "E. Indeks Kemampuan Pemanfaatan (IKP)"
+
+    def tr(self, string):
+        return QCoreApplication.translate("Processing", string)
+
+    def icon(self):
+        return QIcon(
+            os.path.join(
+                os.path.dirname(__file__), "05 Carrying Capacity.svg"
+            )
+        )
+
+    def shortHelpString(self):
+        return self.tr(
+            "This module calculates the Biodiversity Utilization Capacity "
+            "Index (IKP Kehati) by evaluating the balance between water "
+            "availability and water demand within each analysis grid.\n\n"
+            "The methodology integrates river basin resources, water quality "
+            "conditions, land cover characteristics, and population pressure "
+            "to estimate the capacity of ecosystems to support biodiversity "
+            "and human activities sustainably.\n\n"
+            "The resulting index can be used to identify areas experiencing "
+            "high environmental pressure and support environmental carrying "
+            "capacity assessments, spatial planning, and D3TLH workflows.\n\n"
+            "<b>Complete explanation read here: "
+            "<a href='https://yayasan-lokahita.github.io/"
+            "otomatisasi_d3tlh-docs/ikp/ikp_kehati/'>here</a>.</b>"
+        )
+
+    def createInstance(self):
+        return IKPKehatiAlgorithm()
